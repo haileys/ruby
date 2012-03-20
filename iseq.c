@@ -172,7 +172,9 @@ static VALUE
 iseq_alloc(VALUE klass)
 {
     rb_iseq_t *iseq;
-    return TypedData_Make_Struct(klass, rb_iseq_t, &iseq_data_type, iseq);
+    VALUE ret = TypedData_Make_Struct(klass, rb_iseq_t, &iseq_data_type, iseq);
+    iseq->doc = Qnil;
+    return ret;
 }
 
 static void
