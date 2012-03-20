@@ -4647,6 +4647,10 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
         if(nd_type(node->nd_defn) == NODE_SCOPE && node->nd_defn->nd_body != 0) {
                 if(nd_type(node->nd_defn->nd_body) == NODE_DOC_STR) {
                         is->doc = node->nd_defn->nd_body->nd_head->nd_lit;
+                } else if(nd_type(node->nd_defn->nd_body) == NODE_BLOCK) {
+                        if(nd_type(node->nd_defn->nd_body->nd_head) == NODE_DOC_STR) {
+                                is->doc = node->nd_defn->nd_body->nd_head->nd_head->nd_lit;
+                        }
                 }
         }
 
