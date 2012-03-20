@@ -704,7 +704,7 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token <node> tNTH_REF tBACK_REF
 %token <num>  tREGEXP_END
 
-%type <node> singleton strings string string1 xstring regexp
+%type <node> singleton strings string string1 xstring regexp opt_doc_string
 %type <node> string_contents xstring_contents regexp_contents string_content
 %type <node> words qwords word_list qword_list word
 %type <node> literal numeric dsym cpath
@@ -760,7 +760,7 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token tAMPER		/* & */
 %token tLAMBDA		/* -> */
 %token tSYMBEG tSTRING_BEG tXSTRING_BEG tREGEXP_BEG tWORDS_BEG tQWORDS_BEG
-%token tSTRING_DBEG tSTRING_DVAR tSTRING_END tLAMBEG
+%token tSTRING_DBEG tSTRING_DVAR tSTRING_END tLAMBEG tDOCBEG
 
 /*
  *	precedence table
@@ -2651,6 +2651,16 @@ mrhs		: args ',' arg_value
 		    }
 		;
 
+opt_doc_string  : tDOCBEG string_contents tSTRING_END
+    		    {
+    		    /*%%%*/
+    			$$ = NEW_DOC_STR($2);
+    		    /*%
+    			$$ = dispatch1(doc_string, $2);
+    		    %*/
+    		    }
+                | none;
+
 primary		: literal
 		| strings
 		| xstring
@@ -3035,13 +3045,14 @@ primary		: literal
 			local_push(0);
 		    }
 		  f_arglist
+		  opt_doc_string
 		  bodystmt
 		  k_end
 		    {
 		    /*%%%*/
-			NODE *body = remove_begin($5);
+			NODE *body = remove_begin($6);
 			reduce_nodes(&body);
-			$$ = NEW_DEFN($2, $4, body, NOEX_PRIVATE);
+			$$ = NEW_DEFN($2, $4, block_append($5, body), NOEX_PRIVATE);
 			nd_set_line($$, $<num>1);
 		    /*%
 			$$ = dispatch3(def, $2, $4, $5);
@@ -3057,6 +3068,7 @@ primary		: literal
 			local_push(0);
 		    }
 		  f_arglist
+//		  opt_doc_string
 		  bodystmt
 		  k_end
 		    {
@@ -7744,6 +7756,11 @@ parser_yylex(struct parser_params *parser)
 		lex_strterm = NEW_STRTERM(str_ssym, term, paren);
 		lex_state = EXPR_FNAME;
 		return tSYMBEG;
+		
+		case 'd':
+            lex_strterm = NEW_STRTERM(str_ssym, term, paren);
+            return tDOCBEG;
+		    
 
 	      default:
 		yyerror("unknown type of %string");

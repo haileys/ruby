@@ -4628,10 +4628,27 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	}
 	break;
       }
+      case NODE_DOC_STR:{
+              /* NODE_DOC_STR is handled by NODE_DEFN and NODE_DEFS so we don't
+                 need to do anything here. however, if its value is used at all,
+                 we need to push nil */
+              if (!poped) {
+      	              ADD_INSN(ret, nd_line(node), putnil);
+              }
+              break;
+      }
       case NODE_DEFN:{
 	VALUE iseqval = NEW_ISEQVAL(node->nd_defn,
 				    rb_str_dup(rb_id2str(node->nd_mid)),
 				    ISEQ_TYPE_METHOD, nd_line(node));
+        rb_iseq_t* is;
+        GetISeqPtr(iseqval, is);
+        is->doc = Qnil;
+        if(nd_type(node->nd_defn) == NODE_SCOPE && node->nd_defn->nd_body != 0) {
+                if(nd_type(node->nd_defn->nd_body) == NODE_DOC_STR) {
+                        is->doc = node->nd_defn->nd_body->nd_head->nd_lit;
+                }
+        }
 
 	debugp_param("defn/iseq", iseqval);
 

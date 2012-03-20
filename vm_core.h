@@ -166,6 +166,7 @@ struct rb_iseq_struct {
     } type;              /* instruction sequence type */
 
     VALUE name;	         /* String: iseq name */
+    VALUE doc;           /* doc string, may be string or nil */
     VALUE filename;      /* file information where this sequence from */
     VALUE filepath;      /* real file path or nil */
     VALUE *iseq;         /* iseq (insn number and operands) */

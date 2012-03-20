@@ -136,6 +136,8 @@ enum node_type {
 #define NODE_LIT         NODE_LIT
     NODE_STR,
 #define NODE_STR         NODE_STR
+    NODE_DOC_STR,
+#define NODE_DOC_STR     NODE_DOC_STR
     NODE_DSTR,
 #define NODE_DSTR        NODE_DSTR
     NODE_XSTR,
@@ -410,6 +412,7 @@ typedef struct RNode {
 #define NEW_LIT(l) NEW_NODE(NODE_LIT,l,0,0)
 #define NEW_STR(s) NEW_NODE(NODE_STR,s,0,0)
 #define NEW_DSTR(s) NEW_NODE(NODE_DSTR,s,1,0)
+#define NEW_DOC_STR(s) NEW_NODE(NODE_DOC_STR,s,0,0)
 #define NEW_XSTR(s) NEW_NODE(NODE_XSTR,s,0,0)
 #define NEW_DXSTR(s) NEW_NODE(NODE_DXSTR,s,0,0)
 #define NEW_DSYM(s) NEW_NODE(NODE_DSYM,s,0,0)

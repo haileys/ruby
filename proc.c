@@ -1166,6 +1166,19 @@ method_owner(VALUE obj)
     return data->me->klass;
 }
 
+/*
+ *  call-seq:
+ *     meth.doc     -> string
+ *
+ *  Returns the doc string associated with the method, or nil
+ */
+
+static VALUE
+method_doc(VALUE obj)
+{
+        return rb_method_get_iseq(obj)->doc;
+}
+
 void
 rb_method_name_error(VALUE klass, VALUE str)
 {
@@ -2230,6 +2243,7 @@ Init_Proc(void)
     rb_define_method(rb_cMethod, "unbind", method_unbind, 0);
     rb_define_method(rb_cMethod, "source_location", rb_method_location, 0);
     rb_define_method(rb_cMethod, "parameters", rb_method_parameters, 0);
+    rb_define_method(rb_cMethod, "doc", method_doc, 0);
     rb_define_method(rb_mKernel, "method", rb_obj_method, 1);
     rb_define_method(rb_mKernel, "public_method", rb_obj_public_method, 1);
 
@@ -2246,6 +2260,7 @@ Init_Proc(void)
     rb_define_method(rb_cUnboundMethod, "to_s", method_inspect, 0);
     rb_define_method(rb_cUnboundMethod, "name", method_name, 0);
     rb_define_method(rb_cUnboundMethod, "owner", method_owner, 0);
+    rb_define_method(rb_cUnboundMethod, "doc", method_doc, 0);
     rb_define_method(rb_cUnboundMethod, "bind", umethod_bind, 1);
     rb_define_method(rb_cUnboundMethod, "source_location", rb_method_location, 0);
     rb_define_method(rb_cUnboundMethod, "parameters", rb_method_parameters, 0);
