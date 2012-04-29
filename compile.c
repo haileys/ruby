@@ -4674,6 +4674,19 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 				    rb_str_dup(rb_id2str(node->nd_mid)),
 				    ISEQ_TYPE_METHOD, nd_line(node));
 
+        rb_iseq_t* is;
+        GetISeqPtr(iseqval, is);
+        is->doc = Qnil;
+        if(nd_type(node->nd_defn) == NODE_SCOPE && node->nd_defn->nd_body != 0) {
+                if(nd_type(node->nd_defn->nd_body) == NODE_DOC_STR) {
+                        is->doc = node->nd_defn->nd_body->nd_head->nd_lit;
+                } else if(nd_type(node->nd_defn->nd_body) == NODE_BLOCK) {
+                        if(nd_type(node->nd_defn->nd_body->nd_head) == NODE_DOC_STR) {
+                               is->doc = node->nd_defn->nd_body->nd_head->nd_head->nd_lit;
+                        }
+                }
+        }
+
 	debugp_param("defs/iseq", iseqval);
 
 	ADD_INSN1(ret, nd_line(node), putspecialobject, INT2FIX(VM_SPECIAL_OBJECT_VMCORE));

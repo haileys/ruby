@@ -3068,12 +3068,12 @@ primary		: literal
 			local_push(0);
 		    }
 		  f_arglist
-//		  opt_doc_string
+		  opt_doc_string
 		  bodystmt
 		  k_end
 		    {
 		    /*%%%*/
-			NODE *body = remove_begin($8);
+			NODE *body = remove_begin($9);
 			reduce_nodes(&body);
 			$$ = NEW_DEFS($2, $5, $7, body);
 			nd_set_line($$, $<num>1);
