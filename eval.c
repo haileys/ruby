@@ -1291,6 +1291,37 @@ rb_mod_refinements(VALUE module)
     return result;
 }
 
+static int
+active_refinements_i(VALUE _, VALUE mod, VALUE ary)
+{
+    ID id_defined_at;
+    CONST_ID(id_defined_at, "__defined_at__");
+    rb_ary_push(ary, rb_attr_get(RBASIC(mod)->klass, id_defined_at));
+    return ST_CONTINUE;
+}
+
+/*
+ *  call-seq:
+ *     active_refinements -> array
+ *
+ *  Returns an array of all active refinements in the current scope.
+ */
+static VALUE
+rb_f_active_refinements(void)
+{
+    NODE *cref = rb_vm_cref();
+    VALUE ary = rb_ary_new();
+
+    while(cref) {
+	if(!NIL_P(cref->nd_refinements)) {
+	    rb_hash_foreach(cref->nd_refinements, active_refinements_i, ary);
+	}
+	cref = cref->nd_next;
+    }
+
+    return ary;
+}
+
 void
 rb_obj_call_init(VALUE obj, int argc, VALUE *argv)
 {
@@ -1601,6 +1632,8 @@ Init_eval(void)
     rb_define_global_function("__method__", rb_f_method_name, 0);
     rb_define_global_function("__callee__", rb_f_callee_name, 0);
     rb_define_global_function("__dir__", f_current_dirname, 0);
+    
+    rb_define_global_function("active_refinements", rb_f_active_refinements, 0);
 
     rb_define_private_method(rb_cModule, "append_features", rb_mod_append_features, 1);
     rb_define_private_method(rb_cModule, "extend_object", rb_mod_extend_object, 1);
