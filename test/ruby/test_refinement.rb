@@ -823,7 +823,7 @@ class TestRefinement < Test::Unit::TestCase
     end
   end
   
-  module ActiveRefinements
+  module VisibleRefinements
     module RefA
       refine Object do
         def in_ref_a
@@ -861,11 +861,11 @@ class TestRefinement < Test::Unit::TestCase
     end
   end
 
-  def test_active_refinements
-    ref = ActiveRefinements
-    assert_equal [], active_refinements
-    assert_equal [ref::RefB], ref::Foo.module_eval { active_refinements }
-    assert_equal [ref::RefC, ref::RefA], ref::Bar.module_eval { active_refinements }
-    assert_equal [ref::RefC, ref::RefA, ref::RefB], ref::Combined.module_eval { active_refinements }
+  def test_visible_refinements
+    ref = VisibleRefinements
+    assert_equal [], visible_refinements
+    assert_equal [ref::RefB], ref::Foo.module_eval { visible_refinements }
+    assert_equal [ref::RefC, ref::RefA], ref::Bar.module_eval { visible_refinements }
+    assert_equal [ref::RefC, ref::RefA, ref::RefB], ref::Combined.module_eval { visible_refinements }
   end
 end
