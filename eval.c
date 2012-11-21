@@ -1296,7 +1296,10 @@ active_refinements_i(VALUE _, VALUE mod, VALUE ary)
 {
     ID id_defined_at;
     CONST_ID(id_defined_at, "__defined_at__");
-    rb_ary_push(ary, rb_attr_get(RBASIC(mod)->klass, id_defined_at));
+    while(FL_TEST(rb_class_of(mod), RMODULE_IS_REFINEMENT)) {
+	rb_ary_push(ary, rb_attr_get(rb_class_of(mod), id_defined_at));
+	mod = RCLASS_SUPER(mod);
+    }
     return ST_CONTINUE;
 }
 
@@ -1319,7 +1322,7 @@ rb_f_active_refinements(void)
 	cref = cref->nd_next;
     }
 
-    return ary;
+    return rb_funcall(ary, rb_intern("uniq"), 0);
 }
 
 void
