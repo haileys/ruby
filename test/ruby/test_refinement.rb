@@ -861,11 +861,11 @@ class TestRefinement < Test::Unit::TestCase
     end
   end
 
-  def test_visible_refinements
+  def test_used_refinements
     ref = VisibleRefinements
-    assert_equal [], visible_refinements
-    assert_equal [ref::RefB], ref::Foo.module_eval { visible_refinements }
-    assert_equal [ref::RefC, ref::RefA], ref::Bar.module_eval { visible_refinements }
-    assert_equal [ref::RefC, ref::RefA, ref::RefB], ref::Combined.module_eval { visible_refinements }
+    assert_equal [], used_refinements
+    assert_equal [ref::RefB], ref::Foo.module_eval { used_refinements }
+    assert_equal [ref::RefC, ref::RefA], ref::Bar.module_eval { used_refinements }
+    assert_equal [ref::RefC, ref::RefA, ref::RefB], ref::Combined.module_eval { used_refinements }
   end
 end

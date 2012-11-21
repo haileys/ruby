@@ -1292,7 +1292,7 @@ rb_mod_refinements(VALUE module)
 }
 
 static int
-visible_refinements_i(VALUE _, VALUE mod, VALUE ary)
+used_refinements_i(VALUE _, VALUE mod, VALUE ary)
 {
     ID id_defined_at;
     CONST_ID(id_defined_at, "__defined_at__");
@@ -1305,7 +1305,7 @@ visible_refinements_i(VALUE _, VALUE mod, VALUE ary)
 
 /*
  *  call-seq:
- *     visible_refinements -> array
+ *     used_refinements -> array
  *
  *  Returns an array of all active refinements in the current scope. The
  *  ordering of modules in the resulting array is not defined.
@@ -1328,9 +1328,9 @@ visible_refinements_i(VALUE _, VALUE mod, VALUE ary)
  *     end
  *
  *     using A
- *     p visible_refinements
+ *     p used_refinements
  *
- *     C.module_eval { p visible_refinements }
+ *     C.module_eval { p used_refinements }
  *
  *  <em>produces:</em>
  *
@@ -1338,14 +1338,14 @@ visible_refinements_i(VALUE _, VALUE mod, VALUE ary)
  *     [C, B, A]
  */
 static VALUE
-rb_f_visible_refinements(void)
+rb_f_used_refinements(void)
 {
     NODE *cref = rb_vm_cref();
     VALUE ary = rb_ary_new();
 
     while(cref) {
 	if(!NIL_P(cref->nd_refinements)) {
-	    rb_hash_foreach(cref->nd_refinements, visible_refinements_i, ary);
+	    rb_hash_foreach(cref->nd_refinements, used_refinements_i, ary);
 	}
 	cref = cref->nd_next;
     }
@@ -1664,7 +1664,7 @@ Init_eval(void)
     rb_define_global_function("__callee__", rb_f_callee_name, 0);
     rb_define_global_function("__dir__", f_current_dirname, 0);
     
-    rb_define_global_function("visible_refinements", rb_f_visible_refinements, 0);
+    rb_define_global_function("used_refinements", rb_f_used_refinements, 0);
 
     rb_define_private_method(rb_cModule, "append_features", rb_mod_append_features, 1);
     rb_define_private_method(rb_cModule, "extend_object", rb_mod_extend_object, 1);
