@@ -822,4 +822,50 @@ class TestRefinement < Test::Unit::TestCase
       end
     end
   end
+  
+  module ActiveRefinements
+    module RefA
+      refine Object do
+        def in_ref_a
+        end
+      end
+    end
+
+    module RefB
+      refine Object do
+        def in_ref_b
+        end
+      end
+    end
+
+    module RefC
+      using RefA
+      
+      refine Object do
+        def in_ref_c
+        end
+      end
+    end
+
+    module Foo
+      using RefB
+    end
+
+    module Bar
+      using RefC
+    end
+    
+    module Combined
+      using Foo
+      using Bar
+    end
+  end
+
+  def test_active_refinements
+    ref = ActiveRefinements
+    assert_equal [], active_refinements
+    assert_equal [ref::RefB], ref::Foo.module_eval { active_refinements }
+    assert_equal [ref::RefC, ref::RefA], ref::Bar.module_eval { active_refinements }
+    assert_equal [ref::RefC, ref::RefA, ref::RefB], ref::Combined.module_eval { active_refinements }
+  end
 end
