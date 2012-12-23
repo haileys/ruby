@@ -264,7 +264,8 @@ refcvar
 ()
 (VALUE ref)
 {
-    ref = rb_ref_cvar(GET_SELF(), var);
+    NODE *cref = rb_vm_get_cref(GET_ISEQ(), GET_EP());
+    ref = rb_ref_cvar(vm_get_cvar_base(cref, GET_CFP()), var);
 }
 
 /**********************************************************/
