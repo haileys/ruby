@@ -147,14 +147,19 @@ ref_value_set(VALUE self, VALUE val)
     switch(ref->type) {
       case REF_NONE:
         rb_raise(rb_eTypeError, "Can't get value of uninitialized reference");
+	break;
       case REF_LOCAL:
         rb_raise(rb_eRuntimeError, "TODO");
+	break;
       case REF_IVAR:
         rb_ivar_set(ref->as.ivar.self, ref->as.ivar.var, val);
+	break;
       case REF_CVAR:
         rb_cvar_set(ref->as.cvar.self, ref->as.cvar.var, val);
+	break;
       case REF_GVAR:
         rb_gvar_set(ref->as.global, val);
+	break;
     }
     return val;
 }
