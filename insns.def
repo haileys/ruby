@@ -249,6 +249,23 @@ setglobal
     SET_GLOBAL((VALUE)entry, val);
 }
 
+DEFINE_INSN
+refivar
+(ID var)
+()
+(VALUE ref)
+{
+    ref = rb_ref_ivar(GET_SELF(), var);
+}
+
+DEFINE_INSN
+refcvar
+(ID var)
+()
+(VALUE ref)
+{
+    ref = rb_ref_cvar(GET_SELF(), var);
+}
 
 /**********************************************************/
 /* deal with values                                       */
