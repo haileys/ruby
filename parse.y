@@ -2586,6 +2586,21 @@ primary		: literal
 		    {
 			$$ = NEW_GVAR_REF($2);
 		    }
+		| '\\' tIDENTIFIER
+		    {
+			if(dyna_in_block() && dvar_defined($2)) {
+			    fprintf(stderr, "using dvar_ref\n");
+			    $$ = NEW_DVAR_REF($2);
+			} else {
+			    /* if not a local variable, use this as an implicit definition */
+			    if(!local_id($2)) {
+				dyna_var($2);
+				$$ = NEW_LVAR_REF($2);
+			    } else {
+				$$ = NEW_LVAR_REF($2);
+			    }
+			}
+		    }
 		| tFID
 		    {
 		    /*%%%*/
