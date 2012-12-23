@@ -116,12 +116,18 @@ enum node_type {
 #define NODE_DVAR        NODE_DVAR
     NODE_GVAR,
 #define NODE_GVAR        NODE_GVAR
+    NODE_GVAR_REF,
+#define NODE_GVAR_REF    NODE_GVAR_REF
     NODE_IVAR,
 #define NODE_IVAR        NODE_IVAR
+    NODE_IVAR_REF,
+#define NODE_IVAR_REF    NODE_IVAR_REF
     NODE_CONST,
 #define NODE_CONST       NODE_CONST
     NODE_CVAR,
 #define NODE_CVAR        NODE_CVAR
+    NODE_CVAR_REF,
+#define NODE_CVAR_REF    NODE_CVAR_REF
     NODE_NTH_REF,
 #define NODE_NTH_REF     NODE_NTH_REF
     NODE_BACK_REF,
@@ -400,11 +406,14 @@ typedef struct RNode {
 #define NEW_OP_ASGN_OR(i,val) NEW_NODE(NODE_OP_ASGN_OR,i,val,0)
 #define NEW_OP_ASGN_AND(i,val) NEW_NODE(NODE_OP_ASGN_AND,i,val,0)
 #define NEW_GVAR(v) NEW_NODE(NODE_GVAR,v,0,rb_global_entry(v))
+#define NEW_GVAR_REF(v) NEW_NODE(NODE_LIT,rb_ref_global(rb_global_entry(v)),0,0)
 #define NEW_LVAR(v) NEW_NODE(NODE_LVAR,v,0,0)
 #define NEW_DVAR(v) NEW_NODE(NODE_DVAR,v,0,0)
 #define NEW_IVAR(v) NEW_NODE(NODE_IVAR,v,0,0)
+#define NEW_IVAR_REF(v) NEW_NODE(NODE_IVAR_REF,v,0,0)
 #define NEW_CONST(v) NEW_NODE(NODE_CONST,v,0,0)
 #define NEW_CVAR(v) NEW_NODE(NODE_CVAR,v,0,0)
+#define NEW_CVAR_REF(v) NEW_NODE(NODE_CVAR_REF,v,0,0)
 #define NEW_NTH_REF(n)  NEW_NODE(NODE_NTH_REF,0,n,0)
 #define NEW_BACK_REF(n) NEW_NODE(NODE_BACK_REF,0,n,0)
 #define NEW_MATCH(c) NEW_NODE(NODE_MATCH,c,0,0)
