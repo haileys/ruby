@@ -251,6 +251,7 @@ VALUE rb_reg_compile(VALUE str, int options, const char *sourcefile, int sourcel
 VALUE rb_reg_check_preprocess(VALUE);
 
 /* ref.c */
+VALUE rb_ref_local(VALUE env, size_t index);
 VALUE rb_ref_ivar(VALUE self, ID var);
 VALUE rb_ref_cvar(VALUE self, ID var);
 struct rb_global_entry;

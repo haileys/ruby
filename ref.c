@@ -1,4 +1,5 @@
 #include "ruby/ruby.h"
+#include "vm_core.h"
 #include "node.h"
 #include "gc.h"
 
@@ -17,7 +18,8 @@ typedef struct {
     rb_ref_type_t type;
     union {
 	struct {
-	    int index;
+	    VALUE env;
+	    size_t index;
 	} local;
 	struct {
 	    VALUE self;
@@ -38,6 +40,7 @@ ref_mark(void *ptr)
 	  case REF_NONE:
 	    break;
           case REF_LOCAL:
+	    RUBY_MARK_UNLESS_NULL(ref->as.local.env);
             break;
           case REF_IVAR:
           case REF_CVAR:
@@ -85,6 +88,18 @@ ref_alloc(VALUE klass)
 }
 
 VALUE
+rb_ref_local(VALUE env, size_t idx)
+{
+    VALUE refv = ref_alloc(rb_cRef);
+    rb_ref_t* ref;
+    TypedData_Get_Struct(refv, rb_ref_t, &ref_data_type, ref);
+    ref->type = REF_LOCAL;
+    ref->as.local.env = env;
+    ref->as.local.index = idx;
+    return refv;
+}
+
+VALUE
 rb_ref_ivar(VALUE self, ID var)
 {
     VALUE refv = ref_alloc(rb_cRef);
@@ -119,6 +134,14 @@ rb_ref_global(struct rb_global_entry* ge)
     return refv;
 }
 
+static VALUE*
+local_ref(rb_ref_t* ref)
+{
+    rb_env_t* env;
+    GetEnvPtr(ref->as.local.env, env);
+    return env->env + env->local_size - ref->as.local.index;
+}
+
 static VALUE
 ref_value(VALUE self)
 {
@@ -128,7 +151,7 @@ ref_value(VALUE self)
       case REF_NONE:
         rb_raise(rb_eTypeError, "Can't get value of uninitialized reference");
       case REF_LOCAL:
-        rb_raise(rb_eRuntimeError, "TODO");
+	return *local_ref(ref);
       case REF_IVAR:
         return rb_ivar_get(ref->as.ivar.self, ref->as.ivar.var);
       case REF_CVAR:
@@ -149,7 +172,7 @@ ref_value_set(VALUE self, VALUE val)
         rb_raise(rb_eTypeError, "Can't get value of uninitialized reference");
 	break;
       case REF_LOCAL:
-        rb_raise(rb_eRuntimeError, "TODO");
+	*local_ref(ref) = val;
 	break;
       case REF_IVAR:
         rb_ivar_set(ref->as.ivar.self, ref->as.ivar.var, val);
