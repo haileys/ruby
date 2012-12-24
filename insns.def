@@ -250,6 +250,23 @@ setglobal
 }
 
 DEFINE_INSN
+reflocal
+(lindex_t idx, rb_num_t level)
+()
+(VALUE ref)
+{
+    int i, lev = (int)level;
+    VALUE env, *ep = GET_EP();
+
+    for(i = 0; i < lev; i++) {
+	ep = GET_PREV_EP(ep);
+    }
+
+    env = ep[1]; /* ep[1] holds the env val referencing the ep */
+    ref = rb_ref_local(env, idx);
+}
+
+DEFINE_INSN
 refivar
 (ID var)
 ()

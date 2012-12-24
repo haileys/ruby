@@ -4517,6 +4517,14 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	}
 	break;
       }
+      case NODE_LVAR_REF:{
+	if (!poped) {
+	    ID id = node->nd_vid;
+	    int idx = iseq->local_iseq->local_size - get_local_var_idx(iseq, id);
+	    ADD_INSN2(ret, nd_line(node), reflocal, INT2FIX(idx), INT2FIX(get_lvar_level(iseq)));
+	}
+	break;
+      }
       case NODE_LVAR:{
 	if (!poped) {
 	    ID id = node->nd_vid;
@@ -4524,6 +4532,17 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 
 	    debugs("id: %s idx: %d\n", rb_id2name(id), idx);
 	    ADD_INSN2(ret, nd_line(node), getlocal, INT2FIX(idx), INT2FIX(get_lvar_level(iseq)));
+	}
+	break;
+      }
+      case NODE_DVAR_REF:{
+	int lv, idx, ls;
+	if (!poped) {
+	    idx = get_dyna_var_idx(iseq, node->nd_vid, &lv, &ls);
+	    if (idx < 0) {
+		rb_bug("unknown dvar (%s)", rb_id2name(node->nd_vid));
+	    }
+	    ADD_INSN2(ret, nd_line(node), reflocal, INT2FIX(ls - idx), INT2FIX(lv));
 	}
 	break;
       }
