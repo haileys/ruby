@@ -2589,7 +2589,6 @@ primary		: literal
 		| '\\' tIDENTIFIER
 		    {
 			if(dyna_in_block() && dvar_defined($2)) {
-			    fprintf(stderr, "using dvar_ref\n");
 			    $$ = NEW_DVAR_REF($2);
 			} else {
 			    /* if not a local variable, use this as an implicit definition */
