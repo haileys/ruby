@@ -120,7 +120,7 @@ Init_version(void)
     /*
      * The SVN revision for this ruby.
      */
-    rb_define_global_const("RUBY_REVISION", INT2FIX(RUBY_REVISION));
+    rb_define_global_const("RUBY_REVISION", rb_obj_freeze(rb_str_new_cstr(RUBY_REVISION)));
     /*
      * The full ruby version string, like <tt>ruby -v</tt> prints'
      */

@@ -1,7 +1,6 @@
 #define RUBY_VERSION "2.0.0"
 #define RUBY_RELEASE_DATE "2013-01-20"
 #define RUBY_PATCHLEVEL -1
-#define RUBY_BRANCH_NAME "trunk"
 
 #define RUBY_RELEASE_YEAR 2013
 #define RUBY_RELEASE_MONTH 1
@@ -26,22 +25,18 @@
 #ifndef RUBY_REVISION
 # include "revision.h"
 #endif
-# ifndef RUBY_REVISION
-# define RUBY_REVISION 0
+#ifndef RUBY_REVISION
+# define RUBY_REVISION "(unknown)"
 #endif
 
-#if RUBY_REVISION
-# ifdef RUBY_BRANCH_NAME
-#  define RUBY_REVISION_STR " "RUBY_BRANCH_NAME" "STRINGIZE(RUBY_REVISION)
-# else
-#  define RUBY_REVISION_STR " revision "STRINGIZE(RUBY_REVISION)
-# endif
+#ifdef RUBY_REVISION
+# define RUBY_REVISION_STR " " RUBY_REVISION
 #else
 # define RUBY_REVISION_STR ""
 #endif
 
 # define RUBY_DESCRIPTION	    \
-    "ruby "RUBY_VERSION		    \
+    "charlie-ruby "RUBY_VERSION	    \
     RUBY_PATCHLEVEL_STR		    \
     " ("RUBY_RELEASE_DATE	    \
     RUBY_REVISION_STR") "	    \

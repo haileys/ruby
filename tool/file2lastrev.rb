@@ -96,8 +96,8 @@ class VCS
     register(".git")
 
     def self.get_revisions(path)
-      logcmd = %Q[git log -n1 --grep="^ *git-svn-id: .*@[0-9][0-9]* "]
-      idpat = /git-svn-id: .*?@(\d+) \S+\Z/
+      logcmd = %Q[git log -n1]
+      idpat = /\Acommit ([0-9a-f]{7})/i
       last = `#{logcmd}`[idpat, 1]
       changed = path ? `#{logcmd} "#{path}"`[idpat, 1] : last
       [last, changed]
@@ -152,9 +152,9 @@ case @output
 when :changed, nil
   puts changed
 when :revision_h
-  puts "#define RUBY_REVISION #{changed.to_i}"
+  puts "#define RUBY_REVISION #{changed.inspect}"
 when :doxygen
-  puts "r#{changed}/r#{last}"
+  puts "#{changed}/#{last}"
 else
   raise "unknown output format `#{@output}'"
 end
