@@ -89,6 +89,7 @@ y.tab.c
 /verconf.h
 /web
 /yasmdata.rb
+/inst
 
 # /benchmark/
 /benchmark/bmx_*.rb
