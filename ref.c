@@ -5,6 +5,12 @@
 
 VALUE rb_cRef;
 
+static VALUE
+sym_local,
+sym_ivar,
+sym_cvar,
+sym_global;
+
 typedef enum {
     REF_NONE,
     REF_LOCAL,
@@ -187,6 +193,47 @@ ref_value_set(VALUE self, VALUE val)
     return val;
 }
 
+static VALUE
+ref_inspect(VALUE self)
+{
+    rb_ref_t* ref;
+    TypedData_Get_Struct(self, rb_ref_t, &ref_data_type, ref);
+    switch(ref->type) {
+	case REF_NONE:
+	    return rb_str_new_cstr("#<Ref:(uninitialized)>");
+	case REF_LOCAL:
+	    return rb_str_new_cstr("#<Ref:(local)>");
+	case REF_IVAR:
+	case REF_CVAR:
+	    return rb_sprintf("#<Ref:%"PRIsVALUE" %s>", ref->as.ivar.self, rb_id2name(ref->as.ivar.var));
+	case REF_GVAR:
+	    return rb_sprintf("#<Ref:%s>", rb_id2name(ref->as.global->id));
+	default:
+	    rb_bug("unknown ref->type");
+    }
+}
+
+static VALUE
+ref_type(VALUE self)
+{
+    rb_ref_t* ref;
+    TypedData_Get_Struct(self, rb_ref_t, &ref_data_type, ref);
+    switch(ref->type) {
+	case REF_NONE:
+	    return Qnil;
+	case REF_LOCAL:
+	    return sym_local;
+	case REF_IVAR:
+	    return sym_ivar;
+	case REF_CVAR:
+	    return sym_cvar;
+	case REF_GVAR:
+	    return sym_global;
+	default:
+	    rb_bug("unknown ref->type");
+    }
+}
+
 void
 Init_ref()
 {
@@ -194,5 +241,12 @@ Init_ref()
     rb_define_alloc_func(rb_cRef, ref_alloc);
     rb_define_method(rb_cRef, "value", ref_value, 0);
     rb_define_method(rb_cRef, "value=", ref_value_set, 1);
+    rb_define_method(rb_cRef, "inspect", ref_inspect, 0);
+    rb_define_method(rb_cRef, "type", ref_type, 0);
+
+    sym_local  = ID2SYM(rb_intern("local"));
+    sym_ivar   = ID2SYM(rb_intern("ivar"));
+    sym_cvar   = ID2SYM(rb_intern("cvar"));
+    sym_global = ID2SYM(rb_intern("global"));
 }
 
