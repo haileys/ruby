@@ -72,6 +72,7 @@ COMMONOBJS    = array.$(OBJEXT) \
 		regexec.$(OBJEXT) \
 		regparse.$(OBJEXT) \
 		regsyntax.$(OBJEXT) \
+		ref.$(OBJEXT) \
 		ruby.$(OBJEXT) \
 		safe.$(OBJEXT) \
 		signal.$(OBJEXT) \
@@ -722,6 +723,8 @@ regparse.$(OBJEXT): {$(VPATH)}regparse.c {$(VPATH)}regparse.h \
   $(RUBY_H_INCLUDES)
 regsyntax.$(OBJEXT): {$(VPATH)}regsyntax.c {$(VPATH)}regint.h \
   {$(VPATH)}regenc.h {$(VPATH)}oniguruma.h $(RUBY_H_INCLUDES)
+ref.$(OBJEXT): {$(VPATH)}ref.c {$(VPATH)}ruby.h {$(VPATH)}vm_core.h \
+  {$(VPATH)}node.h {$(VPATH)}gc.h
 ruby.$(OBJEXT): {$(VPATH)}ruby.c $(RUBY_H_INCLUDES) {$(VPATH)}util.h \
   $(ENCODING_H_INCLUDES) {$(VPATH)}eval_intern.h $(VM_CORE_H_INCLUDES) \
   {$(VPATH)}dln.h {$(VPATH)}internal.h

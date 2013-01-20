@@ -813,6 +813,7 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token tDSTAR		"**arg"
 %token tAMPER		"&"
 %token tLAMBDA		"->"
+%token tREF		"\\"
 %token tSYMBEG tSTRING_BEG tXSTRING_BEG tREGEXP_BEG tWORDS_BEG tQWORDS_BEG tSYMBOLS_BEG tQSYMBOLS_BEG
 %token tSTRING_DBEG tSTRING_DEND tSTRING_DVAR tSTRING_END tLAMBEG
 
@@ -2572,6 +2573,32 @@ primary		: literal
 		| qsymbols
 		| var_ref
 		| backref
+		| '\\' tIVAR
+		    {
+			$$ = NEW_IVAR_REF($2);
+		    }
+		| '\\' tCVAR
+		    {
+			$$ = NEW_CVAR_REF($2);
+		    }
+		| '\\' tGVAR
+		    {
+			$$ = NEW_GVAR_REF($2);
+		    }
+		| '\\' tIDENTIFIER
+		    {
+			if(dyna_in_block() && dvar_defined($2)) {
+			    $$ = NEW_DVAR_REF($2);
+			} else {
+			    /* if not a local variable, use this as an implicit definition */
+			    if(!local_id($2)) {
+				dyna_var($2);
+				$$ = NEW_LVAR_REF($2);
+			    } else {
+				$$ = NEW_LVAR_REF($2);
+			    }
+			}
+		    }
 		| tFID
 		    {
 		    /*%%%*/

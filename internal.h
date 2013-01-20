@@ -252,6 +252,13 @@ VALUE rb_rational_reciprocal(VALUE x);
 VALUE rb_reg_compile(VALUE str, int options, const char *sourcefile, int sourceline);
 VALUE rb_reg_check_preprocess(VALUE);
 
+/* ref.c */
+VALUE rb_ref_local(VALUE env, size_t index);
+VALUE rb_ref_ivar(VALUE self, ID var);
+VALUE rb_ref_cvar(VALUE self, ID var);
+struct rb_global_entry;
+VALUE rb_ref_global(struct rb_global_entry* ge);
+
 /* signal.c */
 int rb_get_next_signal(void);
 int rb_sigaltstack_size(void);
