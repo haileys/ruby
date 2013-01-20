@@ -20,7 +20,11 @@
 #include "probes.h"
 
 #ifdef __APPLE__
-#include <crt_externs.h>
+# ifdef HAVE_CRT_EXTERNS_H
+#  include <crt_externs.h>
+# else
+#  include "missing/crt_externs.h"
+# endif
 #endif
 
 static VALUE rb_hash_s_try_convert(VALUE, VALUE);
@@ -1875,11 +1879,11 @@ rb_hash_update_block_i(VALUE key, VALUE value, VALUE hash)
  *     hsh.merge!(other_hash){|key, oldval, newval| block}    -> hsh
  *     hsh.update(other_hash){|key, oldval, newval| block}    -> hsh
  *
- *  Adds the contents of <i>other_hash</i> to <i>hsh</i>.  If no
- *  block is specified, entries with duplicate keys are overwritten
- *  with the values from <i>other_hash</i>, otherwise the value
- *  of each duplicate key is determined by calling the block with
- *  the key, its value in <i>hsh</i> and its value in <i>other_hash</i>.
+ *  Adds the contents of _other_hash_ to _hsh_.  If no block is specified,
+ *  entries with duplicate keys are overwritten with the values from
+ *  _other_hash_, otherwise the value of each duplicate key is determined by
+ *  calling the block with the key, its value in _hsh_ and its value in
+ *  _other_hash_.
  *
  *     h1 = { "a" => 100, "b" => 200 }
  *     h2 = { "b" => 254, "c" => 300 }
@@ -2972,7 +2976,7 @@ env_size(void)
 
     rb_secure(4);
     env = GET_ENVIRON(environ);
-    for(i=0; env[i]; i++)
+    for (i=0; env[i]; i++)
 	;
     FREE_ENVIRON(environ);
     return INT2FIX(i);

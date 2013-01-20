@@ -133,7 +133,7 @@ module Test
   module Unit
     module Assertions
       public
-      def assert_valid_syntax(code, fname, mesg = fname)
+      def assert_valid_syntax(code, fname = caller_locations(1, 1)[0], mesg = fname.to_s)
         code = code.dup.force_encoding("ascii-8bit")
         code.sub!(/\A(?:\xef\xbb\xbf)?(\s*\#.*$)*(\n)?/n) {
           "#$&#{"\n" if $1 && !$2}BEGIN{throw tag, :ok}\n"
@@ -141,15 +141,47 @@ module Test
         code.force_encoding("us-ascii")
         verbose, $VERBOSE = $VERBOSE, nil
         yield if defined?(yield)
+        case
+        when Array === fname
+          fname, line = *fname
+        when defined?(fname.path) && defined?(fname.lineno)
+          fname, line = fname.path, fname.lineno
+        else
+          line = 0
+        end
         assert_nothing_raised(SyntaxError, mesg) do
-          assert_equal(:ok, catch {|tag| eval(code, binding, fname, 0)}, mesg)
+          assert_equal(:ok, catch {|tag| eval(code, binding, fname, line)}, mesg)
         end
       ensure
         $VERBOSE = verbose
       end
 
+      def assert_syntax_error(code, error, fname = caller_locations(1, 1)[0], mesg = fname.to_s)
+        code = code.dup.force_encoding("ascii-8bit")
+        code.sub!(/\A(?:\xef\xbb\xbf)?(\s*\#.*$)*(\n)?/n) {
+          "#$&#{"\n" if $1 && !$2}BEGIN{throw tag, :ng}\n"
+        }
+        code.force_encoding("us-ascii")
+        verbose, $VERBOSE = $VERBOSE, nil
+        yield if defined?(yield)
+        case
+        when Array === fname
+          fname, line = *fname
+        when defined?(fname.path) && defined?(fname.lineno)
+          fname, line = fname.path, fname.lineno
+        else
+          line = 0
+        end
+        e = assert_raise(SyntaxError, mesg) do
+          catch {|tag| eval(code, binding, fname, line)}
+        end
+        assert_match(error, e.message, mesg)
+      ensure
+        $VERBOSE = verbose
+      end
+
       def assert_normal_exit(testsrc, message = '', opt = {})
-        assert_valid_syntax(testsrc, caller_locations(1, 1)[0].path)
+        assert_valid_syntax(testsrc, caller_locations(1, 1)[0])
         if opt.include?(:child_env)
           opt = opt.dup
           child_env = [opt.delete(:child_env)] || []
@@ -187,18 +219,22 @@ module Test
         if block_given?
           raise "test_stdout ignored, use block only or without block" if test_stdout != []
           raise "test_stderr ignored, use block only or without block" if test_stderr != []
-          yield(stdout.lines.map {|l| l.chomp }, stderr.lines.map {|l| l.chomp })
+          yield(stdout.lines.map {|l| l.chomp }, stderr.lines.map {|l| l.chomp }, status)
         else
-          if test_stdout.is_a?(Regexp)
-            assert_match(test_stdout, stdout, message)
-          else
-            assert_equal(test_stdout, stdout.lines.map {|l| l.chomp }, message)
+          errs = []
+          [[test_stdout, stdout], [test_stderr, stderr]].each do |exp, act|
+            begin
+              if exp.is_a?(Regexp)
+                assert_match(exp, act, message)
+              else
+                assert_equal(exp, act.lines.map {|l| l.chomp }, message)
+              end
+            rescue MiniTest::Assertion => e
+              errs << e.message
+              message = nil
+            end
           end
-          if test_stderr.is_a?(Regexp)
-            assert_match(test_stderr, stderr, message)
-          else
-            assert_equal(test_stderr, stderr.lines.map {|l| l.chomp }, message)
-          end
+          raise MiniTest::Assertion, errs.join("\n---\n") unless errs.empty?
           status
         end
       end

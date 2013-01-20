@@ -168,7 +168,7 @@ void
 rb_maygvl_fd_fix_cloexec(int fd)
 {
   /* MinGW don't have F_GETFD and FD_CLOEXEC.  [ruby-core:40281] */
-#if defined(F_GETFD) && !defined(__native_client__)
+#if defined(HAVE_FCNTL) && defined(F_GETFD) && defined(F_SETFD) && defined(FD_CLOEXEC)
     int flags, flags2, ret;
     flags = fcntl(fd, F_GETFD); /* should not fail except EBADF. */
     if (flags == -1) {
@@ -298,7 +298,7 @@ rb_cloexec_fcntl_dupfd(int fd, int minfd)
 {
     int ret;
 
-#if defined(HAVE_FCNTL) && defined(F_DUPFD_CLOEXEC)
+#if defined(HAVE_FCNTL) && defined(F_DUPFD_CLOEXEC) && defined(F_DUPFD)
     static int try_dupfd_cloexec = 1;
     if (try_dupfd_cloexec) {
         ret = fcntl(fd, F_DUPFD_CLOEXEC, minfd);
@@ -318,8 +318,18 @@ rb_cloexec_fcntl_dupfd(int fd, int minfd)
     else {
         ret = fcntl(fd, F_DUPFD, minfd);
     }
-#else
+#elif defined(HAVE_FCNTL) && defined(F_DUPFD)
     ret = fcntl(fd, F_DUPFD, minfd);
+#elif defined(HAVE_DUP)
+    ret = dup(fd);
+    if (ret != -1 && ret < minfd) {
+        const int prev_fd = ret;
+        ret = rb_cloexec_fcntl_dupfd(fd, minfd);
+        close(prev_fd);
+    }
+    return ret;
+#else
+# error "dup() or fcntl(F_DUPFD) must be supported."
 #endif
     if (ret == -1) return -1;
     rb_maygvl_fd_fix_cloexec(ret);
@@ -4062,7 +4072,7 @@ fptr_finalize(rb_io_t *fptr, int noraise)
     }
 
     if (!NIL_P(err) && !noraise) {
-        switch(TYPE(err)) {
+        switch (TYPE(err)) {
           case T_FIXNUM:
           case T_BIGNUM:
             errno = NUM2INT(err);
@@ -5653,7 +5663,9 @@ pipe_open(VALUE execarg_obj, const char *modestr, int fmode, convconfig_t *convc
 # endif
 # if !defined(HAVE_FORK)
     char **args = NULL;
+#   if defined(HAVE_SPAWNVE)
     char **envp = NULL;
+#   endif
 # endif
 #endif
 #if !defined(HAVE_FORK)
@@ -5721,7 +5733,9 @@ pipe_open(VALUE execarg_obj, const char *modestr, int fmode, convconfig_t *convc
 	pid = rb_fork_async_signal_safe(&status, popen_exec, &arg, arg.eargp->redirect_fds, errmsg, sizeof(errmsg));
 # else
 	rb_execarg_run_options(eargp, sargp, NULL, 0);
+#   if defined(HAVE_SPAWNVE)
 	if (eargp->envp_str) envp = (char **)RSTRING_PTR(eargp->envp_str);
+#   endif
 	while ((pid = DO_SPAWN(cmd, args, envp)) == -1) {
 	    /* exec failed */
 	    switch (e = errno) {
@@ -6978,6 +6992,23 @@ void
 rb_write_error(const char *mesg)
 {
     rb_write_error2(mesg, strlen(mesg));
+}
+
+void
+rb_write_error_str(VALUE mesg)
+{
+    /* a stopgap measure for the time being */
+    if (rb_stderr == orig_stderr || RFILE(orig_stderr)->fptr->fd < 0) {
+	size_t len = (size_t)RSTRING_LEN(mesg);
+	if (fwrite(RSTRING_PTR(mesg), sizeof(char), len, stderr) < len) {
+	    RB_GC_GUARD(mesg);
+	    return;
+	}
+    }
+    else {
+	/* may unlock GVL, and  */
+	rb_io_write(rb_stderr, mesg);
+    }
 }
 
 static void

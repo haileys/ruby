@@ -104,7 +104,7 @@ with all sufficient information, see the ChangeLog file.
         however a method in the prepended module overrides the
         corresponding method in the prepending module.
       * added Module#refine, which extends a class or module locally.
-        require "refinement" is necessary to use it. [experimental]
+        [experimental]
     * extended method:
       * Module#define_method accepts a UnboundMethod from a Module.
       * Module#const_get accepts a qualified constant string, e.g.
@@ -132,6 +132,19 @@ with all sufficient information, see the ChangeLog file.
     * added method:
       * added Range#size for lazy size evaluation.
       * added Range#bsearch for binary search.
+
+  * RubyVM (MRI specific)
+    * added Environment variables to specify stack usage:
+      * RUBY_THREAD_VM_STACK_SIZE: vm stack size used at thread creation.
+        default: 128KB (32bit CPU) or 256KB (64bit CPU).
+      * RUBY_THREAD_MACHINE_STACK_SIZE: machine stack size used at thread
+        creation. default: 512KB or 1024KB.
+      * RUBY_FIBER_VM_STACK_SIZE: vm stack size used at fiber creation.
+        default: 64KB or 128KB.
+      * RUBY_FIBER_MACHINE_STACK_SIZE: machine stack size used at fiber
+        creation. default: 256KB or 256KB.
+      These variables are checked only at launched time.
+    * added constant DEFAULT_PARAMS to get above default parameters.
 
   * Signal
     * added method:
@@ -183,8 +196,7 @@ with all sufficient information, see the ChangeLog file.
     * added method:
       * added main.define_method which defines a global function.
       * added main.using, which imports refinements into the current file or
-        eval string. require "refinement" is necessary to use it.
-        [experimental]
+        eval string. [experimental]
 
 * cgi
   * Add HTML5 tag maker.

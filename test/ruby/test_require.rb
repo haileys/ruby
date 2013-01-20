@@ -384,6 +384,12 @@ class TestRequire < Test::Unit::TestCase
     }
     tmp.close
 
+    # "circular require" warnings to $stderr, but backtraces to stderr
+    # in C-level.  And redirecting stderr to a pipe seems to change
+    # some blocking timings and causes a deadlock, so run in a
+    # separated process for the time being.
+    assert_separately(["-w", "-", path, bug5754], <<-'end;')
+    path, bug5754 = *ARGV
     start = false
 
     scratch = []
@@ -416,6 +422,7 @@ class TestRequire < Test::Unit::TestCase
 
     assert_equal(true, (t1_res ^ t2_res), bug5754 + " t1:#{t1_res} t2:#{t2_res}")
     assert_equal([:pre, :post], scratch, bug5754)
+    end;
   ensure
     $".delete(path)
     tmp.close(true) if tmp
@@ -596,5 +603,28 @@ class TestRequire < Test::Unit::TestCase
         INPUT
       }
     }
+  end
+
+  def test_require_with_loaded_features_pop
+    bug7530 = '[ruby-core:50645]'
+    script = Tempfile.new(%w'bug-7530- .rb')
+    script.close
+    assert_in_out_err([{"RUBYOPT" => nil}, "-", script.path], <<-INPUT, %w(:ok), [], bug7530)
+      PATH = ARGV.shift
+      THREADS = 2
+      ITERATIONS_PER_THREAD = 1000
+
+      THREADS.times.map {
+        Thread.new do
+          ITERATIONS_PER_THREAD.times do
+            require PATH
+            $".pop
+          end
+        end
+      }.each(&:join)
+      p :ok
+    INPUT
+  ensure
+    script.close(true) if script
   end
 end

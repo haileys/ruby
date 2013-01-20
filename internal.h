@@ -63,6 +63,7 @@ VALUE rb_obj_private_methods(int argc, VALUE *argv, VALUE obj);
 VALUE rb_obj_public_methods(int argc, VALUE *argv, VALUE obj);
 int rb_obj_basic_to_s_p(VALUE);
 VALUE rb_special_singleton_class(VALUE);
+VALUE rb_singleton_class_clone_and_attach(VALUE obj, VALUE attach);
 void Init_class_hierarchy(void);
 
 /* compile.c */
@@ -138,6 +139,7 @@ const char *ruby_get_inplace_mode(void);
 void ruby_set_inplace_mode(const char *);
 ssize_t rb_io_bufread(VALUE io, void *buf, size_t size);
 void rb_stdio_set_default_encoding(void);
+void rb_write_error_str(VALUE mesg);
 
 /* iseq.c */
 VALUE rb_iseq_clone(VALUE iseqval, VALUE newcbase);

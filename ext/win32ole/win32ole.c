@@ -143,7 +143,7 @@ const IID IID_IMultiLanguage2 = {0xDCCFC164, 0x2B38, 0x11d2, {0xB7, 0xEC, 0x00, 
 
 #define WC2VSTR(x) ole_wc2vstr((x), TRUE)
 
-#define WIN32OLE_VERSION "1.5.3"
+#define WIN32OLE_VERSION "1.5.4"
 
 typedef HRESULT (STDAPICALLTYPE FNCOCREATEINSTANCEEX)
     (REFCLSID, IUnknown*, DWORD, COSERVERINFO*, DWORD, MULTI_QI*);
@@ -214,7 +214,17 @@ VALUE cWIN32OLE_PROPERTY;
 
 static VALUE ary_ole_event;
 static ID id_events;
-static BOOL g_ole_initialized = FALSE;
+#ifdef RB_THREAD_SPECIFIC
+static RB_THREAD_SPECIFIC BOOL g_ole_initialized;
+# define g_ole_initialized_init() ((void)0)
+# define g_ole_initialized_set(val) (g_ole_initialized = (val))
+#else
+static volatile DWORD g_ole_initialized_key = TLS_OUT_OF_INDEXES;
+# define g_ole_initialized (BOOL)TlsGetValue(g_ole_initialized_key)
+# define g_ole_initialized_init() (g_ole_initialized_key = TlsAlloc())
+# define g_ole_initialized_set(val) TlsSetValue(g_ole_initialized_key, (void*)(val))
+#endif
+static BOOL g_uninitialize_hooked = FALSE;
 static BOOL g_cp_installed = FALSE;
 static BOOL g_lcid_installed = FALSE;
 static HINSTANCE ghhctrl = NULL;
@@ -309,8 +319,8 @@ static VALUE ole_hresult2msg(HRESULT hr);
 static void ole_freeexceptinfo(EXCEPINFO *pExInfo);
 static VALUE ole_excepinfo2msg(EXCEPINFO *pExInfo);
 static void ole_raise(HRESULT hr, VALUE ecs, const char *fmt, ...);
-static void ole_initialize();
-static void ole_msg_loop();
+static void ole_initialize(void);
+static void ole_msg_loop(void);
 static void ole_free(struct oledata *pole);
 static void oletypelib_free(struct oletypelibdata *poletypelib);
 static void oletype_free(struct oletypedata *poletype);
@@ -370,9 +380,7 @@ static BOOL CALLBACK installed_lcid_proc(LPTSTR str);
 static BOOL lcid_installed(LCID lcid);
 static VALUE fole_s_set_locale(VALUE self, VALUE vlcid);
 static VALUE fole_s_create_guid(VALUE self);
-static void  ole_pure_initialize();
 static VALUE fole_s_ole_initialize(VALUE self);
-static void  ole_pure_uninitialize();
 static VALUE fole_s_ole_uninitialize(VALUE self);
 static VALUE fole_initialize(int argc, VALUE *argv, VALUE self);
 static VALUE hash2named_arg(VALUE pair, struct oleparam* pOp);
@@ -572,7 +580,7 @@ static VALUE fev_get_handler(VALUE self);
 static VALUE evs_push(VALUE ev);
 static VALUE evs_delete(long i);
 static VALUE evs_entry(long i);
-static VALUE evs_length();
+static VALUE evs_length(void);
 static void  olevariant_free(struct olevariantdata *pvar);
 static VALUE folevariant_s_allocate(VALUE klass);
 static VALUE folevariant_s_array(VALUE klass, VALUE dims, VALUE vvt);
@@ -586,8 +594,8 @@ static VALUE folevariant_ary_aset(int argc, VALUE *argv, VALUE self);
 static VALUE folevariant_value(VALUE self);
 static VALUE folevariant_vartype(VALUE self);
 static VALUE folevariant_set_value(VALUE self, VALUE val);
-static void init_enc2cp();
-static void free_enc2cp();
+static void init_enc2cp(void);
+static void free_enc2cp(void);
 
 static HRESULT (STDMETHODCALLTYPE mf_QueryInterface)(
     IMessageFilter __RPC_FAR * This,
@@ -1201,29 +1209,36 @@ ole_raise(HRESULT hr, VALUE ecs, const char *fmt, ...)
 }
 
 void
-ole_uninitialize()
+ole_uninitialize(void)
 {
+    if (!g_ole_initialized) return;
     OleUninitialize();
-    g_ole_initialized = FALSE;
+    g_ole_initialized_set(FALSE);
 }
 
 static void
-ole_initialize()
+ole_uninitialize_hook(rb_event_flag_t evflag, VALUE data, VALUE self, ID mid, VALUE klass)
+{
+    ole_uninitialize();
+}
+
+static void
+ole_initialize(void)
 {
     HRESULT hr;
+
+    if(!g_uninitialize_hooked) {
+	rb_add_event_hook(ole_uninitialize_hook, RUBY_EVENT_THREAD_END, Qnil);
+	g_uninitialize_hooked = TRUE;
+    }
 
     if(g_ole_initialized == FALSE) {
         hr = OleInitialize(NULL);
         if(FAILED(hr)) {
             ole_raise(hr, rb_eRuntimeError, "fail: OLE initialize");
         }
-        g_ole_initialized = TRUE;
-        /*
-         * In some situation, OleUninitialize does not work fine. ;-<
-         */
-        /*
-        atexit((void (*)(void))ole_uninitialize);
-        */
+        g_ole_initialized_set(TRUE);
+
         hr = CoRegisterMessageFilter(&imessage_filter, &previous_filter);
         if(FAILED(hr)) {
             previous_filter = NULL;
@@ -1816,13 +1831,17 @@ ole_set_byref(VARIANT *realvar, VARIANT *var,  VARTYPE vt)
             V_R8REF(var) = &V_R8(realvar);
             break;
 
-#if (_MSC_VER >= 1300)
+#if (_MSC_VER >= 1300) || defined(__CYGWIN__) || defined(__MINGW32__)
+#ifdef V_I8REF
         case VT_I8:
             V_I8REF(var) = &V_I8(realvar);
             break;
+#endif
+#ifdef V_UI8REF
         case VT_UI8:
             V_UI8REF(var) = &V_UI8(realvar);
             break;
+#endif
 #endif
         case VT_INT:
             V_INTREF(var) = &V_INT(realvar);
@@ -2179,8 +2198,10 @@ ole_variant2val(VARIANT *pvar)
 #if (_MSC_VER >= 1300) || defined(__CYGWIN__) || defined(__MINGW32__)
     case VT_I8:
         if(V_ISBYREF(pvar))
-#if (_MSC_VER >= 1300)
+#if (_MSC_VER >= 1300) || defined(__CYGWIN__) || defined(__MINGW32__)
+#ifdef V_I8REF
             obj = I8_2_NUM(*V_I8REF(pvar));
+#endif
 #else
             obj = Qnil;
 #endif
@@ -2189,8 +2210,10 @@ ole_variant2val(VARIANT *pvar)
         break;
     case VT_UI8:
         if(V_ISBYREF(pvar))
-#if (_MSC_VER >= 1300)
+#if (_MSC_VER >= 1300) || defined(__CYGWIN__) || defined(__MINGW32__)
+#ifdef V_UI8REF
             obj = UI8_2_NUM(*V_UI8REF(pvar));
+#endif
 #else
             obj = Qnil;
 #endif
@@ -3133,25 +3156,11 @@ fole_s_create_guid(VALUE self)
  * You must not use thease method.
  */
 
-static void  ole_pure_initialize()
-{
-    HRESULT hr;
-    hr = OleInitialize(NULL);
-    if(FAILED(hr)) {
-        ole_raise(hr, rb_eRuntimeError, "fail: OLE initialize");
-    }
-}
-
-static void  ole_pure_uninitialize()
-{
-    OleUninitialize();
-}
-
 /* :nodoc */
 static VALUE
 fole_s_ole_initialize(VALUE self)
 {
-    ole_pure_initialize();
+    ole_initialize();
     return Qnil;
 }
 
@@ -3159,7 +3168,7 @@ fole_s_ole_initialize(VALUE self)
 static VALUE
 fole_s_ole_uninitialize(VALUE self)
 {
-    ole_pure_uninitialize();
+    ole_uninitialize();
     return Qnil;
 }
 
@@ -4160,7 +4169,6 @@ ole_methods_sub(ITypeInfo *pOwnerTypeInfo, ITypeInfo *pTypeInfo, VALUE methods, 
     HRESULT hr;
     TYPEATTR *pTypeAttr;
     BSTR bstr;
-    char *pstr;
     FUNCDESC *pFuncDesc;
     VALUE method;
     WORD i;
@@ -4169,7 +4177,6 @@ ole_methods_sub(ITypeInfo *pOwnerTypeInfo, ITypeInfo *pTypeInfo, VALUE methods, 
         ole_raise(hr, eWIN32OLERuntimeError, "failed to GetTypeAttr");
     }
     for(i = 0; i < pTypeAttr->cFuncs; i++) {
-        pstr = NULL;
         hr = pTypeInfo->lpVtbl->GetFuncDesc(pTypeInfo, i, &pFuncDesc);
         if (FAILED(hr))
              continue;
@@ -6119,7 +6126,6 @@ ole_variables(ITypeInfo *pTypeInfo)
     WORD i;
     UINT len;
     BSTR bstr;
-    char *pstr;
     VARDESC *pVarDesc;
     struct olevariabledata *pvar;
     VALUE var;
@@ -6134,7 +6140,6 @@ ole_variables(ITypeInfo *pTypeInfo)
         if(FAILED(hr))
             continue;
         len = 0;
-        pstr = NULL;
         hr = pTypeInfo->lpVtbl->GetNames(pTypeInfo, pVarDesc->memid, &bstr,
                                          1, &len);
         if(FAILED(hr) || len == 0 || !bstr)
@@ -7653,11 +7658,9 @@ static long
 ole_search_event_at(VALUE ary, VALUE ev)
 {
     VALUE event;
-    VALUE def_event;
     VALUE event_name;
     long i, len;
     long ret = -1;
-    def_event = Qnil;
     len = RARRAY_LEN(ary);
     for(i = 0; i < len; i++) {
         event = rb_ary_entry(ary, i);
@@ -8570,7 +8573,7 @@ evs_entry(long i)
 }
 
 static VALUE
-evs_length()
+evs_length(void)
 {
     return rb_funcall(ary_ole_event, rb_intern("length"), 0);
 }
@@ -9062,20 +9065,21 @@ folevariant_set_value(VALUE self, VALUE val)
 }
 
 static void
-init_enc2cp()
+init_enc2cp(void)
 {
     enc2cp_table = st_init_numtable();
 }
 
 static void
-free_enc2cp()
+free_enc2cp(void)
 {
     st_free_table(enc2cp_table);
 }
 
 void
-Init_win32ole()
+Init_win32ole(void)
 {
+    g_ole_initialized_init();
     ary_ole_event = rb_ary_new();
     rb_gc_register_mark_object(ary_ole_event);
     id_events = rb_intern("events");

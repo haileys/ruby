@@ -133,6 +133,58 @@ class TestSyntax < Test::Unit::TestCase
     assert_not_label(:foo, 'class Foo < not_label:foo; end', bug6347)
   end
 
+  def test_duplicated_arg
+    assert_syntax_error("def foo(a, a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_rest
+    assert_syntax_error("def foo(a, *a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_opt
+    assert_syntax_error("def foo(a, a=1) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_opt_rest
+    assert_syntax_error("def foo(a=1, *a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_rest_opt
+    assert_syntax_error("def foo(*a, a=1) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_rest_post
+    assert_syntax_error("def foo(*a, a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_opt_post
+    assert_syntax_error("def foo(a=1, a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_kw
+    assert_syntax_error("def foo(a, a: 1) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_rest_kw
+    assert_syntax_error("def foo(*a, a: 1) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_opt_kw
+    assert_syntax_error("def foo(a=1, a: 1) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_kw_kwrest
+    assert_syntax_error("def foo(a: 1, **a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_rest_kwrest
+    assert_syntax_error("def foo(*a, **a) end", /duplicated argument name/)
+  end
+
+  def test_duplicated_opt_kwrest
+    assert_syntax_error("def foo(a=1, **a) end", /duplicated argument name/)
+  end
+
   def test_duplicated_when
     w = 'warning: duplicated when clause is ignored'
     assert_warning(/3: #{w}.+4: #{w}.+4: #{w}.+5: #{w}.+5: #{w}/m){
@@ -207,6 +259,70 @@ eom
     actual = caller_lineno\
     {}
     assert_equal(expected, actual)
+  end
+
+  def assert_constant_reassignment_nested(preset, op, expected, err = [], bug = '[Bug #5449]')
+    [
+     ["p ", ""],                # no-pop
+     ["", "p Foo::Bar"],        # pop
+    ].each do |p1, p2|
+      src = <<-EOM.gsub(/^\s*\n/, '')
+      class Foo
+        #{"Bar = " + preset if preset}
+      end
+      #{p1}Foo::Bar #{op}= 42
+      #{p2}
+      EOM
+      msg = "\# #{bug}\n#{src}"
+      assert_valid_syntax(src, caller_locations(1, 1)[0].path, msg)
+      assert_in_out_err([], src, expected, err, msg)
+    end
+  end
+
+  def test_constant_reassignment_nested
+    already = /already initialized constant Foo::Bar/
+    uninitialized = /uninitialized constant Foo::Bar/
+    assert_constant_reassignment_nested(nil,     "||", %w[42])
+    assert_constant_reassignment_nested("false", "||", %w[42], already)
+    assert_constant_reassignment_nested("true",  "||", %w[true])
+    assert_constant_reassignment_nested(nil,     "&&", [], uninitialized)
+    assert_constant_reassignment_nested("false", "&&", %w[false])
+    assert_constant_reassignment_nested("true",  "&&", %w[42], already)
+    assert_constant_reassignment_nested(nil,     "+",  [], uninitialized)
+    assert_constant_reassignment_nested("false", "+",  [], /undefined method/)
+    assert_constant_reassignment_nested("11",    "+",  %w[53], already)
+  end
+
+  def assert_constant_reassignment_toplevel(preset, op, expected, err = [], bug = '[Bug #5449]')
+    [
+     ["p ", ""],                # no-pop
+     ["", "p ::Bar"],           # pop
+    ].each do |p1, p2|
+      src = <<-EOM.gsub(/^\s*\n/, '')
+      #{"Bar = " + preset if preset}
+      class Foo
+        #{p1}::Bar #{op}= 42
+        #{p2}
+      end
+      EOM
+      msg = "\# #{bug}\n#{src}"
+      assert_valid_syntax(src, caller_locations(1, 1)[0].path, msg)
+      assert_in_out_err([], src, expected, err, msg)
+    end
+  end
+
+  def test_constant_reassignment_toplevel
+    already = /already initialized constant Bar/
+    uninitialized = /uninitialized constant Bar/
+    assert_constant_reassignment_toplevel(nil,     "||", %w[42])
+    assert_constant_reassignment_toplevel("false", "||", %w[42], already)
+    assert_constant_reassignment_toplevel("true",  "||", %w[true])
+    assert_constant_reassignment_toplevel(nil,     "&&", [], uninitialized)
+    assert_constant_reassignment_toplevel("false", "&&", %w[false])
+    assert_constant_reassignment_toplevel("true",  "&&", %w[42], already)
+    assert_constant_reassignment_toplevel(nil,     "+",  [], uninitialized)
+    assert_constant_reassignment_toplevel("false", "+",  [], /undefined method/)
+    assert_constant_reassignment_toplevel("11",    "+",  %w[53], already)
   end
 
   private

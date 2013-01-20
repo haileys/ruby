@@ -306,6 +306,7 @@ struct rb_iseq_struct {
 
     /* misc */
     ID defined_method_id;	/* for define_method */
+    rb_num_t flip_cnt;
 
     /* used at compile time */
     struct iseq_compile_data *compile_data;
@@ -407,7 +408,7 @@ typedef struct rb_vm_struct {
 
 #define RUBY_VM_SIZE_ALIGN 4096
 
-#define RUBY_VM_THREAD_VM_STACK_SIZE          (  32 * 1024 * sizeof(VALUE)) /*  128 KB or  256 KB */
+#define RUBY_VM_THREAD_VM_STACK_SIZE          ( 128 * 1024 * sizeof(VALUE)) /*  512 KB or 1024 KB */
 #define RUBY_VM_THREAD_VM_STACK_SIZE_MIN      (   2 * 1024 * sizeof(VALUE)) /*    8 KB or   16 KB */
 #define RUBY_VM_THREAD_MACHINE_STACK_SIZE     ( 128 * 1024 * sizeof(VALUE)) /*  512 KB or 1024 KB */
 #define RUBY_VM_THREAD_MACHINE_STACK_SIZE_MIN (  16 * 1024 * sizeof(VALUE)) /*   64 KB or  128 KB */
@@ -418,7 +419,7 @@ typedef struct rb_vm_struct {
 #define RUBY_VM_FIBER_MACHINE_STACK_SIZE_MIN  (  16 * 1024 * sizeof(VALUE)) /*   64 KB or  128 KB */
 
 #ifndef VM_DEBUG_BP_CHECK
-#define VM_DEBUG_BP_CHECK 1
+#define VM_DEBUG_BP_CHECK 0
 #endif
 
 typedef struct rb_control_frame_struct {
@@ -620,7 +621,7 @@ typedef enum {
     VM_DEFINECLASS_TYPE_MASK            = 0x07,
 } rb_vm_defineclass_type_t;
 
-#define VM_DEFINECLASS_TYPE(x) ((x) & VM_DEFINECLASS_TYPE_MASK)
+#define VM_DEFINECLASS_TYPE(x) ((rb_vm_defineclass_type_t)(x) & VM_DEFINECLASS_TYPE_MASK)
 #define VM_DEFINECLASS_FLAG_SCOPED         0x08
 #define VM_DEFINECLASS_FLAG_HAS_SUPERCLASS 0x10
 #define VM_DEFINECLASS_SCOPED_P(x) ((x) & VM_DEFINECLASS_FLAG_SCOPED)
@@ -853,6 +854,12 @@ int rb_autoloading_value(VALUE mod, ID id, VALUE* value);
 
 #define sysstack_error GET_VM()->special_exceptions[ruby_error_sysstack]
 
+#define CHECK_VM_STACK_OVERFLOW(cfp, margin) do \
+  if ((VALUE *)((char *)(((VALUE *)(cfp)->sp) + (margin)) + sizeof(rb_control_frame_t)) >= ((VALUE *)(cfp))) { \
+      vm_stackoverflow(); \
+  } \
+while (0)
+
 /* for thread */
 
 #if RUBY_VM_THREAD_MODEL == 2
@@ -956,8 +963,9 @@ struct rb_trace_arg_struct {
 };
 
 void rb_threadptr_exec_event_hooks(struct rb_trace_arg_struct *trace_arg);
+void rb_threadptr_exec_event_hooks_and_pop_frame(struct rb_trace_arg_struct *trace_arg);
 
-#define EXEC_EVENT_HOOK(th_, flag_, self_, id_, klass_, data_) do { \
+#define EXEC_EVENT_HOOK_ORIG(th_, flag_, self_, id_, klass_, data_, pop_p_) do { \
     if (UNLIKELY(ruby_vm_event_flags & (flag_))) { \
 	if (((th)->event_hooks.events | (th)->vm->event_hooks.events) & (flag_)) { \
 	    struct rb_trace_arg_struct trace_arg; \
@@ -970,10 +978,17 @@ void rb_threadptr_exec_event_hooks(struct rb_trace_arg_struct *trace_arg);
 	    trace_arg.data = (data_); \
 	    trace_arg.path = Qundef; \
 	    trace_arg.klass_solved = 0; \
-	    rb_threadptr_exec_event_hooks(&trace_arg); \
+	    if (pop_p_) rb_threadptr_exec_event_hooks_and_pop_frame(&trace_arg); \
+	    else rb_threadptr_exec_event_hooks(&trace_arg); \
 	} \
     } \
 } while (0)
+
+#define EXEC_EVENT_HOOK(th_, flag_, self_, id_, klass_, data_) \
+  EXEC_EVENT_HOOK_ORIG(th_, flag_, self_, id_, klass_, data_, 0)
+
+#define EXEC_EVENT_HOOK_AND_POP_FRAME(th_, flag_, self_, id_, klass_, data_) \
+  EXEC_EVENT_HOOK_ORIG(th_, flag_, self_, id_, klass_, data_, 1)
 
 #if defined __GNUC__ && __GNUC__ >= 4
 #pragma GCC visibility push(default)

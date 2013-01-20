@@ -638,7 +638,9 @@ rb_f_load(int argc, VALUE *argv)
     rb_load_internal(path, RTEST(wrap));
 
     if (RUBY_DTRACE_LOAD_RETURN_ENABLED()) {
-	RUBY_DTRACE_LOAD_RETURN(StringValuePtr(fname));
+	RUBY_DTRACE_LOAD_RETURN(StringValuePtr(fname),
+			       rb_sourcefile(),
+			       rb_sourceline());
     }
 
     return Qtrue;
@@ -663,12 +665,13 @@ load_lock(const char *ftptr)
     }
     if (RTEST(ruby_verbose)) {
 	rb_warning("loading in progress, circular require considered harmful - %s", ftptr);
+	/* TODO: display to $stderr, not stderr in C */
 	rb_backtrace();
     }
     switch (rb_thread_shield_wait((VALUE)data)) {
       case Qfalse:
 	data = (st_data_t)ftptr;
-	st_delete(loading_tbl, &data, 0);
+	st_insert(loading_tbl, data, (st_data_t)rb_thread_shield_new());
 	return 0;
       case Qnil:
 	return 0;
@@ -940,7 +943,9 @@ rb_require_safe(VALUE fname, int safe)
     th->errinfo = errinfo;
 
     if (RUBY_DTRACE_REQUIRE_RETURN_ENABLED()) {
-	RUBY_DTRACE_REQUIRE_RETURN(StringValuePtr(fname));
+	RUBY_DTRACE_REQUIRE_RETURN(StringValuePtr(fname),
+				  rb_sourcefile(),
+				  rb_sourceline());
     }
 
     return result;

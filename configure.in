@@ -698,7 +698,7 @@ if test "$GCC" = yes; then
     else
 	RUBY_TRY_LDFLAGS([-Wl,-unexported_symbol,_Init_*], [visibility_option=ld], [visibility_option=no])
     fi
-    test "$visibility_option" = no || OBJCOPY=:
+    test "$visibility_option" = no -o "$host_os" = nacl || OBJCOPY=:
 fi
 
 if test "$GCC" = yes; then
@@ -1220,6 +1220,9 @@ main()
 		    LINK_SO="$LINK_SO
 $POSTLINK"
 		fi
+		AC_CHECK_HEADERS(crt_externs.h, [], [], [
+		    #include <crt_externs.h>
+		])
 		],
 [hpux*], [	LIBS="-lm $LIBS"
 		ac_cv_c_inline=no],
@@ -1291,13 +1294,15 @@ $POSTLINK"
 [superux*], [	ac_cv_func_setitimer=no
 		],
 [nacl], [
-  LIBS="-lm -lnosys $LIBS"
+  LIBS="-lm $LIBS"
   if test "${nacl_cv_build_variant}" = "newlib"; then
     RUBY_APPEND_OPTION(CPPFLAGS, -DNACL_NEWLIB)
+    RUBY_APPEND_OPTION(LIBS, '-lnosys')
   else
     RUBY_APPEND_OPTION(XCFLAGS, -fPIC)
   fi
   ac_cv_func_shutdown=no
+  ac_cv_func_fcntl=no
   ],
 [	LIBS="-lm $LIBS"])
 AC_CHECK_LIB(crypt, crypt)
@@ -1572,7 +1577,7 @@ AC_CHECK_FUNCS(fmod killpg wait4 waitpid fork spawnv syscall __syscall chroot ge
 	      setuid setgid daemon select_large_fdset setenv unsetenv\
               mktime timegm gmtime_r clock_gettime gettimeofday poll ppoll\
               pread sendfile shutdown sigaltstack dl_iterate_phdr\
-              dup3 pipe2 posix_memalign memalign ioctl)
+              dup dup3 pipe2 posix_memalign memalign ioctl)
 
 AC_CACHE_CHECK(for unsetenv returns a value, rb_cv_unsetenv_return_value,
   [AC_TRY_COMPILE([
@@ -2272,7 +2277,7 @@ if test "$with_dln_a_out" != yes; then
 			# /usr/local/include is always searched for
 			# some reason, but /usr/local/lib is not.
 			hdr=`find /usr/local/include -name \*.h -type f | sed 's:^/usr/local/include/::;q'`
-			if test -n "$hdr" && $CC -E -include "$hdr" -xc /dev/null 2>/dev/null | fgrep -q "$hdr"; then
+			if test -n "$hdr" && $CC -E -include "$hdr" -xc - </dev/null 2>/dev/null | fgrep -q "$hdr"; then
 			    $CC -print-search-dirs | grep -q '^libraries:.*:/usr/local/lib/*' ||
 			    echo " $LDFLAGS " | grep -q ' -L */usr/local/lib/* ' ||
 			    LDFLAGS="${LDFLAGS:+$LDFLAGS }-L/usr/local/lib"
@@ -2521,6 +2526,7 @@ if test x"$cross_compiling" = xyes; then
   RUNRUBY='$(MINIRUBY) -I`cd $(srcdir)/lib; pwd`'
   XRUBY='$(MINIRUBY)'
   TEST_RUNNABLE=no
+  CROSS_COMPILING=yes
 
   if test "$host_os" = "nacl"; then
       if test "$build_cpu" = "$host_cpu" || test "${nacl_cv_cpu_nick}" = "x86" -a "$host_cpu" = "i686"; then
@@ -2542,8 +2548,10 @@ else
   RUNRUBY='$(MINIRUBY) $(srcdir)/tool/runruby.rb --extout=$(EXTOUT)'
   XRUBY='$(RUNRUBY)'
   TEST_RUNNABLE=yes
+  CROSS_COMPILING=no
 fi
 AC_SUBST(TEST_RUNNABLE)
+AC_SUBST(CROSS_COMPILING)
 AC_SUBST(MINIRUBY)
 AC_SUBST(BTESTRUBY)
 AC_SUBST(PREP)
@@ -2704,18 +2712,29 @@ AS_CASE("$enable_shared", [yes], [
   [haiku], [
     # gcc supports PIE, but doesn't work correctly in Haiku
     pie=no
+  ],
+  [nacl], [
+    # -pie implies -shared for NaCl.
+    pie=no
   ])
   if test "$GCC" = yes -a -z "$EXTSTATIC" -a "x$pie" != xno; then
     RUBY_TRY_CFLAGS(-fPIE, [pie=yes], [pie=no])
     if test "$pie" = yes; then
-      RUBY_APPEND_OPTION(XCFLAGS, -fPIE)
+      # Use -fPIE when testing -pie.  RUBY_TRY_LDFLAGS sets
+      # $save_CFLAGS internally, so set other name here.
+      save_CFLAGS_before_pie="$CFLAGS"
+      CFLAGS="$CFLAGS -fPIE"
+
+      # gcc need -pie but clang need -Wl,-pie.
       for pie in -pie -Wl,-pie; do
 	RUBY_TRY_LDFLAGS([$pie], [], [pie=])
 	if test "x$pie" != x; then
+	  RUBY_APPEND_OPTION(XCFLAGS, -fPIE)
 	  RUBY_APPEND_OPTION(XLDFLAGS, $pie)
 	  break
 	fi
       done
+      CFLAGS="$save_CFLAGS_before_pie"
     fi
   fi
 ])

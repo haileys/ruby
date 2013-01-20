@@ -2231,7 +2231,7 @@ init_mark_stack(mark_stack_t *stack)
     push_mark_stack_chunk(stack);
     stack->limit = STACK_CHUNK_SIZE;
 
-    for(i=0; i < 4; i++) {
+    for (i=0; i < 4; i++) {
         add_stack_chunk_cache(stack, stack_chunk_alloc());
     }
     stack->unused_cache_size = stack->cache_size;
@@ -3529,7 +3529,14 @@ vm_xrealloc(rb_objspace_t *objspace, void *ptr, size_t size)
     if ((ssize_t)size < 0) {
 	negative_size_allocation_error("negative re-allocation size");
     }
+
     if (!ptr) return vm_xmalloc(objspace, size);
+
+    /*
+     * The behavior of realloc(ptr, 0) is implementation defined.
+     * Therefore we don't use realloc(ptr, 0) for portability reason.
+     * see http://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_400.htm
+     */
     if (size == 0) {
 	vm_xfree(objspace, ptr);
 	return 0;

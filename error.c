@@ -115,7 +115,7 @@ compile_err_append(VALUE mesg)
 	    th->errinfo = err;
 	}
 	rb_str_cat2(mesg, "\n");
-	rb_io_write(rb_stderr, mesg);
+	rb_write_error_str(mesg);
     }
 
     /* returned to the parser world */
@@ -165,7 +165,7 @@ compile_warn_print(const char *file, int line, const char *fmt, va_list args)
 
     str = compile_snprintf(NULL, "warning: ", file, line, fmt, args);
     rb_str_cat2(str, "\n");
-    rb_io_write(rb_stderr, str);
+    rb_write_error_str(str);
 }
 
 void
@@ -209,7 +209,7 @@ warn_print(const char *fmt, va_list args)
     rb_str_cat2(str, "warning: ");
     rb_str_vcatf(str, fmt, args);
     rb_str_cat2(str, "\n");
-    rb_io_write(rb_stderr, str);
+    rb_write_error_str(str);
 }
 
 void
@@ -1097,7 +1097,7 @@ name_err_mesg_to_str(VALUE obj)
 	if (desc && desc[0] != '#') {
 	    d = d ? rb_str_dup(d) : rb_str_new2(desc);
 	    rb_str_cat2(d, ":");
-	    rb_str_cat2(d, rb_obj_classname(obj));
+	    rb_str_append(d, rb_class_name(CLASS_OF(obj)));
 	}
 	args[0] = mesg;
 	args[1] = ptr[2];
@@ -1105,6 +1105,13 @@ name_err_mesg_to_str(VALUE obj)
 	mesg = rb_f_sprintf(NAME_ERR_MESG_COUNT, args);
     }
     return mesg;
+}
+
+/* :nodoc: */
+static VALUE
+name_err_mesg_dump(VALUE obj, VALUE limit)
+{
+    return name_err_mesg_to_str(obj);
 }
 
 /* :nodoc: */
@@ -1246,8 +1253,7 @@ syserr_initialize(int argc, VALUE *argv, VALUE self)
 	VALUE str = StringValue(mesg);
 	rb_encoding *me = rb_enc_get(mesg);
 
-	mesg = rb_sprintf("%s - %.*s", err,
-			  (int)RSTRING_LEN(str), RSTRING_PTR(str));
+	mesg = rb_sprintf("%s - %"PRIsVALUE, err, mesg);
 	if (le != me && rb_enc_asciicompat(me)) {
 	    le = me;
 	}/* else assume err is non ASCII string. */
@@ -1733,7 +1739,7 @@ Init_Exception(void)
     rb_define_singleton_method(rb_cNameErrorMesg, "!", rb_name_err_mesg_new, NAME_ERR_MESG_COUNT);
     rb_define_method(rb_cNameErrorMesg, "==", name_err_mesg_equal, 1);
     rb_define_method(rb_cNameErrorMesg, "to_str", name_err_mesg_to_str, 0);
-    rb_define_method(rb_cNameErrorMesg, "_dump", name_err_mesg_to_str, 1);
+    rb_define_method(rb_cNameErrorMesg, "_dump", name_err_mesg_dump, 1);
     rb_define_singleton_method(rb_cNameErrorMesg, "_load", name_err_mesg_load, 1);
     rb_eNoMethodError = rb_define_class("NoMethodError", rb_eNameError);
     rb_define_method(rb_eNoMethodError, "initialize", nometh_err_initialize, -1);

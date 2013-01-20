@@ -53,7 +53,7 @@ assert_equal 'ok', %q{
   STDIN.reopen(rw)
   STDIN.reopen(save)
   rw.close
-  File.unlink(tmpname)
+  File.unlink(tmpname) unless RUBY_PLATFORM['nacl']
   :ok
 }
 
@@ -70,9 +70,15 @@ assert_equal 'ok', %q{
   STDIN.print "a"
   STDIN.reopen(save)
   rw.close
-  File.unlink(tmpname)
+  File.unlink(tmpname) unless RUBY_PLATFORM['nacl']
   :ok
 }
+
+assert_equal 'ok', %q{
+  dup = STDIN.dup
+  dupfd = dup.fileno
+  dupfd == STDIN.dup.fileno ? :ng : :ok
+}, '[ruby-dev:46834]'
 
 assert_normal_exit %q{
   ARGF.set_encoding "foo"

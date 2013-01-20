@@ -132,6 +132,11 @@ class TestLazyEnumerator < Test::Unit::TestCase
     assert_equal(["1", "2", "3"], [1, 2, 3].lazy.flat_map {|x| x.to_s}.force)
   end
 
+  def test_flat_map_hash
+    assert_equal([{?a=>97}, {?b=>98}, {?c=>99}], [?a, ?b, ?c].flat_map {|x| {x=>x.ord}})
+    assert_equal([{?a=>97}, {?b=>98}, {?c=>99}], [?a, ?b, ?c].lazy.flat_map {|x| {x=>x.ord}}.force)
+  end
+
   def test_reject
     a = Step.new(1..6)
     assert_equal(4, a.reject {|x| x < 4}.first)
@@ -329,11 +334,11 @@ EOS
     lazy = [1, 2, 3].lazy
     assert_equal 3, lazy.size
     assert_equal 42, Enumerator.new(42){}.lazy.size
-    %i[map collect flat_map collect_concat].each do |m|
+    %i[map collect].each do |m|
       assert_equal 3, lazy.send(m){}.size
     end
     assert_equal 3, lazy.zip([4]).size
-    %i[select find_all reject take_while drop_while].each do |m|
+    %i[flat_map collect_concat select find_all reject take_while drop_while].each do |m|
       assert_equal nil, lazy.send(m){}.size
     end
     assert_equal nil, lazy.grep(//).size
@@ -362,5 +367,11 @@ EOS
     bug7507 = '[ruby-core:50545]'
     assert_ruby_status(["-e", "GC.stress = true", "-e", "(1..10).lazy.map{}.zip(){}"], bug7507)
     assert_ruby_status(["-e", "GC.stress = true", "-e", "(1..10).lazy.map{}.zip().to_a"], bug7507)
+  end
+
+  def test_require_block
+    %i[select reject drop_while take_while map flat_map].each do |method|
+      assert_raise(ArgumentError){ [].lazy.send(method) }
+    end
   end
 end

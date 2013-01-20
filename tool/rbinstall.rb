@@ -688,7 +688,8 @@ install?(:ext, :comm, :gem) do
   $:.unshift(File.join(srcdir, "lib"))
   require("rubygems.rb")
   gem_dir = Gem.default_dir
-  directories = Gem.ensure_gem_subdirectories(gem_dir)
+  # Gem.ensure_gem_subdirectories makes subdirectories group-writable.
+  directories = Gem::REPOSITORY_SUBDIRECTORIES
   prepare "default gems", gem_dir, directories
 
   spec_dir = File.join(gem_dir, directories.grep(/^spec/)[0])

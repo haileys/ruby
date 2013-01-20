@@ -13,7 +13,7 @@
 
 static void rb_vm_check_redefinition_opt_method(const rb_method_entry_t *me, VALUE klass);
 
-static ID object_id, respond_to_missing;
+static ID object_id;
 static ID removed, singleton_removed, undefined, singleton_undefined;
 static ID added, singleton_added, attached;
 
@@ -367,24 +367,24 @@ static VALUE
 (*call_cfunc_invoker_func(int argc))(VALUE (*func)(ANYARGS), VALUE recv, int argc, const VALUE *)
 {
     switch (argc) {
-      case -2: return call_cfunc_m2;
-      case -1: return call_cfunc_m1;
-      case 0: return call_cfunc_0;
-      case 1: return call_cfunc_1;
-      case 2: return call_cfunc_2;
-      case 3: return call_cfunc_3;
-      case 4: return call_cfunc_4;
-      case 5: return call_cfunc_5;
-      case 6: return call_cfunc_6;
-      case 7: return call_cfunc_7;
-      case 8: return call_cfunc_8;
-      case 9: return call_cfunc_9;
-      case 10: return call_cfunc_10;
-      case 11: return call_cfunc_11;
-      case 12: return call_cfunc_12;
-      case 13: return call_cfunc_13;
-      case 14: return call_cfunc_14;
-      case 15: return call_cfunc_15;
+      case -2: return &call_cfunc_m2;
+      case -1: return &call_cfunc_m1;
+      case 0: return &call_cfunc_0;
+      case 1: return &call_cfunc_1;
+      case 2: return &call_cfunc_2;
+      case 3: return &call_cfunc_3;
+      case 4: return &call_cfunc_4;
+      case 5: return &call_cfunc_5;
+      case 6: return &call_cfunc_6;
+      case 7: return &call_cfunc_7;
+      case 8: return &call_cfunc_8;
+      case 9: return &call_cfunc_9;
+      case 10: return &call_cfunc_10;
+      case 11: return &call_cfunc_11;
+      case 12: return &call_cfunc_12;
+      case 13: return &call_cfunc_13;
+      case 14: return &call_cfunc_14;
+      case 15: return &call_cfunc_15;
       default:
 	rb_bug("call_cfunc_func: unsupported length: %d", argc);
     }
@@ -1506,7 +1506,7 @@ basic_obj_respond_to(VALUE obj, ID id, int pub)
       case 0:
 	args[0] = ID2SYM(id);
 	args[1] = pub ? Qfalse : Qtrue;
-	return RTEST(rb_funcall2(obj, respond_to_missing, 2, args));
+	return RTEST(rb_funcall2(obj, idRespond_to_missing, 2, args));
       default:
 	return TRUE;
     }
@@ -1556,11 +1556,11 @@ obj_respond_to(int argc, VALUE *argv, VALUE obj)
 
     rb_scan_args(argc, argv, "11", &mid, &priv);
     if (!(id = rb_check_id(&mid))) {
-	if (!rb_method_basic_definition_p(CLASS_OF(obj), respond_to_missing)) {
+	if (!rb_method_basic_definition_p(CLASS_OF(obj), idRespond_to_missing)) {
 	    VALUE args[2];
 	    args[0] = ID2SYM(rb_to_id(mid));
 	    args[1] = priv;
-	    return rb_funcall2(obj, respond_to_missing, 2, args);
+	    return rb_funcall2(obj, idRespond_to_missing, 2, args);
 	}
 	return Qfalse;
     }
@@ -1610,8 +1610,10 @@ Init_eval_method(void)
     rb_define_method(rb_cModule, "public_class_method", rb_mod_public_method, -1);
     rb_define_method(rb_cModule, "private_class_method", rb_mod_private_method, -1);
 
-    rb_define_singleton_method(rb_vm_top_self(), "public", top_public, -1);
-    rb_define_singleton_method(rb_vm_top_self(), "private", top_private, -1);
+    rb_define_private_method(rb_singleton_class(rb_vm_top_self()),
+			     "public", top_public, -1);
+    rb_define_private_method(rb_singleton_class(rb_vm_top_self()),
+			     "private", top_private, -1);
 
     object_id = rb_intern("object_id");
     added = rb_intern("method_added");
@@ -1621,7 +1623,6 @@ Init_eval_method(void)
     undefined = rb_intern("method_undefined");
     singleton_undefined = rb_intern("singleton_method_undefined");
     attached = rb_intern("__attached__");
-    respond_to_missing = rb_intern("respond_to_missing?");
 
     {
 #define REPLICATE_METHOD(klass, id, noex) \
@@ -1630,6 +1631,6 @@ Init_eval_method(void)
 			    (rb_method_flag_t)(noex | NOEX_BASIC | NOEX_NOREDEF))
 	REPLICATE_METHOD(rb_eException, idMethodMissing, NOEX_PRIVATE);
 	REPLICATE_METHOD(rb_eException, idRespond_to, NOEX_PUBLIC);
-	REPLICATE_METHOD(rb_eException, respond_to_missing, NOEX_PUBLIC);
+	REPLICATE_METHOD(rb_eException, idRespond_to_missing, NOEX_PUBLIC);
     }
 }

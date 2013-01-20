@@ -227,6 +227,7 @@ coerce_rescue(VALUE *x)
 	     RSTRING_PTR(v):
 	     rb_obj_classname(x[1]),
 	     rb_obj_classname(x[0]));
+
     return Qnil;		/* dummy */
 }
 
@@ -238,7 +239,14 @@ do_coerce(VALUE *x, VALUE *y, int err)
 
     a[0] = *x; a[1] = *y;
 
-    ary = rb_rescue(coerce_body, (VALUE)a, err?coerce_rescue:0, (VALUE)a);
+    if (!rb_respond_to(*y, id_coerce)) {
+	if (err) {
+	    coerce_rescue(a);
+	}
+	return FALSE;
+    }
+
+    ary = rb_rescue(coerce_body, (VALUE)a, err ? coerce_rescue : 0, (VALUE)a);
     if (!RB_TYPE_P(ary, T_ARRAY) || RARRAY_LEN(ary) != 2) {
 	if (err) {
 	    rb_raise(rb_eTypeError, "coerce must return [x, y]");
@@ -1800,7 +1808,7 @@ num_interval_step_size(VALUE from, VALUE to, VALUE step, int excl)
 	result = delta / diff;
 	return LONG2FIX(result >= 0 ? result + 1 : 0);
     }
-    else if (TYPE(from) == T_FLOAT || TYPE(to) == T_FLOAT || TYPE(step) == T_FLOAT) {
+    else if (RB_TYPE_P(from, T_FLOAT) || RB_TYPE_P(to, T_FLOAT) || RB_TYPE_P(step, T_FLOAT)) {
 	double n = ruby_float_step_size(NUM2DBL(from), NUM2DBL(to), NUM2DBL(step), excl);
 
 	if (isinf(n)) return DBL2NUM(n);

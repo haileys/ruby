@@ -1023,7 +1023,8 @@ mnew(VALUE klass, VALUE obj, ID id, VALUE mclass, int scope)
  *   meth == other_meth  -> true or false
  *
  * Two method objects are equal if they are bound to the same
- * object and refer to the same method definition.
+ * object and refer to the same method definition and their owners are the
+ * same class or module.
  */
 
 static VALUE
@@ -2285,7 +2286,8 @@ Init_Proc(void)
     /* Kernel */
     rb_define_method(rb_mKernel, "define_singleton_method", rb_obj_define_method, -1);
 
-    rb_define_singleton_method(rb_vm_top_self(), "define_method", top_define_method, -1);
+    rb_define_private_method(rb_singleton_class(rb_vm_top_self()),
+			     "define_method", top_define_method, -1);
 }
 
 /*

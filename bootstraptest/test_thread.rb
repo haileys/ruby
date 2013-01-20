@@ -189,18 +189,18 @@ assert_equal %q{11}, %q{
   }.value + Thread.current[:a]
 }
 assert_normal_exit %q{
-begin
-  100.times do |i|
-    begin
-      th = Thread.start(Thread.current) {|u| u.raise }
-      raise
-    rescue
-    ensure
-      th.join
+  begin
+    100.times do |i|
+      begin
+        th = Thread.start(Thread.current) {|u| u.raise }
+        raise
+      rescue
+      ensure
+        th.join
+      end
     end
+  rescue
   end
-rescue
-end
 }, '[ruby-dev:31371]'
 
 assert_equal 'true', %{
@@ -267,7 +267,7 @@ assert_normal_exit %q{
 
 assert_equal 'ok', %q{
   def m
-    t = Thread.new { while true do // =~ "" end }
+    t = Thread.new { while true; // =~ "" end }
     sleep 0.1
     10.times {
       if /((ab)*(ab)*)*(b)/ =~ "ab"*7

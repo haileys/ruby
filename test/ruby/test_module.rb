@@ -1591,4 +1591,48 @@ class TestModule < Test::Unit::TestCase
     end
     assert_equal("", stderr)
   end
+
+  def test_remove_const
+    m = Module.new
+    assert_raise(NameError){ m.instance_eval { remove_const(:__FOO__) } }
+  end
+
+  def test_private_top_methods
+    assert_top_method_is_private(:include)
+    assert_top_method_is_private(:public)
+    assert_top_method_is_private(:private)
+    assert_top_method_is_private(:define_method)
+  end
+
+  module PrivateConstantReopen
+    PRIVATE_CONSTANT = true
+    private_constant :PRIVATE_CONSTANT
+  end
+
+  def test_private_constant_reopen
+    assert_raise(NameError) do
+      eval <<-EOS, TOPLEVEL_BINDING
+        module TestModule::PrivateConstantReopen::PRIVATE_CONSTANT
+        end
+      EOS
+    end
+    assert_raise(NameError) do
+      eval <<-EOS, TOPLEVEL_BINDING
+        class TestModule::PrivateConstantReopen::PRIVATE_CONSTANT
+        end
+      EOS
+    end
+  end
+
+  private
+
+  def assert_top_method_is_private(method)
+    top = eval("self", TOPLEVEL_BINDING)
+    methods = top.singleton_class.private_instance_methods(false)
+    assert(methods.include?(method), "#{method} should be private")
+
+    assert_in_out_err([], <<-INPUT, [], /private method `#{method}' called for main:Object \(NoMethodError\)/)
+      self.#{method}
+    INPUT
+  end
 end

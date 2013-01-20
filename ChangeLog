@@ -1,3 +1,1087 @@
+Sat Jan 19 11:35:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* struct.c (Struct.new): Document Struct.new with block
+	  Patch by Hiroyuki Iwatsuki [Bug #7674]
+
+Sat Jan 19 09:52:46 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/miscellaneous.rdoc:  Added section on defined?
+
+Sat Jan 19 09:27:31 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/assignment.rdoc (Local Variables and Methods):  Made it
+	  more clear that local variables are created by the parser, not
+	  execution.  Thanks to John Hawthorn.
+
+Sat Jan 19 09:15:58 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/assignment.rdoc:  Improved links
+	* doc/syntax/methods.rdoc:  ditto.
+
+	* doc/syntax.rdoc:  Added link to assignment document
+
+Sat Jan 19 08:47:33 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/assignment.rdoc:  Added a syntax document on assignment.
+
+Fri Jan 18 14:11:01 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/methods.rdoc:  Added Array Decomposition.
+
+Fri Jan 18 12:54:21 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* tool/rbinstall.rb (gem): Gem.ensure_gem_subdirectories makes
+	  subdirectories group-writable, so make them with $dir_mode.
+
+Fri Jan 18 11:24:33 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/win32ole/win32ole.c (ole_initialize): uninitialize OLE at thread
+	  ends.  [Bug #2618] [ruby-core:27634]
+
+	* ext/win32ole/win32ole.c (ole_initialize): initialize OLE for each
+	  threads.  [Bug #2618] [ruby-core:27634]
+
+Thu Jan 17 22:10:35 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* lib/rubygems/ext/builder.rb (Gem::Ext::Builder.make): Remove
+	  .time dependency from *.rb install target. It causes needless
+	  *.rb install. [Bug #7698] [ruby-core:51437]
+	  Reported by Tadashi Saito. Thanks!!!
+	* test/rubygems/test_gem_installer.rb
+	  (TestGemInstaller#test_install_extension_and_script): Add a test
+	  for the above change.
+
+Thu Jan 17 21:08:20 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* eval.c: Fix a typo in ruby_finalize() documentation.
+
+Thu Jan 17 20:28:18 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* object.c: Typo in Kernel#hash documentation.
+	  Patch by zed_0xff [Github Fixes #237]
+
+Thu Jan 17 10:48:56 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/scalar_scanner.rb: use constants rather than
+	  calculating Inf and NaN.
+
+Thu Jan 17 10:21:05 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/miscellaneous.rdoc:  Added Ending an Expression and
+	  indentation.
+
+Thu Jan 17 09:30:21 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rubygems/installer.rb:  Untaint string when checking output
+	  for $SAFE=1
+
+	* lib/rubygems/specification.rb:  Keep previously loaded specs as
+	  active.  This prevents double loading when refreshing the gem list.
+	* test/rubygems/test_gem.rb:  Test for above
+
+	* lib/rubygems.rb:  Bump version to 2.0.0.rc.2
+
+Thu Jan 17 09:08:37 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/control_expressions.rdoc:  Added ? : ternary if
+
+Thu Jan 17 08:36:04 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/miscellaneous.rdoc:  Added documentation for alias, undef,
+	  BEGIN, END.
+	* doc/syntax/modules_and_classes.rdoc (Constants):  Fixed unwrapped
+	  paragraph with trailing whitespace.
+	* doc/syntax/modules_and_classes.rdoc (Scope):  Added section pointing
+	  to alias and undef documentation.
+	* doc/syntax.rdoc:  Added link to miscellaneous section.
+
+Thu Jan 17 07:50:26 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/control_expressions.rdoc (Flip-Flop):  Added a section on
+	  the flip-flop.
+
+Thu Jan 17 06:59:51 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/control_expressions.rdoc (if Expressions):  Fixed markup
+	  error.  Fixes #235 on github by FlyingFoX.
+
+Thu Jan 17 06:53:58 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/literals.rdoc (Strings):  Fixed typo.  Fixes #236 on
+	  github by Doug Yun.
+
+Wed Jan 16 18:45:46 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/win32ole/lib/win32ole.rb: use TracePoint to hook all thread
+	  creation not only by Thread.new and to get rid of interference with
+	  svar scope.  [Bug #7681] [ruby-core:51365]
+
+Wed Jan 16 09:35:53 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* .document:  Removed extra space
+	* lib/irb/lc/.document:  Hide help-message
+	* lib/minitest/.document:  Hide README.txt
+	* lib/rake/lib/.document:  Hide project.rake
+	* lib/rdoc/generator/template/json_index/.document:  Hide JavaScript
+	  files
+	* lib/rubygems/ssl_certs/.document:  Hide PEM files.
+
+Wed Jan 16 03:54:28 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/control_expressions.rdoc:  Omit optional "then" for if and
+	  unless expressions.  Improved description of "a if a = 0.zero?"
+	  NameError.  Note that "do" for for loop is optional.
+
+Wed Jan 16 03:28:47 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/calling_methods.rdoc:  Link to defining methods.
+	* doc/syntax/methods.rdoc:  Link to calling methods, fixed typo.
+
+Wed Jan 16 03:15:00 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/methods.rdoc:  Fixed link
+	* doc/syntax/modules_and_classes.rdoc:  Fixed link
+	* doc/syntax.rdoc:  Updated with links to the recently added pages
+
+Wed Jan 16 03:05:50 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/control_expressions.rdoc (redo Statement):  Added note
+	  about retry.
+	* doc/syntax/exceptions.rdoc:  Added retry statement
+
+Tue Jan 15 23:12:34 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* tool/vpath.rb (VPath#list): default separator to PATH_SEPARATOR from
+	  configure.in for make, not same name constant of File for use in ruby.
+
+Tue Jan 15 22:30:04 2013  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/ext/save-history.rb: identify rightly a status of a
+	  history file that already exists [Bug #7694]. Thanks Nobuhiro IMAI
+	  for this patch.
+
+Tue Jan 15 15:55:28 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/control_expressions.rdoc:  Added description of control
+	  expressions in ruby.
+
+Tue Jan 15 13:33:00 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/methods.rdoc (Method Names):  Added method names including
+	  operator methods.
+	* doc/syntax/methods.rdoc (Return Values):  Added note that assignment
+	  methods ignore return values.
+	* doc/syntax/precedence.rdoc:  Added document describing precedence.
+
+Tue Jan 15 11:49:31 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/methods.rdoc (Block Argument):  Added section on block
+	  argument.  Thanks to Andy Lindeman.
+
+Tue Jan 15 10:54:59 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/calling_methods.rdoc (Arguments):  Added improved
+	  introduction to arguments including passing style and lazy
+	  evaluation.  Thanks to Matt Aimonetti.
+	* doc/syntax/calling_methods.rdoc (Positional Arguments):  Added
+	  description for sending a message to a method with *arguments
+	* doc/syntax/calling_methods.rdoc (Default Positional Arguments):
+	  Added description.  Thanks to Andy Lindeman.
+	* doc/syntax/calling_methods.rdoc (Block Local Arguments):
+	  Added description of block locals.  Thanks to Justin Collins.
+	* doc/syntax/calling_methods.rdoc (Hash to Keyword Arguments):  Added
+	  section describing ** operator.  Thanks  to Justin Collins.
+
+Tue Jan 15 10:40:18 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* test_lazy_enumerator: Test that map & flat_map also require a block
+
+Tue Jan 15 09:22:47 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* thread_pthread.c (gvl_init): Reset gvl.wait_yield explicitly when
+	  fork()ing. Patch by Apollon Oikonomopoulos. Thanks!
+	  [Bug #7693][ruby-core:51424]
+
+Tue Jan 15 09:27:56 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/calling_methods.rdoc (Receiver):  Added :: as pointed out
+	  by Tony Arcieri
+	* doc/syntax/calling_methods.rdoc (Block Argument):  Fixed { } block
+	  examples as pointed out by David Copeland.
+
+Tue Jan 15 09:10:29 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/methods.rdoc (Array/Hash Argument):  Moved above Keyword
+	  Arguments
+	* doc/syntax/methods.rdoc (Keyword Arguments):  Described ** for
+	  gathering arbitrary keyword arguments.
+
+Tue Jan 15 08:56:37 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/calling_methods.rdoc:  Added document describing method
+	  calls.
+
+Tue Jan 15 07:39:21 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rdoc/top_level.rb:  Fixed extension trimming for page names in
+	  RDoc HTML output.  [ruby-trunk - Bug #7673]
+	* test/rdoc/test_rdoc_top_level.rb:  Test for above.
+
+Mon Jan 14 23:06:41 2013  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/ext/save-history.rb: outputs its history to
+	  owner-only-readable file and change the permission of a file that
+	  already exists [Bug #7694]. Thanks Nobuhiro IMAI for bug reports.
+
+Mon Jan 14 17:12:48 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* enumerator.c (lazy_flat_map_func): flat_map should call each only
+	  when the value of a block returns a forcable object.
+	  [ruby-core:51401] [Bug #7690]
+
+	* enumerator.c (lazy_flat_map): add documentation.
+
+	* test/ruby/test_lazy_enumerator.rb: related test.
+
+Mon Jan 14 16:42:28 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* enumerator.c: Require block for Lazy#{take|drop}_while [Bug #7692]
+
+Mon Jan 14 14:41:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_to_s): use CRuby style.
+
+Mon Jan 14 14:39:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* ext/bigdecimal/bigdecimal.c: use `RB_TYPE_P(x, t)` instead of
+	  `TYPE(x) == t`.
+
+Mon Jan 14 10:18:56 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* enumerator.c: Fix size for Enumerator::Lazy#flat_map
+
+Mon Jan 14 07:12:52 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* lib/matrix/lup_decomposition: Fix bugs with LUP Decomposition of
+	  rectangular matrices. [rubyspec:ba849801a85]
+
+Mon Jan 14 06:46:53 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* regparse.c (add_ctype_to_cc): don't check dup warn on adding
+	  negative ctype to cclass. [Bug #7471] [ruby-core:50344]
+
+Mon Jan 14 06:06:03 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* lib/matrix/eigenvalue_decomposition: Backport bugfix of Jama 1.0.3
+	  [rubyspec:df87040be371]
+
+Sun Jan 13 16:45:00 2013  Zachary Scott <zachary@zacharyscott.net>
+
+	* ext/psych/yaml/scanner.c: Fix typos, patch by James Dabbs
+	  [Github tenderlove/psych#118]
+
+Sun Jan 13 15:00:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_sub):
+	  need to specify precision for converting Rational and Float.
+	  [ruby-dev:46544] [Bug #7404]
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_mult): ditto.
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_divide): ditto.
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_DoDivmod): ditto.
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_divremain): ditto.
+
+	* test/bigdecimal/test_bigdecimal.rb: add tests for the above fixes.
+
+Sun Jan 13 14:48:55 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* lib/matrix/eigenvalue_decomposition: Fix eigensystem with complex
+	  eigenvectors. Patch by pypypy567.
+	  [Bug #7208] [ruby-dev:46251] [rubyspec:242f8e55bd]
+
+    * lib/matrix/lup_decomposition.rb: Fix error for rectangular matrices
+      [bug#7620] [ruby-core:51118] [rubyspec:41f833ee2]
+
+Sun Jan 13 14:06:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/irb.rb, lib/prime.rb: Typos in overview
+	  Patch by Ershad K [Github Fixes #234]
+
+Sun Jan 13 13:40:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/open3.rb : Typo in Open3 overview. Patch by zed_0xff
+	  [Github Fixes #233]
+
+Sat Jan 12 17:42:00 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* numeric.c (do_coerce): fix for the exceptions which the coerce
+	  method raises.  The optimization done by r38756 is preserved.
+	  [Bug #7645] [ruby-core:51213]
+
+Sat Jan 12 16:12:46 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* win32/setup.mak (-runtime-): see msvcrt from link header on mswin
+	  instead of running testing executable file, for cross compiling.
+
+Sat Jan 12 08:58:47 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/visitors/to_ruby.rb: merge key values that
+	  contain something besides a hash should be left in tact.
+
+	* test/psych/test_merge_keys.rb: test for change
+
+Sat Jan 12 07:52:47 2013  Masaki Suketa <masaki.suketa@nifty.ne.jp>
+
+	* ext/win32ole/win32ole.c (ole_set_byref): support VT_UI8|VT_BYREF,
+	  VT_I8|VT_BYREF in cygwin and mingw.
+
+	* ext/win32ole/win32ole.c (ole_variant2val): ditto.
+
+	* test/win32ole/test_win32ole_variant.rb (test_s_new_with_i8_byref):
+	  ditto.
+
+	* test/win32ole/test_win32ole_variant.rb (test_s_new_with_ui8_byref):
+	  ditto.
+
+Sat Jan 12 02:45:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* man/ruby.1 (options): include --*-encoding from r38784
+
+Fri Jan 11 23:34:48 2013  Kazuhiro NISHIYAMA  <zn@mbf.nifty.com>
+
+	* ruby.c (usage): sort --*-encoding in help. (same order of -E)
+
+Fri Jan 11 16:56:29 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* tool/mkconfig.rb: use configured libdir value to fix
+	  --enable-load-relative on systems where libdir is not default value,
+	  overridden in config.site files.  [ruby-core:47267] [Bug #6903]
+
+Fri Jan 11 11:59:32 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* string.c (dispose_string): use rb_str_free for freeing string in
+	  parse.y. by Sokolov Yura <funny.falcon@gmail.com>
+	  https://github.com/ruby/ruby/pull/87 fix GH-87
+
+Fri Jan 11 09:56:22 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* insns.def (defineclass): private constants should not be accessed
+	  by scoped module definitions.  The bug was introduced in r38495.
+
+	* test/ruby/test_module.rb: related test.
+
+Fri Jan 11 02:11:59 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* lib/rbconfig/obsolete.rb (respond_to_missing?): use send because
+	  RbConfig.respond_to_missing? is now private.
+
+Thu Jan 10 22:00:58 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_core.h (VM_DEBUG_BP_CHECK): set 0 as default.
+	  This flag specifies checking BP consistency on each frame popping.
+	  Now, we don't have any trouble on it, so I remove it.
+	  If you feel any bugs about VM execution, then set it to 1.
+
+Thu Jan 10 21:03:05 2013 TAKANO `takano32' Mitsuhiro <tak@no32.tk>
+
+	* cont.c: define FIBER_USE_NATIVE as 0 in ia64.
+
+Thu Jan 10 19:39:05 2013  TAKANO `takano32' Mitsuhiro <tak@no32.tk>
+
+	* thread.c: fix RB_GC_SAVE_MACHINE_REGISTER_STACK define for ia64.
+
+Thu Jan 10 17:45:39 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* Makefile.in, win32/Makefile.sub ($(MKFILES)): continue if Makefile
+	  unchanged.
+
+Thu Jan 10 16:31:20 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* vm_insnhelper.c (vm_search_super_method): raise a TypeError
+	  instead of a NotImplementedError if self is not an instance of the
+	  current class.  [ruby-dev:39772] [Bug #2402]
+
+Thu Jan 10 16:47:18 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/tk/extconf.rb (find_tcltk_header): use have_header instead of
+	  try_cpp, which is incredibly slow with VC.
+
+Thu Jan 10 15:55:28 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* numeric.c (do_coerce): remove an unused variable.
+
+Thu Jan 10 15:35:55 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* tool/gen_dummy_probes.rb: remove comments in probes.d to fix the
+	  compilation error introduced by r38755.
+
+Thu Jan 10 11:15:04 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* numeric.c (do_coerce): speed optimization by using rb_check_funcall
+	  instead of rb_rescue + rb_funcall.
+	  This fix is based on the patch by Benoit Daloze.
+	  [Bug #7645] [ruby-core:51213]
+
+Thu Jan 10 11:15:04 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* probes.d: updating probes to be more symmetrical, adding
+	  documentation.
+
+	* load.c: ditto
+
+Thu Jan 10 04:23:07 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/scalar_scanner.rb: strip trailing dots from
+	  floats so that Float() will not raise an exception.
+
+	* test/psych/test_numeric.rb: test to ensure "1." can be loaded
+
+	* test/psych/test_string.rb: make sure "1." can round trip
+
+Thu Jan 10 03:38:40 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/visitors/yaml_tree.rb: ascii only binary strings
+	  will be dumped as unicode.  Thanks Paul Kunysch!
+
+	* test/psych/test_string.rb: appropriate test
+
+Thu Jan 10 03:29:55 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* compile.c (compile_array_): modify wrong optimization.
+	  A script "[print(1)]; print(2)" should output "12".
+	  However, the compiler had eliminated "[print(1)]" expression
+	  because it is void expression (unused array).
+	  Of course, side-effect should be remained.
+	  This issue is reported by Masaya Tarui.
+
+	* bootstraptest/test_literal.rb: add a test.
+
+Wed Jan  9 22:07:42 2013  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* load.c (load_lock): if thread shield is destroyed and there is no
+	  waiting thread, insert new thread shield into load_table.
+	  [Bug #7530] [ruby-core:50645]
+
+Wed Jan  9 21:43:32 2013  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* load.c (load_lock): revert r38744. it should acquire new thread
+	  shield.
+
+Wed Jan  9 15:40:18 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm.c (th_init, ruby_thread_init): initialize root_svar with Qnil,
+	  since lep_svar_place() expects uninitialized svar to be nil, not 0.
+
+Wed Jan  9 13:20:23 2013  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* test/ruby/test_require.rb: improve test for r38744.
+	  fix to use Tempfile instead of temporary file in current directory.
+	  the patch is from nobu (Nobuyoshi Nakada).
+
+Wed Jan  9 09:53:23 2013  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* load.c (load_lock): fix not to delete thread shield twice.
+	  it may break the shield locked by another thread.
+	  [Bug #7530] [ruby-core:50645]
+
+	* test/ruby/test_require.rb: a test for above.
+
+Wed Jan  9 02:13:22 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* include/ruby/ruby.h (RBasic): to be aligned on a VALUE size
+	  boundary.  [Bug #7647]
+
+Tue Jan  8 14:41:41 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_core.h (rb_iseq_t): move flip_cnt from struct iseq_compile_data,
+	  because it has same life span as enclosing iseq.  [Bug #7671]
+	  [ruby-core:51296]
+
+Mon Jan  7 23:43:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* ext/bigdecimal/bigdecimal.c (rmpd_power_by_big_decimal):
+	  add RB_GC_GUARD to prevent the intermediate object is GCed too early.
+	  This patch was made by Yusuke Endoh.  [Bug #7044] [ruby-core:47632]
+
+	* test/bigdecimal/test_bigdecimal.rb: add a reproduction test for
+	  the issue [Bug #7044]
+
+Mon Jan  7 21:40:36 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* vm_method.c (Init_eval_method): main.public and main.private
+	  should be private.
+
+	* proc.c (Init_Proc): main.define_method should be private.
+
+	* test/ruby/test_module.rb: related test.
+
+Mon Jan  7 20:48:47 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* eval.c (Init_eval): main.include should be private.
+	  [ruby-core:51293] [Bug #7670]
+
+	* test/ruby/test_module.rb (test_top_include_is_private): a new test
+	  for the above change.
+
+Mon Jan  7 20:29:50 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* NEWS: remove description about `require "refinement"'.
+
+Mon Jan  7 20:15:49 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* eval.c (Init_eval): enable Refinements by default.
+	  [ruby-core:51286] [Bug #7667]
+
+	* eval.c (rb_mod_refine, top_using): show a warning when
+	  Module#refine or main.using is called at the first time.
+
+	* ext/refinement/*: removed the extension library "refinement".
+
+	* test/ruby/test_refinement.rb: fix for the above changes.
+
+Mon Jan  7 17:34:22 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h (RUBY_EVENT_SPECIFIED_LINE): make it special.
+	  This flag is not contained by RUBY_EVENT_TRACEPOINT_ALL.
+	  This event is experimental one. It is possible to remove/rename
+	  flag name after 2.0.1.
+
+	* vm_trace.c (get_event_id): return :line if SPECIFIED_LINE was
+	  occurred. `:specified_line' never been returned.
+
+Mon Jan  7 15:42:10 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* parse.y (f_kwrest): allow bare kwrest_mark as valid syntax.  its
+	  semantics is still undefined.  [Bug #7662] [ruby-core:51269]
+
+Mon Jan  7 15:31:58 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* parse.y (f_kwrest): reject duplicated kwrest argument name.
+
+Mon Jan  7 15:24:10 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_trace.c (rb_threadptr_exec_event_hooks_orig): pop tag before
+	  JUMP_TAG() if frame is `finish' frame.
+	  Without this patch, there is an inconsistency between control
+	  frame stack and tags stack.
+	  [Bug #7668]
+
+	* test/ruby/test_settracefunc.rb: add a test for above.
+
+Mon Jan  7 15:21:48 2013  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* Makefile.in, common.mk (fake, yes-fake, no-make): these dependencies
+	  are not platform dependent.
+
+	* win32/Makefile.sub ($(arch)-fake.rb): workaround.
+
+Mon Jan  7 12:09:24 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_insnhelper.c (vm_callee_setup_arg_complex, vm_yield_setup_block_args):
+	  set keyrest hash after making rest array, so that the last element
+	  will not be overwritten.  [ruby-core:51278] [Bug #7665]
+
+Mon Jan  7 09:37:24 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* NEWS: add a NEWS entry about RubyVM.
+
+Sun Jan  6 19:06:57 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* win32/Makefile.sub: Fix build with VC.
+	  Patch by Charlie Savage. Fixes [ruby-core:51261]
+
+Sun Jan  6 18:43:48 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* bootstraptest/test_io.rb: add a test for [ruby-dev:46834].
+
+	* io.c (rb_cloexec_fcntl_dupfd) Use an emulation with dup(2) when
+	  fcntl(2) and/or F_DUPFD is unavailable.
+	  Suggested by akr.
+
+	* configure.in (HAVE_FCNTL): NativeClient does not provide fcntl(2).
+
+Sun Jan  6 11:11:26 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/modules_and_classes.rdoc:  Fixed typo.
+
+Sun Jan  6 05:35:18 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/modules_and_classes.rdoc:  Added singleton classes
+	  documentation.
+
+Sun Jan  6 02:22:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/webrick/httpservlet/abstract.rb (WEBrick::HTTPServlet): Typo in
+	  example. Patch by shlensky [Fixes #232 on github]
+
+Sat Jan  5 21:15:10 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* lib/net/http/generic_request.rb:
+	  Amazon ECA API and GTE/1.3 disallow requests whose host has port
+	  number if its port number equals to default port number of the
+	  scheme. [Bug #7650]
+
+Sat Jan  5 13:58:59 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/modules_and_classes.rdoc:  Improved description of methods
+	  on a module or class as suggested by Tobias Buhlmann
+
+Sat Jan  5 13:38:07 2013  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* string.c (rb_str_enumerate_lines): fix invalid byte sequence error
+	  when a separator is passed. The patch is from yoshidam (Yoshida
+	  Masato).
+	  [Bug #7646] [ruby-dev:46827]
+
+	* test/ruby/test_string.rb: a test for above.
+
+Sat Jan  5 12:25:42 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* test/ruby/envutil.rb (Test::Unit::Assertions#assert_in_out_err):
+	  check stdout and stderr both.
+
+Sat Jan  5 10:21:54 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/modules_and_classes.rdoc:  Added documentation of syntax
+	  for Modules and Classes.
+	* doc/syntax/methods.rdoc:  Moved some text to the Modules and
+	  Classes syntax document.
+
+Sat Jan  5 08:38:27 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/syntax/methods.rdoc:  Added return values and scope sections,
+	  slightly modified from the original patch.  Fixes #227 from github by
+	  Dave Brown.
+
+Sat Jan  5 08:21:41 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* io.c (rb_cloexec_fcntl_dupfd): improve #ifdef condition.
+	* io.c (rb_maygvl_fd_fix_cloexec): ditto.
+
+Sat Jan  5 07:54:59 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rubygems/commands/cleanup_command.rb:  Clean all possible gems
+	  using multiple passes.  Fixes RubyGems bug #422.  Refactored for
+	  maintainability.
+	* test/rubygems/test_gem_commands_cleanup_command.rb:  Test for above.
+
+Sat Jan  5 05:04:39 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* gc.c (vm_xrealloc): add a few comment why we avoid realloc(ptr,0).
+
+Fri Jan  4 20:17:06 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* Makefile.in (RBCONFIG): Moved from common.mk in order to use the
+	  variable in Makefile.in.
+
+	* win32/Makefile.sub (RBCONFIG): Ditto.
+
+Fri Jan  4 19:45:50 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* common.mk (run, parse): Use BTESTRUBY instead of MINIRUBY to handle
+	  cross-compiling cases, e.g. NativeClient.
+
+Fri Jan  4 17:58:16 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* common.mk (yes-btest): btest depends on also $(arch)-fake.rb and
+	  rbconfig.rb on building for NativeClient.
+
+	* Makefile.in (fake): Avoid generating $(arch)-fake.rb unless cross
+	  compiling.
+
+	* configure.in (CROSS_COMPILING): New substitution.
+
+Fri Jan  4 16:26:45 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rubygems/doctor.rb:  Process directories in order in case the
+	  filesystem doesn't.  [ruby-trunk - Bug #7618]
+
+	  Process specifications before other directories in case of bugs.
+	* test/rubygems/test_gem_doctor.rb:  Test for above.
+
+	* lib/rubygems.rb:  Updated version.
+
+	* test/rubygems/test_require.rb:  Fixed double require of
+	  benchmark.rb.  RubyGems bug #420.
+
+	* test/rubygems/test_gem_commands_check_command.rb:  Fixed unused
+	  variable warnings.
+	* test/rubygems/test_gem_commands_query_command.rb:  ditto
+	* test/rubygems/test_gem_installer.rb:  ditto
+
+Fri Jan  4 15:05:25 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rdoc/cross_reference.rb:  Fixed matching of C#=== or #===.  RDoc
+	  bug #164
+	* test/rdoc/test_rdoc_cross_reference.rb:  Test for above.
+
+	* lib/rdoc/parser/changelog.rb:  Fixed parsing of dates.  RDoc bug #165
+	* test/rdoc/test_rdoc_parser_changelog.rb:  Test for above.
+
+	* lib/rdoc/parser.rb:  Fixed parsing multibyte files with incomplete
+	  characters at byte 1024.  [ruby-trunk - Bug #6393]
+	  Fixed handling of -E.  [ruby-trunk - Bug #6392]
+	* test/rdoc/test_rdoc_options.rb:  Test for above.
+	* test/rdoc/test_rdoc_parser.rb:  ditto.
+	* test/rdoc/test_rdoc_parser_c.rb:  ditto.
+	* test/rdoc/test_rdoc_parser_changelog.rb:  ditto.
+	* test/rdoc/test_rdoc_parser_markdown.rb:  ditto.
+	* test/rdoc/test_rdoc_parser_rd.rb:  ditto.
+	* test/rdoc/test_rdoc_rdoc.rb:  ditto.
+
+	* lib/rdoc/tom_doc.rb:  Fixed parsing of [] in TomDoc arguments list.
+	  RDoc bug #167
+	* test/rdoc/test_rdoc_tom_doc.rb:  Test for above.
+
+	* lib/rdoc.rb:  Update version.
+
+Fri Jan  4 11:51:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/forwardable.rb: Fix rdoc parameters for ::def_single_delegator.
+	  Patch by Vladimir Andrijevik [Github Fixes #230]
+
+Fri Jan  4 00:35:11 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	Fix failures on btest for NativeClient.
+	* bootstraptest/runner.rb (nacl?): New method to distinguish NaCl
+	  cross build.
+
+	* bootstraptest/test_io.rb: Skip unsupported operations.
+
+	* bootstraptest/test_literal.rb: ditto.
+
+Fri Jan  4 00:29:40 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* io.c (rb_cloexec_fcntl_dupfd): Fix failures in
+	  bootstrap_test/test_io.rb.  NativeClient does not support F_DUPFD
+	  but supports dup2(2).
+
+Thu Jan  3 17:46:50 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* lib/rexml/element.rb (REXML::Elements#add): Remove too much
+	  "elements" in document. Sorry...
+
+Thu Jan  3 17:42:32 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* lib/rexml/element.rb (REXML::Elements#each): Add missing
+	  "elements" in document. [ruby-talk:402713]
+	  Reported by Wesley Rishel. Thanks!!!
+
+Thu Jan  3 15:13:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/psych/lib/psych.rb (Psych.load): Return value of
+	  Psych::SyntaxError.message should be same as example.
+	  Patch by Ippei Obayashi [ruby-core:51193] [Bug #7636]
+
+Thu Jan  3 14:58:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/forwardable.rb (SingleForwardable): Fix example in overview
+	  Patch by Vladimir Andrijevik [Github Fixes #231]
+
+Thu Jan  3 14:32:47 2013  Yuki Yugui Sonoda  <yugui@yugui.jp>
+
+	* configure.in (OBJCOPY):  Fixes build error for NativeClient.
+	  Avoid disabling OBJCOPY for NativeClient.
+
+	* thread_pthread.c (rb_reserved_fd_p): USE_SLEEPY_TIMER_THREAD is
+	  always defined.  Fixes compilation error for NativeClient.
+
+Wed Jan 02 03:09:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/zlib/zlib.c (Zlib::GzipReader): Fix typo by zed_0xff
+	  [Fixes Github #229]
+
+Wed Jan 02 02:29:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* hash.c (rb_hash_update): Revert documentation from r38672
+	  See: https://github.com/ruby/ruby/pull/228#issuecomment-11791013
+
+Wed Jan 02 02:16:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* hash.c (rb_hash_update): Documentation for Hash#merge and shallow
+	  copies Patch by Yorick Peterse [Fixes Github #228]
+
+Mon Dec 31 15:10:00 2012  Zachary Scott  <zachary@zacharyscott.net>
+
+	* vm_backtrace.c: Add documentation for Kernel#caller_locations,
+	  Kernel#caller, and Thread::Backtrace::Location
+
+Mon Dec 31 13:05:00 2012  Zachary Scott  <zachary@zacharyscott.net>
+
+	* test/ruby/test_backtrace.rb: Add test for r37957 [Feature #7434]
+
+Sun Dec 30 23:33:36 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* parse.y (simple_re_meta): escaped closing parenthesis has different
+	  meaning.  [Bug #7610] [ruby-core:51088]
+
+Sun Dec 30 12:09:47 2012  Charlie Somerville  <charlie@charliesomerville.com>
+
+	* configure.in: use 4 argument form of AC_CHECK_HEADERS to force
+	  autoconf to use compiler's result
+
+Sun Dec 30 10:58:04 2012  Kazuki Tsujimoto  <kazuki@callcc.net>
+
+	* test/ruby/test_keyword.rb: add a test for passing hash
+	  as a last argument. [ruby-dev:46712] [Bug #7529]
+
+Sun Dec 30 10:51:29 2012  Kazuki Tsujimoto  <kazuki@callcc.net>
+
+	* vm_insnhelper.c: set keyword hash on Proc/block calls.
+	  [ruby-core:51172] [Bug #7630]
+
+	* test/ruby/test_keyword.rb: add tests for above.
+
+Sat Dec 29 21:57:11 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/completion.rb: treat rightly completion for symbol on irb
+	  [Bug #7632].
+
+Sat Dec 29 21:51:30 2012  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* ext/curses/curses.c (window_cury, window_curx, window_maxy,
+	  window_maxx, window_begy, window_begx): use RB_UNUSED_VAR()
+	  to suppress unused-but-set-variable warnings.
+
+Sat Dec 29 16:45:00 2012  Zachary Scott  <zachary@zacharyscott.net>
+
+	* iseq.c (RubyVM::InstructionSequence): rdoc formatting
+
+Sat Dec 29 15:28:00 2012  Zachary Scott  <zachary@zacharyscott.net>
+
+	* iseq.c (RubyVM::InstructionSequence):	Add rdoc for new iseq features
+	  added from r38085, this includes ::of, #path, #absolute_path,
+	  #label, #base_label, #first_lineno, and #inspect
+
+Sat Dec 29 14:06:00 2012  Zachary Scott  <zachary@zacharyscott.net>
+
+	* iseq.c (rb_iseq_line_trace_all, rb_iseq_line_trace_specify): Add
+	  rdoc for experimental C level api of iseq, from r38076
+
+Sat Dec 29 11:37:36 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* object.c (rb_obj_clone): attach clone to its singleton class during
+	  cloning singleton class so that singleton_method_added will be called
+	  on it.  based on the patch by shiba (satoshi shiba)[Bug #5283] in
+	  [ruby-dev:44477].  [Bug #5283]
+
+Sat Dec 29 10:10:39 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in (crt_externs.h): use standard macro AC_CHECK_HEADERS.
+
+Fri Dec 28 23:12:44 2012  Charlie Somerville  <charlie@charliesomerville.com>
+
+	* configure.in: check for the whether crt_externs.h is present when compiling
+	  for darwin (this header is missing in the iOS SDK)
+	* eval_intern.h: check HAVE_CRT_EXTERNS_H before including crt_externs.h, if
+	  not defined, include missing/crt_externs.h instead
+	* hash.c: ditto
+	* missing/setproctitle.c: ditto
+	* missing/crt_externs.h: declare _NSGetEnviron() function and define environ
+	  for iOS
+
+Fri Dec 28 21:40:36 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/context.rb: IRB::Context#new: Check from JobManager
+	  inside IRB namespace [Bug #7628]. Thanks rafaelfranca for bug
+	  report and its patch.
+
+Fri Dec 28 17:06:17 2012  Akinori MUSHA  <knu@iDaemons.org>
+
+	* misc/ruby-electric.el (ruby-electric-curlies): Automatically
+	  indent closing curly brackets when
+	  ruby-electric-newline-before-closing-bracket is true.
+
+Fri Dec 28 11:50:42 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_insnhelper.c (vm_yield_setup_block_args): pass single argument to
+	  single optional parameter unchanged without splatting.  [Bug #7621]
+	  [ruby-dev:46801]
+
+Fri Dec 28 11:17:47 2012  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* proc.c (method_eq): fix the documentation to refer to owner.
+	  [ruby-core:51105] [Bug #7613]
+
+	* test/ruby/test_method.rb (test_alias_onwer): new test to confirm
+	  that `a == b' returns false if owners of a and b are different.
+
+Fri Dec 28 07:07:43 2012  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* def/id.def: use split(/^/) instead of String#lines to support
+	  Ruby 1.8.5 as BASERUBY.
+
+Thu Dec 27 21:56:56 2012  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* variable.c (rb_mod_remove_const): fix segv caused by r38558.
+
+Tue Dec 28 01:13:48 2012  James Edward Gray II  <james@graysoftinc.com>
+
+	* lib/csv.rb: Added more Hash methods to CSV::Row.
+
+Thu Dec 27 23:27:15 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/ruby-lex.rb: make lex_state to EXPR_END when next token
+	  is an operator after SYMBEG [Bug #6378].
+
+Thu Dec 27 21:30:21 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/ruby-lex.rb: allow to handle recursive heredocs on
+	  irb[Bug #5648].
+
+Thu Dec 27 20:45:29 2012  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* ext/stringio/stringio.c (strio_getline): fix not to raise TypeError
+	  when limit is nil.
+	  [Bug #7232] [ruby-core:48531]
+
+	* test/stringio/test_stringio.rb: a test for above.
+
+Thu Dec 27 21:08:23 2012  Charlie Somerville  <charlie@charliesomerville.com>
+
+	* vm_core.h (VM_DEFINECLASS_TYPE): explicit cast to enum type to avoid 64->32
+	  shorten warning
+
+Thu Dec 27 20:11:29 2012  Masaki Matsushita  <glass.saga@gmail.com>
+
+	* ext/stringio/stringio.c (strio_ungetc): raise IOError instead of RuntimeError
+	  if the string is frozen.
+	  [Bug #7231] [ruby-core:48530]
+
+	* ext/stringio/stringio.c (strio_ungetbyte): ditto.
+
+	* test/stringio/test_stringio.rb: a test for above.
+
+Wed Dec 26 23:55:18 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/context.rb: fix IRB::Inspector#keys_with_inspector [Bug #7598]
+
+Wed Dec 26 23:26:15 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/context.rb: IRB::Context#use_readline= has been obsolete
+	  [Bug #6339].
+
+Wed Dec 26 21:32:46 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/context.rb: make a correct prompt from
+	  IRB.conf[:IRB_NAME] on irb [Bug #6338]. Patched by sho-h.
+
+Wed Dec 26 21:09:19 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/ext/math-mode.rb: make not able to change math-mode
+	  after irb starting [Bug #6302]. Patched by sho-h.
+
+Wed Dec 26 12:52:36 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/init.rb: change default debug level for
+	  irb[ruby-dev:46805], [Bug #6301].
+
+Wed Dec 26 11:54:11 2012  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: enable -fPIE when checking -pie for fixing
+	  OpenBSD build error. Patch by George Koehler. Thank you!
+	  [Bug #7606] [ruby-core:51082]
+
+Wed Dec 26 07:31:24 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* string.c (rb_enc_cr_str_copy_for_substr): empty string is always
+	  valid or 7bit.
+
+	* string.c (rb_str_enumerate_lines, rb_str_chop): reduce duplicated
+	  code.
+
+	* string.c (rb_str_enumerate_chars): prevent shared copy from GC.
+
+Wed Dec 26 01:31:16 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/init.rb, lib/irb/context.rb: fix conf.debug_level=
+	  [Bug #6301] and fix irb command option: -- irb_debug_level for irb.
+
+Wed Dec 26 00:59:18 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/ruby-lex.rb: improve RubyLex performance for large files
+	  [Bug #5202]. Patch by ryanmelt.
+
+Tue Dec 25 22:21:06 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/output-method.rb: raise right exception when
+	  IRB::OutputMethod#print don't defined [Bug #6657].
+
+Tue Dec 25 22:06:33 2012  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_trace.c (rb_threadptr_exec_event_hooks_and_pop_frame):
+	  pop a frame before JUMP_TAG() if exception occurred.
+	  This change fix bug of Ruby 1.9.
+	  [ruby-core:51128] [ruby-trunk - Bug #7624]
+
+	* vm_core.h (EXEC_EVENT_HOOK_AND_POP_FRAME): add to use
+	  `rb_threadptr_exec_event_hooks_and_pop_frame()'.
+
+	* vm.c (vm_exec): use EXEC_EVENT_HOOK_AND_POP_FRAME() while
+	  exception handling. While exception handling, if an exception
+	  is raised in hooks, need to pop current frame and raise this
+	  raised exception by hook.
+
+	* test/ruby/test_settracefunc.rb: add a test.
+
+Tue Dec 25 21:08:53 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/init.rb, lib/irb/lc/ja/error.rb, lib/irb/lc/error.rb:
+	  raise exception when illegal RC_NAME_GENERATOR defined [Bug #6455].
+
+Tue Dec 25 19:22:17 2012  Keiju Ishitsuka  <keiju@ishitsuka.com>
+
+	* lib/irb/workspace.rb: define method to private on top-level irb
+	  [Bug #5776]. Patch by davidbalbert.
+
+Tue Dec 25 19:09:51 2012  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* bignum.c, include/ruby/intern.h (rb_big_eql): exported.
+
+	* thread.c (recursive_check): object_id maybe a Bignum, not Fixnum on
+	  LLP64.  see also r38493 and r38548.
+	  reported by Heesob Park at [ruby-core:51083] [Bug #7607], and patched
+	  by shirosaki at [ruby-core:51095]
+
+Tue Dec 25 18:53:35 2012  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_core.h, eval_intern.h (CHECK_STACK_OVERFLOW): move
+	  CHECK_STACK_OVERFLOW() to vm_core.h and rename to
+	  CHECK_VM_STACK_OVERFLOW().
+	  This change is only move and rename.
+
+	* tool/instruction.rb: catch up above changes.
+
+	* vm.c, vm_insnhelper.c: ditto.
+
+	* vm_insnhelper.c (vm_stackoverflow): add a function to unify
+	  raising vm stackoverflow exception.
+
+Tue Dec 25 16:16:54 2012  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_core.h (RUBY_VM_THREAD_VM_STACK_SIZE): change default
+	  VM stack size (128 KB or  256 KB -> 512 KB or 1024 KB).
+	  This re-sizing corrects smaller value introduced at r38478.
+	  Newer value is same VM stack size of Ruby 1.9.
+	  [ruby-dev:46797] [ruby-trunk - Bug #7603]
+
+Tue Dec 25 13:38:12 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* error.c (compile_err_append, compile_warn_print, warn_print): use
+	  rb_write_error_str() instead of writing to rb_stderr directly.
+
+	* io.c (rb_write_error_str): a stopgap measure not to unblock GVL.
+	  warning from require seems to still have race condition errors.
+
+Tue Dec 25 00:59:29 2012  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* node.h (NODE_OP_CDECL), compile.c (iseq_compile_each),
+	  parse.y (stmt, arg): allow scoped constant op-assignment.
+	  [ruby-core:40154] [Bug #5449]
+
 Mon Dec 24 04:56:48 2012  NARUSE, Yui  <naruse@ruby-lang.org>
 
 	* lib/net/http/generic_request.rb (Net::HTTPGenericRequest):
@@ -2126,7 +3210,7 @@ Sat Dec  1 09:33:32 2012  Eric Hodel  <drbrain@segment7.net>
 
 	* test/runner.rb:  Set GEM_HOME, GEM_PATH and GEM_SKIP to empty set.
 	  With default_gem support in RubyGems GEM_SKIP prevents loading of
-          built-in gems.
+	  built-in gems.
 
 Sat Dec  1 07:16:17 2012  Hiroshi Shirosaki  <h.shirosaki@gmail.com>
 
@@ -10435,7 +11519,7 @@ Mon Jun 11 12:14:37 2012  Koichi Sasada  <ko1@atdot.net>
 	  dfp (dynamic frame pointer) to ep (environment pointer).
 	  This change make VM `normal' (similar to other interpreters).
 	  Before this commit:
-            Each frame has two env pointers lfp and dfp.  lfp points
+	    Each frame has two env pointers lfp and dfp.  lfp points
 	    local environment which is method/class/toplevel frame.
 	    lfp[0] is block pointer.
 	    dfp is block local frame. dfp[0] points previous (parent)
@@ -11264,16 +12348,16 @@ Sun Jun  3 01:36:52 2012  Koichi Sasada  <ko1@atdot.net>
 	  (2) Method name: RubyVM::FrameInfo.caller ->
 	      Kernel.caller_locations.
 	  (3) Instance methods of
-              RubyVM::FrameInfo (RubyVM::Backtrace::Location)
+	      RubyVM::FrameInfo (RubyVM::Backtrace::Location)
 	      (3-1) name -> label
 	      (3-2) basename -> base_label (basename is confusing with
-	            File.basename)
+		    File.basename)
 	      (3-3) line_no -> lineno (We have already similar name
-	            File#lineno, commented by kou [ruby-dev:45686]).
+		    File#lineno, commented by kou [ruby-dev:45686]).
 	      (3-4) filename -> path.
 	      (3-5) filepath -> absolute_path.
 	      (3-5) iseq -> removed (we will make other APIs to access iseq
-	            and other information of frame for debugging).
+		    and other information of frame for debugging).
 
 	* test/ruby/test_backtrace.rb: apply above changes.
 	  And apply comment from kou [ruby-dev:45686].
@@ -11660,7 +12744,7 @@ Thu May 24 14:30:13 2012  Koichi Sasada  <ko1@atdot.net>
 
 	* vm.c: add RubyVM::Backtrace object (btobj).
 	  Backtrace information contains an array consists of location
-          information for each frames by string.
+	  information for each frames by string.
 	  RubyVM::Backtrace object is lightweight backtrace information,
 	  which contains complete information to generate traditional style
 	  backtrace (an array of strings) with faster generation.

@@ -3,6 +3,7 @@ NULLCMD = @NULLCMD@
 n=$(NULLCMD)
 ECHO1 = $(V:1=@$n)
 RUNCMD = $(SHELL)
+CDPATH = .
 CHDIR = @CHDIR@
 exec = exec
 NULL = /dev/null
@@ -25,6 +26,7 @@ AUTOCONF = autoconf
 MKFILES = @MAKEFILES@
 BASERUBY = @BASERUBY@
 TEST_RUNNABLE = @TEST_RUNNABLE@
+CROSS_COMPILING = @CROSS_COMPILING@
 DOXYGEN = @DOXYGEN@
 
 prefix = @prefix@
@@ -167,6 +169,7 @@ MKMAIN_CMD    = mkmain.sh
 
 NEWLINE_C     = newline.c
 MINIPRELUDE_C = miniprelude.c
+RBCONFIG      = .rbconfig.time
 
 SRC_FILE      = $<
 OS_SRC_FILE   = $<
@@ -220,8 +223,6 @@ $(LIBRUBY_SO):
 		@-$(MINIRUBY) -e 'ARGV.each{|link| File.delete link if File.exist? link; \
 						  File.symlink "$(LIBRUBY_SO)", link}' \
 				$(LIBRUBY_ALIASES) || true
-
-fake: $(arch)-fake.rb
 $(arch)-fake.rb: config.status $(srcdir)/template/fake.rb.in
 		@./config.status --file=$@:$(srcdir)/template/fake.rb.in
 		@chmod +x $@
@@ -250,8 +251,10 @@ install-cross: $(arch)-fake.rb $(RBCONFIG) rbconfig.rb $(arch_hdrdir)/ruby/confi
 Makefile:	$(srcdir)/Makefile.in $(srcdir)/enc/Makefile.in
 
 $(MKFILES): config.status
+		@[ -f Makefile ] && mv Makefile Makefile.old
 		MAKE=$(MAKE) $(SHELL) ./config.status
-		@{ \
+		@cmp Makefile Makefile.old > /dev/null 2>&1 && echo Makefile unchanged && exit 0; \
+		{ \
 		    echo "all:; -@rm -f conftest.mk"; \
 		    echo "conftest.mk: .force; @echo AUTO_REMAKE"; \
 		    echo ".force:"; \

@@ -15,7 +15,7 @@
 #include "gc.h"
 #include "eval_intern.h"
 
-#if ((defined(_WIN32) && _WIN32_WINNT >= 0x0400) || (defined(HAVE_GETCONTEXT) && defined(HAVE_SETCONTEXT))) && !defined(__NetBSD__) && !defined(__sun) && !defined(FIBER_USE_NATIVE)
+#if ((defined(_WIN32) && _WIN32_WINNT >= 0x0400) || (defined(HAVE_GETCONTEXT) && defined(HAVE_SETCONTEXT))) && !defined(__NetBSD__) && !defined(__sun) && !defined(__ia64) && !defined(FIBER_USE_NATIVE)
 #define FIBER_USE_NATIVE 1
 
 /* FIBER_USE_NATIVE enables Fiber performance improvement using system
@@ -128,7 +128,7 @@ static VALUE rb_eFiberError;
 #define GetFiberPtr(obj, ptr)  do {\
     TypedData_Get_Struct((obj), rb_fiber_t, &fiber_data_type, (ptr)); \
     if (!(ptr)) rb_raise(rb_eFiberError, "uninitialized fiber"); \
-} while(0)
+} while (0)
 
 NOINLINE(static VALUE cont_capture(volatile int *stat));
 
@@ -872,7 +872,7 @@ rb_callcc(VALUE self)
 static VALUE
 make_passing_arg(int argc, VALUE *argv)
 {
-    switch(argc) {
+    switch (argc) {
       case 0:
 	return Qnil;
       case 1:

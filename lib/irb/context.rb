@@ -54,10 +54,10 @@ module IRB
 
       self.prompt_mode = IRB.conf[:PROMPT_MODE]
 
-      if IRB.conf[:SINGLE_IRB] or !defined?(JobManager)
+      if IRB.conf[:SINGLE_IRB] or !defined?(IRB::JobManager)
 	@irb_name = IRB.conf[:IRB_NAME]
       else
-	@irb_name = "irb#"+IRB.JobManager.n_jobs.to_s
+	@irb_name = IRB.conf[:IRB_NAME]+"#"+IRB.JobManager.n_jobs.to_s
       end
       @irb_path = "(" + @irb_name + ")"
 
@@ -100,7 +100,7 @@ module IRB
       if @echo.nil?
 	@echo = true
       end
-      @debug_level = IRB.conf[:DEBUG_LEVEL]
+      self.debug_level = IRB.conf[:DEBUG_LEVEL]
     end
 
     # The top-level workspace, see WorkSpace#main
@@ -335,21 +335,15 @@ module IRB
       @inspect_mode
     end
 
-
-    # Sets whether or not to use the Readline extension
+    # Obsolete method.
     #
-    # +true+::  enables +Readline+
-    # +false+:: disables +Readline+
-    # +nil+::   intends to use +Readline+,
-    #           except for when +inf-ruby-mode+ is active.
-    #
-    # Can also be set using the +--noreadline+ and +--readline+ command line
+    # Can be set using the +--noreadline+ and +--readline+ command line
     # options.
     #
     # See IRB@Command+line+options for more command line options.
     def use_readline=(opt)
-      @use_readline = opt
-      print "use readline module\n" if @use_readline
+      print "This method is obsolete."
+      print "Do nothing."
     end
 
     # Sets the debug level of irb
@@ -360,7 +354,6 @@ module IRB
     def debug_level=(value)
       @debug_level = value
       RubyLex.debug_level = value
-      SLex.debug_level = value
     end
 
     # Whether or not debug mode is enabled, see #debug_level=.

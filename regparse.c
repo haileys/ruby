@@ -2278,7 +2278,7 @@ onig_reduce_nested_quantifier(Node* pnode, Node* cnode)
   cnum = popular_quantifier_num(c);
   if (pnum < 0 || cnum < 0) return ;
 
-  switch(ReduceTypeTable[cnum][pnum]) {
+  switch (ReduceTypeTable[cnum][pnum]) {
   case RQ_DEL:
     *pnode = *cnode;
     break;
@@ -4127,7 +4127,7 @@ add_ctype_to_cc(CClassNode* cc, int ctype, int not, int char_prop, ScanEnv* env)
     r = add_ctype_to_cc_by_range(cc, ctype, not, env, sb_out, ranges);
     if ((r == 0) && ascii_range) {
       if (not != 0) {
-	r = add_code_range_to_buf(&(cc->mbuf), env, 0x80, ONIG_LAST_CODE_POINT);
+	r = add_code_range_to_buf0(&(cc->mbuf), env, 0x80, ONIG_LAST_CODE_POINT, FALSE);
       }
       else {
 	CClassNode ccascii;
@@ -5284,7 +5284,7 @@ set_quantifier(Node* qnode, Node* target, int group, ScanEnv* env)
 	  IS_SYNTAX_BV(env->syntax, ONIG_SYN_WARN_REDUNDANT_NESTED_REPEAT)) {
         UChar buf[WARN_BUFSIZE];
 
-        switch(ReduceTypeTable[targetq_num][nestq_num]) {
+        switch (ReduceTypeTable[targetq_num][nestq_num]) {
         case RQ_ASIS:
           break;
 

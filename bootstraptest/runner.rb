@@ -62,6 +62,7 @@ def main
   @verbose = false
   $stress = false
   @color = nil
+  @tty = nil
   @quiet = false
   dir = nil
   quiet = false
@@ -86,6 +87,10 @@ def main
     when /\A--color(?:=(?:always|(auto)|(never)|(.*)))?\z/
       warn "unknown --color argument: #$3" if $3
       @color = $1 ? nil : !$2
+      true
+    when /\A--tty(=(?:yes|(no)|(.*)))?\z/
+      warn "unknown --tty argument: #$3" if $3
+      @tty = !$1 || !$2
       true
     when /\A(-q|--q(uiet))\z/
       quiet = true
@@ -123,7 +128,7 @@ End
 
   @progress = %w[- \\ | /]
   @progress_bs = "\b" * @progress[0].size
-  @tty = $stderr.tty?
+  @tty = $stderr.tty? if @tty.nil?
   case @color
   when nil
     @color = @tty && /dumb/ !~ ENV["TERM"]
@@ -178,20 +183,20 @@ def exec_test(pathes)
         $stderr.print "#{@progress_bs}#{@failed}FAIL #{@error-error}/#{@count-count}#{@reset}"
       end
     end
-    $stderr.puts unless @quiet
+    $stderr.puts unless @quiet and @tty
   end
   if @error == 0
     if @count == 0
       $stderr.puts "No tests, no problem"
     else
-      $stderr.puts "PASS all #{@count} tests"
+      $stderr.puts "#{@passed}PASS#{@reset} all #{@count} tests"
     end
     exit true
   else
     @errbuf.each do |msg|
       $stderr.puts msg
     end
-    $stderr.puts "FAIL #{@error}/#{@count} tests failed"
+    $stderr.puts "#{@failed}FAIL#{@reset} #{@error}/#{@count} tests failed"
     exit false
   end
 end
@@ -227,6 +232,12 @@ rescue Exception => err
   $stderr.print 'E'
   $stderr.puts if @verbose
   error err.message, message
+end
+
+# NativeClient is special.  The binary is cross-compiled.  But runs on the build environment.
+# So RUBY_PLATFORM in this process is not useful to detect it.
+def nacl?
+  @ruby and File.basename(@ruby.split(/\s/).first)['sel_ldr']
 end
 
 def assert_check(testsrc, message = '', opt = '')
