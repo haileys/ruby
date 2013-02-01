@@ -1995,7 +1995,7 @@ marshal_load(int argc, VALUE *argv)
  *
  * By design, Marshal.load can deserialize almost any class loaded into the
  * Ruby process. In many cases this can lead to remote code execution if the
- * Marshal data is loaded from an untrusted soruce.
+ * Marshal data is loaded from an untrusted source.
  *
  * As a result, Marshal.load is not suitable as a general purpose serialization
  * format and you should never unmarshal user supplied input or other untrusted
