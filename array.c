@@ -1778,7 +1778,7 @@ rb_ary_empty_p(VALUE ary)
 VALUE
 rb_ary_dup(VALUE ary)
 {
-    VALUE dup = rb_ary_new2(RARRAY_LEN(ary));
+    VALUE dup = ary_new(rb_obj_class(ary), RARRAY_LEN(ary));
     MEMCPY(RARRAY_PTR(dup), RARRAY_PTR(ary), VALUE, RARRAY_LEN(ary));
     ARY_SET_LEN(dup, RARRAY_LEN(ary));
     return dup;
