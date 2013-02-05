@@ -184,23 +184,18 @@ enumerator_ptr(VALUE obj)
 
 /*
  * call-seq:
- *   obj.to_enum(method = :each, *args)
- *   obj.enum_for(method = :each, *args)
- *   obj.to_enum(method = :each, *args) {|obj, *args| block}
- *   obj.enum_for(method = :each, *args){|obj, *args| block}
+ *   obj.to_enum(method = :each, *args)                 -> enum
+ *   obj.enum_for(method = :each, *args)                -> enum
+ *   obj.to_enum(method = :each, *args) {|*args| block} -> enum
+ *   obj.enum_for(method = :each, *args){|*args| block} -> enum
  *
- * Creates a new Enumerator which will enumerate by on calling +method+ on
- * +obj+.
+ * Creates a new Enumerator which will enumerate by calling +method+ on
+ * +obj+, passing +args+ if any.
  *
- * +method+:: the method to call on +obj+ to generate the enumeration
- * +args+:: arguments that will be passed in +method+ <i>in addition</i>
- *          to the item itself.  Note that the number of args
- *          must not exceed the number expected by +method+
+ * If a block is given, it will be used to calculate the size of
+ * the enumerator without the need to iterate it (see Enumerator#size).
  *
- *  If a block is given, it will be used to calculate the size of
- *  the enumerator (see Enumerator#size).
- *
- * === Example
+ * === Examples
  *
  *   str = "xyz"
  *
@@ -214,6 +209,33 @@ enumerator_ptr(VALUE obj)
  *   a = [1, 2, 3]
  *   some_method(a.to_enum)
  *
+ * It is typical to call to_enum when defining methods for
+ * a generic Enumerable, in case no block is passed.
+ *
+ * Here is such an example, with parameter passing and a sizing block:
+ *
+ *   module Enumerable
+ *     # a generic method to repeat the values of any enumerable
+ *     def repeat(n)
+ *       raise ArgumentError, "#{n} is negative!" if n < 0
+ *       unless block_given?
+ *         return to_enum(__method__, n) do # __method__ is :repeat here
+ *           sz = size     # Call size and multiply by n...
+ *           sz * n if sz  # but return nil if size itself is nil
+ *         end
+ *       end
+ *       each do |*val|
+ *         n.times { yield *val }
+ *       end
+ *     end
+ *   end
+ *
+ *   %i[hello world].repeat(2) { |w| puts w }
+ *     # => Prints 'hello', 'hello', 'world', 'world'
+ *   enum = (1..14).repeat(3)
+ *     # => returns an Enumerator when called without a block
+ *   enum.first(4) # => [1, 1, 1, 2]
+ *   enum.size # => 42
  */
 static VALUE
 obj_to_enum(int argc, VALUE *argv, VALUE obj)
@@ -293,63 +315,6 @@ enumerator_init(VALUE enum_obj, VALUE obj, VALUE meth, int argc, VALUE *argv, VA
  * The optional parameter can be used to specify how to calculate the size
  * in a lazy fashion (see Enumerable#size). It can either be a value or
  * a callable object.
- *
- * The block form can be used to create a lazy enumeration that only processes
- * elements as-needed.  The generic pattern for this is:
- *
- *    Enumerator.new do |yielder|
- *      source.each do |source_item|
- *        # process source_item and append the yielder
- *      end
- *    end
- *
- * This can be used with infinite streams to support multiple chains:
- *
- *   class Fib
- *     def initialize(a = 1, b = 1)
- *       @a, @b = a, b
- *     end
- *
- *     def each
- *       a, b = @a, @b
- *       yield a
- *       while true
- *         yield b
- *         a, b = b, a+b
- *       end
- *     end
- *   end
- *
- *   def lazy_select enum
- *     Enumerator.new do |y|
- *       enum.each do |e|
- *         y << e if yield e
- *       end
- *     end
- *   end
- *
- *   def lazy_map enum
- *     Enumerator.new do |y|
- *       enum.each do |e|
- *         y << yield(e)
- *       end
- *     end
- *   end
- *
- *   even_fibs   = lazy_select(Fibs.new) { |x| x % 2 == 0 }
- *   string_fibs = lazy_map(even_fibs)   { |x| "<#{x}>" }
- *   string_fibs.each_with_index do |fib, i|
- *     puts "#{i}: #{fib}"
- *     break if i >= 3
- *   end
- *
- * This allows output even though the Fib produces an infinite sequence of
- * Fibonacci numbers:
- *
- *   0: <2>
- *   1: <8>
- *   2: <34>
- *   3: <144>
  *
  * In the second, deprecated, form, a generated Enumerator iterates over the
  * given object using the given method with the given arguments passed.
@@ -435,10 +400,19 @@ rb_enumeratorize(VALUE obj, VALUE meth, int argc, VALUE *argv)
     return rb_enumeratorize_with_size(obj, meth, argc, argv, 0);
 }
 
+static VALUE
+lazy_to_enum_i(VALUE self, VALUE meth, int argc, VALUE *argv, VALUE (*size_fn)(ANYARGS));
+
 VALUE
 rb_enumeratorize_with_size(VALUE obj, VALUE meth, int argc, VALUE *argv, VALUE (*size_fn)(ANYARGS))
 {
-    return enumerator_init(enumerator_allocate(rb_cEnumerator), obj, meth, argc, argv, size_fn, Qnil);
+    /* Similar effect as calling obj.to_enum, i.e. dispatching to either
+       Kernel#to_enum vs Lazy#to_enum */
+    if (RTEST(rb_obj_is_kind_of(obj, rb_cLazy)))
+	return lazy_to_enum_i(obj, meth, argc, argv, size_fn);
+    else
+	return enumerator_init(enumerator_allocate(rb_cEnumerator),
+	    obj, meth, argc, argv, size_fn, Qnil);
 }
 
 static VALUE
@@ -1000,7 +974,7 @@ enumerator_size(VALUE obj)
     struct enumerator *e = enumerator_ptr(obj);
 
     if (e->size_fn) {
-	return (*e->size_fn)(e->obj, e->args);
+	return (*e->size_fn)(e->obj, e->args, obj);
     }
     if (rb_obj_is_proc(e->size)) {
         if (e->args)
@@ -1249,20 +1223,22 @@ generator_each(int argc, VALUE *argv, VALUE obj)
 
 /* Lazy Enumerator methods */
 static VALUE
-lazy_receiver_size(VALUE self)
+enum_size(VALUE self)
 {
-    VALUE r = rb_check_funcall(rb_ivar_get(self, id_receiver), id_size, 0, 0);
+    VALUE r = rb_check_funcall(self, id_size, 0, 0);
     return (r == Qundef) ? Qnil : r;
 }
 
 static VALUE
 lazy_size(VALUE self)
 {
-    struct enumerator *e = enumerator_ptr(self);
-    if (e->size_fn) {
-	return (*e->size_fn)(self);
-    }
-    return Qnil;
+    return enum_size(rb_ivar_get(self, id_receiver));
+}
+
+static VALUE
+lazy_receiver_size(VALUE generator, VALUE args, VALUE lazy)
+{
+    return lazy_size(lazy);
 }
 
 static VALUE
@@ -1292,54 +1268,57 @@ lazy_init_iterator(VALUE val, VALUE m, int argc, VALUE *argv)
 }
 
 static VALUE
-lazy_init_yielder(VALUE val, VALUE m, int argc, VALUE *argv)
-{
-    VALUE result;
-    result = rb_funcall2(m, id_yield, argc, argv);
-    if (result == Qundef) rb_iter_break();
-    return Qnil;
-}
-
-static VALUE
 lazy_init_block_i(VALUE val, VALUE m, int argc, VALUE *argv)
 {
     rb_block_call(m, id_each, argc-1, argv+1, lazy_init_iterator, val);
     return Qnil;
 }
 
-static VALUE
-lazy_init_block(VALUE val, VALUE m, int argc, VALUE *argv)
-{
-    rb_block_call(m, id_each, argc-1, argv+1, lazy_init_yielder, val);
-    return Qnil;
-}
-
+/*
+ * call-seq:
+ *   Lazy.new(obj, size=nil) { |yielder, *values| ... }
+ *
+ * Creates a new Lazy enumerator. When the enumerator is actually enumerated
+ * (e.g. by calling #force), +obj+ will be enumerated and each value passed
+ * to the given block. The block can yield values back using +yielder+.
+ * For example, to create a method +filter_map+ in both lazy and
+ * non-lazy fashions:
+ *
+ *   module Enumerable
+ *     def filter_map(&block)
+ *       map(&block).compact
+ *     end
+ *   end
+ *
+ *   class Enumerator::Lazy
+ *     def filter_map
+ *       Lazy.new(self) do |yielder, *values|
+ *         result = yield *values
+ *         yielder << result if result
+ *       end
+ *     end
+ *   end
+ *
+ *   (1..Float::INFINITY).lazy.filter_map{|i| i*i if i.even?}.first(5)
+ *       # => [4, 16, 36, 64, 100]
+ */
 static VALUE
 lazy_initialize(int argc, VALUE *argv, VALUE self)
 {
-    VALUE obj, meth;
+    VALUE obj, size = Qnil;
     VALUE generator;
-    int offset;
 
-    if (argc < 1) {
-	rb_raise(rb_eArgError, "wrong number of arguments (%d for 1..)", argc);
+    rb_check_arity(argc, 1, 2);
+    if (!rb_block_given_p()) {
+	rb_raise(rb_eArgError, "tried to call lazy new without a block");
     }
-    else {
-	obj = argv[0];
-	if (argc == 1) {
-	    meth = sym_each;
-	    offset = 1;
-	}
-	else {
-	    meth = argv[1];
-	    offset = 2;
-	}
+    obj = argv[0];
+    if (argc > 1) {
+	size = argv[1];
     }
     generator = generator_allocate(rb_cGenerator);
-    rb_block_call(generator, id_initialize, 0, 0,
-		  (rb_block_given_p() ? lazy_init_block_i : lazy_init_block),
-		  obj);
-    enumerator_init(self, generator, meth, argc - offset, argv + offset, lazy_receiver_size, Qnil);
+    rb_block_call(generator, id_initialize, 0, 0, lazy_init_block_i, obj);
+    enumerator_init(self, generator, sym_each, 0, 0, 0, size);
     rb_ivar_set(self, id_receiver, obj);
 
     return self;
@@ -1396,12 +1375,56 @@ lazy_set_method(VALUE lazy, VALUE args, VALUE (*size_fn)(ANYARGS))
 static VALUE
 enumerable_lazy(VALUE obj)
 {
-    VALUE result;
-
-    result = rb_class_new_instance(1, &obj, rb_cLazy);
+    VALUE result = lazy_to_enum_i(obj, sym_each, 0, 0, enum_size);
     /* Qfalse indicates that the Enumerator::Lazy has no method name */
     rb_ivar_set(result, id_method, Qfalse);
     return result;
+}
+
+static VALUE
+lazy_to_enum_i(VALUE obj, VALUE meth, int argc, VALUE *argv, VALUE (*size_fn)(ANYARGS))
+{
+    return enumerator_init(enumerator_allocate(rb_cLazy),
+	obj, meth, argc, argv, size_fn, Qnil);
+}
+
+/*
+ * call-seq:
+ *   lzy.to_enum(method = :each, *args)                 -> lazy_enum
+ *   lzy.enum_for(method = :each, *args)                -> lazy_enum
+ *   lzy.to_enum(method = :each, *args) {|*args| block} -> lazy_enum
+ *   lzy.enum_for(method = :each, *args){|*args| block} -> lazy_enum
+ *
+ * Similar to Kernel#to_enum, except it returns a lazy enumerator.
+ * This makes it easy to define Enumerable methods that will
+ * naturally remain lazy if called from a lazy enumerator.
+ *
+ * For example, continuing from the example in Kernel#to_enum:
+ *
+ *   # See Kernel#to_enum for the definition of repeat
+ *   r = 1..Float::INFINITY
+ *   r.repeat(2).first(5) # => [1, 1, 2, 2, 3]
+ *   r.repeat(2).class # => Enumerator
+ *   r.repeat(2).map{|n| n ** 2}.first(5) # => endless loop!
+ *   # works naturally on lazy enumerator:
+ *   r.lazy.repeat(2).class # => Enumerator::Lazy
+ *   r.lazy.repeat(2).map{|n| n ** 2}.first(5) # => [1, 1, 4, 4, 9]
+ */
+
+static VALUE
+lazy_to_enum(int argc, VALUE *argv, VALUE self)
+{
+    VALUE lazy, meth = sym_each;
+
+    if (argc > 0) {
+	--argc;
+	meth = *argv++;
+    }
+    lazy = lazy_to_enum_i(self, meth, argc, argv, 0);
+    if (rb_block_given_p()) {
+	enumerator_ptr(lazy)->size = rb_block_proc();
+    }
+    return lazy;
 }
 
 static VALUE
@@ -1701,10 +1724,10 @@ lazy_take_func(VALUE val, VALUE args, int argc, VALUE *argv)
 }
 
 static VALUE
-lazy_take_size(VALUE lazy)
+lazy_take_size(VALUE generator, VALUE args, VALUE lazy)
 {
+    VALUE receiver = lazy_size(lazy);
     long len = NUM2LONG(RARRAY_PTR(rb_ivar_get(lazy, id_arguments))[0]);
-    VALUE receiver = lazy_receiver_size(lazy);
     if (NIL_P(receiver) || (FIXNUM_P(receiver) && FIX2LONG(receiver) < len))
 	return receiver;
     return LONG2NUM(len);
@@ -1714,21 +1737,20 @@ static VALUE
 lazy_take(VALUE obj, VALUE n)
 {
     long len = NUM2LONG(n);
-    int argc = 1;
-    VALUE argv[3];
+    VALUE lazy;
 
     if (len < 0) {
 	rb_raise(rb_eArgError, "attempt to take negative size");
     }
-    argv[0] = obj;
     if (len == 0) {
-	argv[1] = sym_cycle;
-	argv[2] = INT2NUM(0);
-	argc = 3;
+	VALUE len = INT2NUM(0);
+	lazy = lazy_to_enum_i(obj, sym_cycle, 1, &len, 0);
     }
-    return lazy_set_method(rb_block_call(rb_cLazy, id_new, argc, argv,
-					 lazy_take_func, n),
-			   rb_ary_new3(1, n), lazy_take_size);
+    else {
+	lazy = rb_block_call(rb_cLazy, id_new, 1, &obj,
+					 lazy_take_func, n);
+    }
+    return lazy_set_method(lazy, rb_ary_new3(1, n), lazy_take_size);
 }
 
 static VALUE
@@ -1752,10 +1774,10 @@ lazy_take_while(VALUE obj)
 }
 
 static VALUE
-lazy_drop_size(VALUE lazy)
+lazy_drop_size(VALUE generator, VALUE args, VALUE lazy)
 {
     long len = NUM2LONG(RARRAY_PTR(rb_ivar_get(lazy, id_arguments))[0]);
-    VALUE receiver = lazy_receiver_size(lazy);
+    VALUE receiver = lazy_size(lazy);
     if (NIL_P(receiver))
 	return receiver;
     if (FIXNUM_P(receiver)) {
@@ -1820,36 +1842,9 @@ lazy_drop_while(VALUE obj)
 }
 
 static VALUE
-lazy_cycle_size(VALUE lazy)
+lazy_super(int argc, VALUE *argv, VALUE lazy)
 {
-    return rb_enum_cycle_size(rb_ivar_get(lazy, id_receiver), rb_ivar_get(lazy, id_arguments));
-}
-
-static VALUE
-lazy_cycle_func(VALUE val, VALUE m, int argc, VALUE *argv)
-{
-    return rb_funcall2(argv[0], id_yield, argc - 1, argv + 1);
-}
-
-static VALUE
-lazy_cycle(int argc, VALUE *argv, VALUE obj)
-{
-    VALUE args;
-    int len = rb_long2int((long)argc + 2);
-
-    if (rb_block_given_p()) {
-	return rb_call_super(argc, argv);
-    }
-    args = rb_ary_tmp_new(len);
-    rb_ary_push(args, obj);
-    rb_ary_push(args, sym_cycle);
-    if (argc > 0) {
-	rb_ary_cat(args, argv, argc);
-    }
-    return lazy_set_method(rb_block_call(rb_cLazy, id_new, len,
-					 RARRAY_PTR(args), lazy_cycle_func,
-					 args /* prevent from GC */),
-			   rb_ary_new4(argc, argv), lazy_cycle_size);
+    return enumerable_lazy(rb_call_super(argc, argv));
 }
 
 static VALUE
@@ -1941,12 +1936,13 @@ InitVM_Enumerator(void)
     rb_cLazy = rb_define_class_under(rb_cEnumerator, "Lazy", rb_cEnumerator);
     rb_define_method(rb_mEnumerable, "lazy", enumerable_lazy, 0);
     rb_define_method(rb_cLazy, "initialize", lazy_initialize, -1);
+    rb_define_method(rb_cLazy, "to_enum", lazy_to_enum, -1);
+    rb_define_method(rb_cLazy, "enum_for", lazy_to_enum, -1);
     rb_define_method(rb_cLazy, "map", lazy_map, 0);
     rb_define_method(rb_cLazy, "collect", lazy_map, 0);
     rb_define_method(rb_cLazy, "flat_map", lazy_flat_map, 0);
     rb_define_method(rb_cLazy, "collect_concat", lazy_flat_map, 0);
     rb_define_method(rb_cLazy, "select", lazy_select, 0);
-    rb_define_method(rb_cLazy, "size", lazy_size, 0);
     rb_define_method(rb_cLazy, "find_all", lazy_select, 0);
     rb_define_method(rb_cLazy, "reject", lazy_reject, 0);
     rb_define_method(rb_cLazy, "grep", lazy_grep, 1);
@@ -1955,8 +1951,9 @@ InitVM_Enumerator(void)
     rb_define_method(rb_cLazy, "take_while", lazy_take_while, 0);
     rb_define_method(rb_cLazy, "drop", lazy_drop, 1);
     rb_define_method(rb_cLazy, "drop_while", lazy_drop_while, 0);
-    rb_define_method(rb_cLazy, "cycle", lazy_cycle, -1);
     rb_define_method(rb_cLazy, "lazy", lazy_lazy, 0);
+    rb_define_method(rb_cLazy, "chunk", lazy_super, -1);
+    rb_define_method(rb_cLazy, "slice_before", lazy_super, -1);
 
     rb_define_alias(rb_cLazy, "force", "to_a");
 

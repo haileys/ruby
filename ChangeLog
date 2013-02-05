@@ -1,3 +1,187 @@
+Tue Feb  5 17:24:02 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rdoc/servlet.rb:  Fixed root search paths, filesystem paths
+	  instead of HTTP paths were returned.
+	* test/rdoc/test_rdoc_servlet.rb:  Test for above.
+
+Tue Feb  5 16:37:00 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rubygems/config_file.rb:  Ignore permissions check on windows.
+	  Windows writes 0600 file as 0644 permissions making the check
+	  useless.
+
+Tue Feb  5 16:25:25 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_method.c (rb_obj_respond_to): drop optional include_all flag if
+	  respond_to? method is defined in old style.  [Bug #7722]
+
+Tue Feb 05 15:04:34 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* proc.c (rb_binding_new_with_cfp): permit to create binding object
+	  of IFUNC frame.
+	  When `rb_binding_new_with_cfp()' is called, VM finds out the first
+	  normal (has iseq) frame and create a binding object of this frame
+	  and create Env objects. `ep's of related frames are updated
+	  (`ep's point Env object managed spaces).
+	  However, `ep' of skipped IFUNC frame was not updated and
+	  old invalid `ep' was remained. It causes serious problems.
+	  To solve this issue, permit IFUNC to create binding.
+	  (Maybe there is no problem on it)
+	  [ruby-dev:46908] [ruby-trunk - Bug #7774]
+
+	* test/ruby/test_settracefunc.rb: add a test.
+
+	* vm.c (rb_vm_get_binding_creatable_next_cfp), vm_core.h: added.
+
+	* vm_trace.c: fix to use `rb_vm_get_binding_creatable_next_cfp()'.
+
+Tue Feb  5 14:43:15 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* lib/matrix.rb: Fix error message, patch by pypypy [Bug #7777]
+
+Tue Feb  5 14:36:04 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* numeric.c (fix_pow): Handle special cases when base is 0, -1 or +1
+	  [Bug #5713] [Bug #5715]
+
+	* rational.c (nurat_expt): ditto
+
+Tue Feb  5 13:27:53 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/io/console/console.c (rawmode_opt): use default values by `stty
+	  raw`.
+
+Tue Feb  5 12:50:47 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* range.c: Use div instead of / for bsearch
+
+	* test/ruby/test_range.rb: Test showing bug when requiring mathn
+
+Tue Feb  5 12:48:38 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* enumerator.c: Use to_enum for Enumerable methods returning
+	  Enumerators.
+	  This makes Lazy#cycle no longer needed, so it was removed.
+	  Make Enumerator#chunk and slice_before return lazy Enumerators.
+	  [Bug #7715]
+
+	* internal.h: Remove ref to rb_enum_cycle_size; no longer needed
+
+	* enum.c: Make enum_cycle_size static.
+
+	* test/ruby/test_lazy_enumerator.rb: Test for above
+
+Tue Feb  5 12:48:10 2013  Marc-Andre Lafortune  <ruby-core@marc-andre.ca>
+
+	* enumerator.c: Finalize and document Lazy.new. [Bug #7248]
+	  Add Lazy#to_enum and simplify Lazy#size.
+
+	* test/ruby/test_lazy_enumerator.rb: tests for above
+
+Tue Feb  5 11:35:35 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rubygems/commands/push_command.rb:  Fixed credential download for
+	  `gem push --host`
+	* lib/rubygems/gemcutter_utilities.rb:  ditto.
+	* test/rubygems/test_gem_commands_push_command.rb:  Test for the above.
+	* test/rubygems/test_gem_gemcutter_utilities.rb:  ditto.
+
+	* lib/rubygems/config_file.rb:  Abort if the `gem push` credentials
+	  file has insecure permissions.
+	* test/rubygems/test_gem_config_file.rb:  Test for the above.
+
+	* lib/rubygems/ext/builder.rb:  Do not look for Gemfile, Isolate, etc.
+	  while building gem extensions.
+
+	* lib/rubygems/package.rb:  Unset spec and files list if a gem's
+	  signatures cannot be verified.
+	* test/rubygems/test_gem_package.rb:  Test for the above.
+
+	* lib/rubygems/specification.rb:  Reduce use of eval.
+	* lib/rubygems/test_case.rb:  ditto.
+
+	* test/rubygems/test_gem_specification.rb:  Test setting
+	  specification_version for legacy gems.  Dup Gem.ruby before
+	  untainting in case it's frozen.
+
+	* lib/rubygems.rb:  Reduce use of eval.  Only read files when looking
+	  for Gemfile, Isolate, etc.
+	* test/rubygems/test_gem.rb:  Test for the above.
+
+Tue Feb  5 10:15:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* doc/security.rdoc: Wrap security guide at 80 columns
+
+Tue Feb  5 10:15:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* doc/security.rdoc: Grammatical error on security guide
+	  Patch by Josh Bassett [Github fixes #245]
+
+Tue Feb  5 10:00:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/racc/parser.rb: Update #do_parse and #yyparse from upstream
+	  See [Github tenderlove/racc@7d954b5]
+
+Tue Feb  5 09:55:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/racc: Merge Racc documentation downstream, add grammar ref file
+
+Tue Feb  5 08:03:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/irb.rb, lib/irb/ext/save-history.rb: Add documentation on how to
+	  enabled irb history [ruby-core:51347] [Bug #7679]
+
+Tue Feb  5 07:35:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/irb.rb, lib/irb/context.rb: Add documentation on how to enable
+	  auto-indentation and autocompletion using irbrc and irb_context
+	  [ruby-core:51209] [Bug #7642] and [ruby-core:51348] [Bug #7680]
+
+Tue Feb  5 05:20:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* doc/standard_library.rdoc: Document list of libraries and extensions
+	  and their purpose or short description
+	* lib/README: Remove lib/README in favor of doc/standard_library.rdoc
+
+Tue Feb  5 04:40:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/json/lib/json.rb: Move module overview definition for rdoc
+
+Tue Feb  5 03:00:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/tracer.rb: Move class overview definition and reformat
+
+Mon Feb  4 15:10:10 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/io/console/console.c (rawmode_opt): initialize options for the
+	  case all options are not given.
+
+Mon Feb  4 12:44:13 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_dump.c (control_frame_dump): capitalize prefix of `ep'
+	  if `ep' points an env object.
+
+Mon Feb  4 04:20:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/English.rb: Add English module for RDoc to parse, then
+	  remove_const to avoid confusion. Include full list of aliases and
+	  their associated global variable.
+
+Mon Feb  4 02:40:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/yaml.rb (YAML::EngineManager): Documentation for #yamler and
+	  #yamler= for using the removed Syck gem as the YAML::ENGINE
+
+Sun Feb  3 16:54:27 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/io/console/io-console.gemspec: bump.  [Bug #7762]
+
+	* test/io/console/test_io_console.rb (test_stringio_getch): use more
+	  descriptive assertions.
+
+	* ext/io/console/console.c (rawmode_opt): min is minimum characters,
+	  not tenths.
+
 Sun Feb  3 16:13:00 2013  Charlie Somerville  <charlie@charliesomerville.com>
 
 	* doc/security.rdoc: add first cut at a Ruby security document
@@ -105,7 +289,7 @@ Fri Feb  1 23:04:00 2013  Charlie Somerville  <charlie@charliesomerville.com>
 Fri Feb  1 16:35:34 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
 
 	* marshal.c (r_object0): prohibit setting instance variables of
-	  exising class/module.
+	  existing class/module.
 
 Fri Feb  1 14:34:29 2013  Shugo Maeda  <shugo@ruby-lang.org>
 

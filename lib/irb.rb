@@ -105,6 +105,30 @@ STDOUT.sync = true
 #     IRB.conf[:PROMPT] = {...}
 #     IRB.conf[:DEBUG_LEVEL]=0
 #
+# === Auto indentation
+#
+# To enable auto-indent mode in irb, add the following to your +.irbrc+:
+#
+#     IRB.conf[:AUTO_INDENT] = true
+#
+# === Autocompletion
+#
+# To enable autocompletion for irb, add the following to your +.irbrc+:
+#
+#     require 'irb/completion'
+#
+# === History
+#
+# By default, irb disables history and will not store any commands you used.
+#
+# If you want to enable history, add the following to your +.irbrc+:
+#
+#     IRB.conf[:SAVE_HISTORY] = 1000
+#
+# This will now store the last 1000 commands in <code>~/.irb_history</code>.
+#
+# See IRB::Context#save_history= for more information.
+#
 # == Customizing the IRB Prompt
 #
 # In order to customize the prompt, you can change the following Hash:
@@ -114,19 +138,18 @@ STDOUT.sync = true
 # This example can be used in your +.irbrc+
 #
 #     IRB.conf[:PROMPT][:MY_PROMPT] = { # name of prompt mode
+#       :AUTO_INDENT => true            # enables auto-indent mode
 #       :PROMPT_I => nil,		# normal prompt
 #       :PROMPT_S => nil,		# prompt for continuated strings
 #       :PROMPT_C => nil,		# prompt for continuated statement
 #       :RETURN => "    ==>%s\n"	# format to return value
 #     }
 #
-# Then, invoke irb with the above prompt mode by:
+#     IRB.conf[:PROMPT_MODE] = :MY_PROMPT
+#
+# Or, invoke irb with the above prompt mode by:
 #
 #     irb --prompt my-prompt
-#
-# Or, add the following in your +.irbrc+:
-#
-#     IRB.conf[:PROMPT_MODE] = :MY_PROMPT
 #
 # Constants +PROMPT_I+, +PROMPT_S+ and +PROMPT_C+ specify the format. In the
 # prompt specification, some special strings are available:
