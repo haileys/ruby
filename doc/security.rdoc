@@ -65,6 +65,12 @@ This means that if you're using a regular expression like <code>/^[a-z]+$/</core
 
 If you want to match the beginning and end of the entire string in Ruby, use the anchors +\A+ and +\z+.
 
+== +eval+
+
+Never pass untrusted or user controlled input to +eval+.
+
+Unless you are implementing a REPL like +irb+ or +pry+, +eval+ is almost certainly not what you want. Do not attempt to filter user input before passing it to +eval+ - this approach is fraught with danger and will most likely open your application up to a remote code execution vulnerability.
+
 == +send+
 
 'Global functions' in Ruby (+puts+, +exit+, etc.) are actually private instance methods on +Object+. This means it is possible to invoke these methods with +send+, even if the call to +send+ has an explicit receiver.
