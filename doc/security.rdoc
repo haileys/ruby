@@ -20,16 +20,16 @@ Never use +Marshal.load+ to deserialize untrusted or user supplied data. Because
 
 If you need to deserialize untrusted data, you should use JSON as it is only capable of returning 'primitive' types such as strings, arrays, hashes, numbers and nil. If you need to deserialize other classes, you should do handle this manually. Never deserialize to a user specified class.
 
-== +YAML+
+== YAML
 
-+YAML+ is a popular human readable data serialization format used by many Ruby programs for configuration and database persistance of Ruby object trees.
+YAML is a popular human readable data serialization format used by many Ruby programs for configuration and database persistance of Ruby object trees.
 
 Similar to +Marshal+, it is able to deserialize into arbitrary Ruby classes. For example, the following YAML data will create an +ERB+ object when deserialized:
 
   !ruby/object:ERB
   src: puts `uname`
 
-Because of this, many of the security considerations applying to +Marshal+ are also applicable to +YAML+. Do not use +YAML+ to deserialize untrusted data.
+Because of this, many of the security considerations applying to Marshal are also applicable to YAML. Do not use YAML to deserialize untrusted data.
 
 == Symbols
 
