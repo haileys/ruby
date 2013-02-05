@@ -100,11 +100,12 @@ should attempt to leave user input in string form instead.
 == Regular expressions
 
 Ruby's regular expression syntax has some minor differences when compared to
-other languages. In Ruby, the +^+ and +$+ anchors do not refer to the
-beginning and end of the string, rather the beginning and end of a *line*.
+other languages. In Ruby, the <code>^</code> and <code>$</code> anchors do not
+refer to the beginning and end of the string, rather the beginning and end of a
+*line*.
 
 This means that if you're using a regular expression like
-<code>/^[a-z]+$/</core> to restrict a string to only letters, an attacker can
+<code>/^[a-z]+$/</code> to restrict a string to only letters, an attacker can
 bypass this check by passing a string containing a letter, then a newline, then
 any string of their choosing.
 
@@ -155,5 +156,5 @@ As DRb allows remote clients to invoke arbitrary methods, it is not suitable to
 expose to untrusted clients.
 
 When using DRb, try to avoid exposing it over the network if possible. If this
-isn't possible and you *must* expose DRb to the world, you should configure an
-appropriate security policy with +DRb::ACL+.
+isn't possible and you need to expose DRb to the world, you *must* configure an
+appropriate security policy with <code>DRb::ACL</code>.
