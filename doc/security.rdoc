@@ -39,7 +39,7 @@ Never use +CSV.load+ to parse untrusted CSV data. +CSV.load+ shares many of the 
   @src
   puts `uname`
 
-However, CSV is significantly more dangerous than Marshal and YAML as it will call arbitrary methods with attacker controlled arguments in some cases:
+However, CSV's +load+ method is significantly more dangerous than Marshal and YAML as it will call arbitrary methods with attacker controlled arguments in some cases:
 
   class,Object
   eval
@@ -56,6 +56,14 @@ Once a symbol is created, the memory used by it is never freed. If you convert u
 Be careful with passing user input to methods such as +send+, +instance_variable_get+ or +_set+, +const_get+ or +_set+, etc. as these methods will convert string parameters to symbols internally and pose the same DoS potential as direct conversion through +to_sym+/+intern+.
 
 The workaround to this is simple - don't convert user input to symbols. You should attempt to leave user input in string form instead.
+
+== Regular expressions
+
+Ruby's regular expression syntax has some minor differences when compared to other languages. In Ruby, the +^+ and +$+ anchors do not refer to the beginning and end of the string, rather the beginning and end of a *line*.
+
+This means that if you're using a regular expression like <code>/^[a-z]+$/</core> to restrict a string to only letters, an attacker can bypass this check by passing a string containing a letter, then a newline, then any string of their choosing.
+
+If you want to match the beginning and end of the entire string in Ruby, use the anchors +\A+ and +\z+.
 
 == +send+
 
