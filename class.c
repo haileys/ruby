@@ -80,6 +80,7 @@ rb_class_boot(VALUE super)
     RCLASS_SUPER(klass) = super;
     RCLASS_M_TBL(klass) = st_init_numtable();
 
+    FL_SET(klass, RCLASS_INHERITED_FLAG);
     OBJ_INFECT(klass, super);
     return (VALUE)klass;
 }

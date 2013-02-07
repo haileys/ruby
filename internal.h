@@ -168,6 +168,7 @@ double ruby_float_mod(double x, double y);
 
 /* object.c */
 VALUE rb_obj_equal(VALUE obj1, VALUE obj2);
+VALUE rb_class_has_subclasses_p(VALUE klass);
 
 /* parse.y */
 VALUE rb_parser_get_yydebug(VALUE);
