@@ -231,6 +231,7 @@ rb_method_entry_make(VALUE klass, ID mid, rb_method_type_t type,
     st_table *mtbl;
     st_data_t data;
     int make_refined = 0;
+    int redefinition = 0;
 
     if (NIL_P(klass)) {
 	klass = rb_cObject;
@@ -272,6 +273,7 @@ rb_method_entry_make(VALUE klass, ID mid, rb_method_type_t type,
     if (st_lookup(mtbl, mid, &data)) {
 	rb_method_entry_t *old_me = (rb_method_entry_t *)data;
 	rb_method_definition_t *old_def = old_me->def;
+	redefinition = 1;
 
 	if (rb_method_definition_eq(old_def, def)) return old_me;
 #if NOEX_NOREDEF
@@ -315,7 +317,9 @@ rb_method_entry_make(VALUE klass, ID mid, rb_method_type_t type,
 
     me = ALLOC(rb_method_entry_t);
 
-    rb_clear_cache_by_id(mid);
+    if(redefinition || FL_TEST(klass, RCLASS_INHERITED_FLAG)) {
+        rb_clear_cache_by_id(mid);
+    }
 
     me->flag = NOEX_WITH_SAFE(noex);
     me->mark = 0;
