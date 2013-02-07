@@ -2011,7 +2011,6 @@ vm_define_method(rb_thread_t *th, VALUE obj, ID id, VALUE iseqval,
     if (!is_singleton && noex == NOEX_MODFUNC) {
 	rb_add_method(rb_singleton_class(klass), id, VM_METHOD_TYPE_ISEQ, miseq, NOEX_PUBLIC);
     }
-    INC_VM_STATE_VERSION();
 }
 
 #define REWIND_CFP(expr) do { \
