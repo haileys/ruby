@@ -1272,7 +1272,6 @@ set_method_visibility(VALUE self, int argc, VALUE *argv, rb_method_flag_t ex)
 	}
 	rb_export_method(self, id, ex);
     }
-    rb_clear_cache_by_class(self);
 }
 
 /*
