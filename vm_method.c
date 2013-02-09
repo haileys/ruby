@@ -318,7 +318,10 @@ rb_method_entry_make(VALUE klass, ID mid, rb_method_type_t type,
 
     me = ALLOC(rb_method_entry_t);
 
-    if(search_method(klass, mid, NULL) || FL_TEST(klass, RCLASS_INHERITED_FLAG)) {
+    if (search_method(klass, mid, NULL) /* clear cache if overriding existing method */
+	|| FL_TEST(klass, RCLASS_INHERITED_FLAG) /* or this class has subclasses */
+	|| (RB_TYPE_P(klass, T_MODULE)) /* or this is a module */)
+    {
         rb_clear_cache_by_id(mid);
     }
 
@@ -1272,6 +1275,7 @@ set_method_visibility(VALUE self, int argc, VALUE *argv, rb_method_flag_t ex)
 	}
 	rb_export_method(self, id, ex);
     }
+    rb_clear_cache_by_class(self);
 }
 
 /*
