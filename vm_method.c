@@ -559,7 +559,7 @@ rb_method_entry(VALUE klass, ID id, VALUE *defined_class_ptr)
 
     ent = cache + EXPR1(klass, id);
     if (ent->filled_version == GET_VM_STATE_VERSION() &&
-	ent->mid == id && ent->klass == klass) {
+	ent->mid == id && ent->klass == klass && ent->me) {
 	if (defined_class_ptr)
 	    *defined_class_ptr = ent->defined_class;
 	return ent->me;
