@@ -975,7 +975,6 @@ defineclass
 		  class_iseq->local_size, 0);
     RESTORE_REGS();
 
-    INC_VM_STATE_VERSION();
     NEXT_INSN();
 }
 
