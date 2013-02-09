@@ -2205,6 +2205,12 @@ static VALUE usage_analysis_operand_stop(VALUE self);
 static VALUE usage_analysis_register_stop(VALUE self);
 #endif
 
+static VALUE
+vm_state()
+{
+    return INT2FIX(ruby_vm_global_state_version);
+}
+
 void
 Init_VM(void)
 {
@@ -2216,6 +2222,7 @@ Init_VM(void)
     rb_cRubyVM = rb_define_class("RubyVM", rb_cObject);
     rb_undef_alloc_func(rb_cRubyVM);
     rb_undef_method(CLASS_OF(rb_cRubyVM), "new");
+    rb_define_singleton_method(rb_cRubyVM, "state", vm_state, 0);
 
     /* FrozenCore (hidden) */
     fcore = rb_class_new(rb_cBasicObject);
