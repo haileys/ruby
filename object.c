@@ -2754,8 +2754,17 @@ rb_Hash(VALUE val)
     return tmp;
 }
 
+/*
+ *  call-seq:
+ *     Class#has_subclass?  ->	bool
+ *
+ *  Returns true if the class has ever been subclassed.
+ *
+ *     Object.has_subclass?    #=> true
+ *     Class.new.has_subclass? #=> false
+ */
 VALUE
-rb_class_subclassed_p(VALUE klass)
+rb_class_has_subclass_p(VALUE klass)
 {
     return FL_TEST(klass, RCLASS_INHERITED_FLAG) ? Qtrue : Qfalse;
 }
@@ -3111,7 +3120,7 @@ Init_Object(void)
 
     rb_define_method(rb_cClass, "allocate", rb_obj_alloc, 0);
     rb_define_method(rb_cClass, "new", rb_class_new_instance, -1);
-    rb_define_method(rb_cClass, "subclassed?", rb_class_subclassed_p, 0);
+    rb_define_method(rb_cClass, "has_subclass?", rb_class_has_subclass_p, 0);
     rb_define_method(rb_cClass, "initialize", rb_class_initialize, -1);
     rb_define_method(rb_cClass, "superclass", rb_class_superclass, 0);
     rb_define_alloc_func(rb_cClass, rb_class_s_alloc);
