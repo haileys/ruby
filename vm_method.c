@@ -320,7 +320,7 @@ rb_method_entry_make(VALUE klass, ID mid, rb_method_type_t type,
 
     if (search_method(klass, mid, NULL) /* clear cache if overriding existing method */
 	|| FL_TEST(klass, RCLASS_INHERITED_FLAG) /* or this class has subclasses */
-	|| (RB_TYPE_P(klass, T_MODULE)) /* or this is a module */)
+	|| RB_TYPE_P(klass, T_MODULE) /* or this is a module */)
     {
         rb_clear_cache_by_id(mid);
     }
