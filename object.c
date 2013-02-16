@@ -1638,7 +1638,7 @@ rb_class_initialize(int argc, VALUE *argv, VALUE klass)
 	    rb_raise(rb_eTypeError, "can't inherit uninitialized class");
 	}
     }
-    RCLASS_SUPER(klass) = super;
+    rb_class_set_superclass(klass, super);
     rb_make_metaclass(klass, RBASIC(super)->klass);
     rb_class_inherited(super, klass);
     rb_mod_initialize(klass);
@@ -1768,6 +1768,17 @@ rb_class_superclass(VALUE klass)
 	return Qnil;
     }
     return super;
+}
+
+VALUE
+rb_class_subclasses(VALUE klass)
+{
+    VALUE ary = rb_ary_new();
+    struct rb_subclass_entry *ent;
+    for(ent = RCLASS_EXT(klass)->subclasses; ent; ent = ent->next) {
+	rb_ary_push(ary, ent->klass);
+    }
+    return ary;
 }
 
 VALUE
@@ -3102,6 +3113,7 @@ Init_Object(void)
     rb_define_method(rb_cClass, "new", rb_class_new_instance, -1);
     rb_define_method(rb_cClass, "initialize", rb_class_initialize, -1);
     rb_define_method(rb_cClass, "superclass", rb_class_superclass, 0);
+    rb_define_method(rb_cClass, "subclasses", rb_class_subclasses, 0);
     rb_define_alloc_func(rb_cClass, rb_class_s_alloc);
     rb_undef_method(rb_cClass, "extend_object");
     rb_undef_method(rb_cClass, "append_features");

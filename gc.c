@@ -916,7 +916,6 @@ obj_free(rb_objspace_t *objspace, VALUE obj)
 	break;
       case T_MODULE:
       case T_CLASS:
-	rb_clear_cache_by_class((VALUE)obj);
         if (RCLASS_M_TBL(obj)) {
             rb_free_m_table(RCLASS_M_TBL(obj));
         }
@@ -929,6 +928,18 @@ obj_free(rb_objspace_t *objspace, VALUE obj)
 	if (RCLASS_IV_INDEX_TBL(obj)) {
 	    st_free_table(RCLASS_IV_INDEX_TBL(obj));
 	}
+	if (RCLASS_EXT(obj)->subclasses) {
+	    rb_bug("subclasses is not NULL for freed class");
+	}
+	if (RCLASS_EXT(obj)->parent_subclasses_ptr) {
+	    /* remove this class from parent's list of subclasses */
+	    struct rb_subclass_entry *subclass_entry = *RCLASS_EXT(obj)->parent_subclasses_ptr;
+	    if(subclass_entry) {
+		*RCLASS_EXT(obj)->parent_subclasses_ptr = subclass_entry->next;
+		xfree(subclass_entry);
+	    }
+	}
+
         xfree(RANY(obj)->as.klass.ptr);
 	break;
       case T_STRING:
