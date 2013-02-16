@@ -925,7 +925,6 @@ obj_free(rb_objspace_t *objspace, VALUE obj)
 	break;
       case T_MODULE:
       case T_CLASS:
-	rb_clear_cache_by_class((VALUE)obj);
         if (RCLASS_M_TBL(obj)) {
             rb_free_m_table(RCLASS_M_TBL(obj));
         }
