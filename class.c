@@ -59,9 +59,37 @@ class_alloc(VALUE flags, VALUE klass)
     RCLASS_IV_INDEX_TBL(obj) = 0;
     RCLASS_REFINED_CLASS(obj) = Qnil;
     RCLASS_EXT(obj)->allocator = 0;
+    RCLASS_EXT(obj)->subclasses = 0;
+    RCLASS_EXT(obj)->parent_subclasses_ptr = 0;
     return (VALUE)obj;
 }
 
+static void
+link_class_with_superclass(VALUE klass, VALUE super)
+{
+    if(super && super != Qundef) {
+	struct rb_classext_struct *super_ext = RCLASS_EXT(super);
+	struct rb_subclass_entry *subclass_entry = xmalloc(sizeof(*subclass_entry));
+	subclass_entry->next = super_ext->subclasses;
+	subclass_entry->klass = klass;
+	super_ext->subclasses = subclass_entry;
+	RCLASS_EXT(klass)->parent_subclasses_ptr = &super_ext->subclasses;
+    }
+}
+
+VALUE
+rb_class_set_superclass(VALUE klass, VALUE super)
+{
+    if(RCLASS_SUPER(klass) && RCLASS_SUPER(klass) != Qundef) {
+	/* if we're changing the superclass, we need to unlink it from the parent's chain */
+	struct rb_subclass_entry *subclass_entry = *RCLASS_EXT(klass)->parent_subclasses_ptr;
+	*RCLASS_EXT(klass)->parent_subclasses_ptr = subclass_entry->next;
+	xfree(subclass_entry);
+    }
+    link_class_with_superclass(klass, super);
+    RCLASS_SUPER(klass) = super;
+    return super;
+}
 
 /*!
  * A utility function that wraps class_alloc.
@@ -77,10 +105,15 @@ rb_class_boot(VALUE super)
 {
     VALUE klass = class_alloc(T_CLASS, rb_cClass);
 
-    RCLASS_SUPER(klass) = super;
+    rb_class_set_superclass(klass, super);
     RCLASS_M_TBL(klass) = st_init_numtable();
 
     OBJ_INFECT(klass, super);
+    
+    if (super) {
+	link_class_with_superclass(klass, super);
+    }
+
     return (VALUE)klass;
 }
 
@@ -185,7 +218,7 @@ rb_mod_init_copy(VALUE clone, VALUE orig)
 	RBASIC(clone)->klass = rb_singleton_class_clone(orig);
 	rb_singleton_class_attached(RBASIC(clone)->klass, (VALUE)clone);
     }
-    RCLASS_SUPER(clone) = RCLASS_SUPER(orig);
+    rb_class_set_superclass(clone, RCLASS_SUPER(orig));
     RCLASS_EXT(clone)->allocator = RCLASS_EXT(orig)->allocator;
     if (RCLASS_IV_TBL(orig)) {
 	st_data_t id;
@@ -237,7 +270,7 @@ rb_singleton_class_clone(VALUE obj)
 	    RBASIC(clone)->klass = rb_singleton_class_clone(klass);
 	}
 
-	RCLASS_SUPER(clone) = RCLASS_SUPER(klass);
+	rb_class_set_superclass(clone, RCLASS_SUPER(klass));
 	RCLASS_EXT(clone)->allocator = RCLASS_EXT(klass)->allocator;
 	if (RCLASS_IV_TBL(klass)) {
 	    RCLASS_IV_TBL(clone) = st_copy(RCLASS_IV_TBL(klass));
@@ -321,7 +354,7 @@ make_metaclass(VALUE klass)
 
     super = RCLASS_SUPER(klass);
     while (RB_TYPE_P(super, T_ICLASS)) super = RCLASS_SUPER(super);
-    RCLASS_SUPER(metaclass) = super ? ENSURE_EIGENCLASS(super) : rb_cClass;
+    rb_class_set_superclass(metaclass, super ? ENSURE_EIGENCLASS(super) : rb_cClass);
 
     OBJ_INFECT(metaclass, RCLASS_SUPER(metaclass));
 
@@ -641,7 +674,7 @@ rb_include_class_new(VALUE module, VALUE super)
     RCLASS_IV_TBL(klass) = RCLASS_IV_TBL(module);
     RCLASS_CONST_TBL(klass) = RCLASS_CONST_TBL(module);
     RCLASS_M_TBL(klass) = RCLASS_M_TBL(RCLASS_ORIGIN(module));
-    RCLASS_SUPER(klass) = super;
+    rb_class_set_superclass(klass, super);
     if (RB_TYPE_P(module, T_ICLASS)) {
 	RBASIC(klass)->klass = RBASIC(module)->klass;
     }
@@ -714,7 +747,7 @@ include_modules_at(VALUE klass, VALUE c, VALUE module)
 		break;
 	    }
 	}
-	c = RCLASS_SUPER(c) = rb_include_class_new(module, RCLASS_SUPER(c));
+	c = rb_class_set_superclass(c, rb_include_class_new(module, RCLASS_SUPER(c)));
 	if (FL_TEST(klass, RMODULE_IS_REFINEMENT)) {
 	    VALUE refined_class =
 		rb_refinement_module_get_refined_class(klass);
@@ -777,8 +810,8 @@ rb_prepend_module(VALUE klass, VALUE module)
     origin = RCLASS_ORIGIN(klass);
     if (origin == klass) {
 	origin = class_alloc(T_ICLASS, klass);
-	RCLASS_SUPER(origin) = RCLASS_SUPER(klass);
-	RCLASS_SUPER(klass) = origin;
+	rb_class_set_superclass(origin, RCLASS_SUPER(klass));
+	rb_class_set_superclass(klass, origin);
 	RCLASS_ORIGIN(klass) = origin;
 	RCLASS_M_TBL(origin) = RCLASS_M_TBL(klass);
 	RCLASS_M_TBL(klass) = st_init_numtable();

@@ -23,6 +23,11 @@ struct rb_deprecated_classext_struct {
     char conflict[sizeof(VALUE) * 3];
 };
 
+struct rb_subclass_entry {
+    struct rb_subclass_entry *next;
+    VALUE klass; /* weakref */
+};
+
 struct rb_classext_struct {
     VALUE super;
     struct st_table *iv_tbl;
@@ -30,6 +35,8 @@ struct rb_classext_struct {
     VALUE origin;
     VALUE refined_class;
     rb_alloc_func_t allocator;
+    struct rb_subclass_entry *subclasses;
+    struct rb_subclass_entry **parent_subclasses_ptr;
 };
 
 #undef RCLASS_SUPER
@@ -57,6 +64,7 @@ VALUE rb_integer_float_cmp(VALUE x, VALUE y);
 VALUE rb_integer_float_eq(VALUE x, VALUE y);
 
 /* class.c */
+VALUE rb_class_set_superclass(VALUE klass, VALUE super);
 VALUE rb_obj_methods(int argc, VALUE *argv, VALUE obj);
 VALUE rb_obj_protected_methods(int argc, VALUE *argv, VALUE obj);
 VALUE rb_obj_private_methods(int argc, VALUE *argv, VALUE obj);
