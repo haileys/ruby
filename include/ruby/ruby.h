@@ -1100,8 +1100,9 @@ struct RBignum {
 #define FL_UNTRUSTED (((VALUE)1)<<9)
 #define FL_EXIVAR    (((VALUE)1)<<10)
 #define FL_FREEZE    (((VALUE)1)<<11)
+#define FL_PERMANENT (((VALUE)1)<<12)
 
-#define FL_USHIFT    12
+#define FL_USHIFT    13
 
 #define FL_USER0     (((VALUE)1)<<(FL_USHIFT+0))
 #define FL_USER1     (((VALUE)1)<<(FL_USHIFT+1))
@@ -1122,7 +1123,6 @@ struct RBignum {
 #define FL_USER16    (((VALUE)1)<<(FL_USHIFT+16))
 #define FL_USER17    (((VALUE)1)<<(FL_USHIFT+17))
 #define FL_USER18    (((VALUE)1)<<(FL_USHIFT+18))
-#define FL_USER19    (((VALUE)1)<<(FL_USHIFT+19))
 
 #define SPECIAL_CONST_P(x) (IMMEDIATE_P(x) || !RTEST(x))
 

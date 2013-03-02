@@ -58,7 +58,6 @@ const union {
         RUBY_FL_USER15      = FL_USER15,
         RUBY_FL_USER16      = FL_USER16,
         RUBY_FL_USER17      = FL_USER17,
-        RUBY_FL_USER18      = FL_USER18,
         RUBY_FL_USHIFT      = FL_USHIFT,
         RUBY_NODE_TYPESHIFT = NODE_TYPESHIFT,
         RUBY_NODE_TYPEMASK  = NODE_TYPEMASK,
@@ -67,7 +66,7 @@ const union {
     } various;
 } ruby_dummy_gdb_enums;
 
-const VALUE RUBY_FL_USER19    = FL_USER19;
+const VALUE RUBY_FL_USER18    = FL_USER18;
 const SIGNED_VALUE RUBY_NODE_LMASK = NODE_LMASK;
 const VALUE RUBY_ENCODING_MASK  = ENCODING_MASK;
 
