@@ -10203,6 +10203,7 @@ rb_intern3(const char *name, long len, rb_encoding *enc)
 	return (ID)data;
 
     str = rb_enc_str_new(name, len, enc); /* make true string */
+    FL_SET(str, FL_PERMANENT);
     return intern_str(str);
 }
 
@@ -10351,6 +10352,7 @@ rb_id2str(ID id)
 		name[1] = 0;
 		str = rb_usascii_str_new(name, 1);
 		OBJ_FREEZE(str);
+		FL_SET(str, FL_PERMANENT);
 		global_symbols.op_sym[i] = str;
 	    }
 	    return str;
