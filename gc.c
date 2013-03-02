@@ -1895,7 +1895,7 @@ slot_sweep(rb_objspace_t *objspace, struct heaps_slot *sweep_slot)
     p = sweep_slot->header->start; pend = p + sweep_slot->header->limit;
     bits = GET_HEAP_BITMAP(p);
     while (p < pend) {
-        if ((!(MARKED_IN_BITMAP(bits, p))) && BUILTIN_TYPE(p) != T_ZOMBIE && !FL_TEST(p, FL_PERMANENT)) {
+        if ((!(MARKED_IN_BITMAP(bits, p))) && BUILTIN_TYPE(p) != T_ZOMBIE && !(FL_TEST((VALUE)p, FL_PERMANENT))) {
             if (p->as.basic.flags) {
                 if ((deferred = obj_free(objspace, (VALUE)p)) ||
                     (FL_TEST(p, FL_FINALIZE))) {
