@@ -1895,7 +1895,7 @@ slot_sweep(rb_objspace_t *objspace, struct heaps_slot *sweep_slot)
     p = sweep_slot->header->start; pend = p + sweep_slot->header->limit;
     bits = GET_HEAP_BITMAP(p);
     while (p < pend) {
-        if ((!(MARKED_IN_BITMAP(bits, p))) && BUILTIN_TYPE(p) != T_ZOMBIE) {
+        if ((!(MARKED_IN_BITMAP(bits, p))) && BUILTIN_TYPE(p) != T_ZOMBIE && !FL_TEST(p, FL_PERMANENT)) {
             if (p->as.basic.flags) {
                 if ((deferred = obj_free(objspace, (VALUE)p)) ||
                     (FL_TEST(p, FL_FINALIZE))) {
@@ -2941,7 +2941,6 @@ gc_marks(rb_objspace_t *objspace)
     mark_tbl(objspace, finalizer_table);
     mark_current_machine_context(objspace, th);
 
-    rb_gc_mark_symbols();
     rb_gc_mark_encodings();
 
     /* mark protected global variables */

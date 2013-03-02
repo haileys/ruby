@@ -9976,14 +9976,6 @@ Init_sym(void)
 
     Init_id();
 }
-
-void
-rb_gc_mark_symbols(void)
-{
-    rb_mark_tbl(global_symbols.id_str);
-    rb_gc_mark_locations(global_symbols.op_sym,
-			 global_symbols.op_sym + numberof(global_symbols.op_sym));
-}
 #endif /* !RIPPER */
 
 static ID
@@ -10164,6 +10156,8 @@ register_symid_str(ID id, VALUE str)
     if (RUBY_DTRACE_SYMBOL_CREATE_ENABLED()) {
 	RUBY_DTRACE_SYMBOL_CREATE(RSTRING_PTR(str), rb_sourcefile(), rb_sourceline());
     }
+
+    FL_SET(str, FL_PERMANENT);
 
     st_add_direct(global_symbols.sym_id, (st_data_t)str, id);
     st_add_direct(global_symbols.id_str, id, (st_data_t)str);
@@ -10367,6 +10361,7 @@ rb_id2str(ID id)
 		if (!str) {
 		    str = rb_usascii_str_new2(op_tbl[i].name);
 		    OBJ_FREEZE(str);
+		    FL_SET(str, FL_PERMANENT);
 		    global_symbols.op_sym[i] = str;
 		}
 		return str;
