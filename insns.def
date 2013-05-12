@@ -210,13 +210,13 @@ getclassconstant
 (VALUE klass)
 (VALUE val)
 {
+    vm_check_if_namespace(klass);
     if (LIKELY(ic->ic_vmstat == GET_CONST_STATE_VERSION() && ic->ic_class == klass && ic->ic_seq == RCLASS_EXT(klass)->seq)) {
 	val = ic->ic_value.value;
     } else {
 	uint64_t const_state_version = GET_CONST_STATE_VERSION();
 	uint64_t seq = RCLASS_EXT(klass)->seq;
 
-	vm_check_if_namespace(klass);
 	val = rb_public_const_get_from(klass, id);
 
 	ic->ic_class = klass;
