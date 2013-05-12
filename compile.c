@@ -2732,7 +2732,7 @@ compile_colon2(rb_iseq_t *iseq, NODE * node,
     switch (nd_type(node)) {
       case NODE_CONST:
 	debugi("compile_colon2 - colon", node->nd_vid);
-	ADD_INSN1(body, nd_line(node), getcrefconstant, ID2SYM(node->nd_vid));
+	ADD_INSN2(body, nd_line(node), getcrefconstant, ID2SYM(node->nd_vid), INT2FIX(ic_index));
 	break;
       case NODE_COLON3:
 	debugi("compile_colon2 - colon3", node->nd_mid);
@@ -4670,7 +4670,7 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
       case NODE_CONST:{
 	debugi("nd_vid", node->nd_vid);
 
-	ADD_INSN1(ret, line, getcrefconstant, ID2SYM(node->nd_vid));
+	ADD_INSN2(ret, line, getcrefconstant, ID2SYM(node->nd_vid), INT2FIX(iseq->ic_size++));
 
 	if (poped) {
 	    ADD_INSN(ret, line, pop);

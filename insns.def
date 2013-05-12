@@ -183,11 +183,20 @@ setclassvariable
  */
 DEFINE_INSN
 getcrefconstant
-(ID id)
+(ID id, IC ic)
 ()
 (VALUE val)
 {
-    val = vm_get_ev_const(th, GET_ISEQ(), Qnil, id, 0);
+    if (LIKELY(ic->ic_vmstat == GET_CONST_STATE_VERSION())) {
+	val = ic->ic_value.value;
+    } else {
+	uint64_t const_state_version = GET_CONST_STATE_VERSION();
+
+	val = vm_get_ev_const(th, GET_ISEQ(), Qnil, id, 0);
+
+	ic->ic_vmstat = const_state_version;
+	ic->ic_value.value = val;
+    }
 }
 
 /**
@@ -204,11 +213,15 @@ getclassconstant
     if (LIKELY(ic->ic_vmstat == GET_CONST_STATE_VERSION() && ic->ic_class == klass && ic->ic_seq == RCLASS_EXT(klass)->seq)) {
 	val = ic->ic_value.value;
     } else {
+	uint64_t const_state_version = GET_CONST_STATE_VERSION();
+	uint64_t seq = RCLASS_EXT(klass)->seq;
+
 	vm_check_if_namespace(klass);
 	val = rb_public_const_get_from(klass, id);
+
 	ic->ic_class = klass;
-	ic->ic_vmstat = GET_CONST_STATE_VERSION();
-	ic->ic_seq = RCLASS_EXT(klass)->seq;
+	ic->ic_vmstat = const_state_version;
+	ic->ic_seq = seq;
 	ic->ic_value.value = val;
     }
 }
