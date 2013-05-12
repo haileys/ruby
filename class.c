@@ -827,7 +827,10 @@ rb_include_module(VALUE klass, VALUE module)
     changed = include_modules_at(klass, RCLASS_ORIGIN(klass), module);
     if (changed < 0)
 	rb_raise(rb_eArgError, "cyclic include detected");
-    if (changed) rb_clear_cache_by_class(klass);
+    if (changed) {
+	rb_clear_method_cache_by_class(klass);
+	rb_clear_constant_cache_by_class(klass);
+    }
 }
 
 static int
@@ -891,7 +894,10 @@ include_modules_at(const VALUE klass, VALUE c, VALUE module)
 	module = RCLASS_SUPER(module);
     }
 
-    if (changed) rb_clear_cache_by_class(klass);
+    if (changed) {
+	rb_clear_method_cache_by_class(klass);
+	rb_clear_constant_cache_by_class(klass);
+    }
 
     return changed;
 }
@@ -954,7 +960,8 @@ rb_prepend_module(VALUE klass, VALUE module)
     if (changed < 0)
 	rb_raise(rb_eArgError, "cyclic prepend detected");
     if (changed) {
-	rb_clear_cache_by_class(klass);
+	rb_clear_method_cache_by_class(klass);
+	rb_clear_constant_cache_by_class(klass);
 	rb_vm_check_redefinition_by_prepend(klass);
     }
 }

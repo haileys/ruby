@@ -510,7 +510,7 @@ vm_getivar(VALUE obj, ID id, IC ic, rb_call_info_t *ci, int is_attr)
 	VALUE val = Qundef;
 	VALUE klass = RBASIC(obj)->klass;
 
-	if (LIKELY((!is_attr && (ic->ic_class == klass && ic->ic_vmstat == GET_VM_STATE_VERSION())) ||
+	if (LIKELY((!is_attr && (ic->ic_class == klass && ic->ic_vmstat == GET_IVAR_STATE_VERSION())) ||
 		   (is_attr && ci->aux.index > 0))) {
 	    long index = !is_attr ? ic->ic_value.index : ci->aux.index - 1;
 	    long len = ROBJECT_NUMIV(obj);
@@ -534,7 +534,7 @@ vm_getivar(VALUE obj, ID id, IC ic, rb_call_info_t *ci, int is_attr)
 		    if (!is_attr) {
 			ic->ic_class = klass;
 			ic->ic_value.index = index;
-			ic->ic_vmstat = GET_VM_STATE_VERSION();
+			ic->ic_vmstat = GET_IVAR_STATE_VERSION();
 		    }
 		    else { /* call_info */
 			ci->aux.index = index + 1;
@@ -570,7 +570,7 @@ vm_setivar(VALUE obj, ID id, VALUE val, IC ic, rb_call_info_t *ci, int is_attr)
 	st_data_t index;
 
 	if (LIKELY(
-	    (!is_attr && ic->ic_class == klass && ic->ic_vmstat == GET_VM_STATE_VERSION()) ||
+	    (!is_attr && ic->ic_class == klass && ic->ic_vmstat == GET_IVAR_STATE_VERSION()) ||
 	    (is_attr && ci->aux.index > 0))) {
 	    long index = !is_attr ? ic->ic_value.index : ci->aux.index-1;
 	    long len = ROBJECT_NUMIV(obj);
@@ -588,7 +588,7 @@ vm_setivar(VALUE obj, ID id, VALUE val, IC ic, rb_call_info_t *ci, int is_attr)
 		if (!is_attr) {
 		    ic->ic_class = klass;
 		    ic->ic_value.index = index;
-		    ic->ic_vmstat = GET_VM_STATE_VERSION();
+		    ic->ic_vmstat = GET_IVAR_STATE_VERSION();
 		}
 		else {
 		    ci->aux.index = index + 1;
@@ -851,13 +851,13 @@ vm_search_method(rb_call_info_t *ci, VALUE recv)
     VALUE klass = CLASS_OF(recv);
 
 #if OPT_INLINE_METHOD_CACHE
-    if (LIKELY(GET_VM_STATE_VERSION() == ci->vmstat && RCLASS_EXT(klass)->seq == ci->seq && klass == ci->klass)) {
+    if (LIKELY(GET_METHOD_STATE_VERSION() == ci->vmstat && RCLASS_EXT(klass)->seq == ci->seq && klass == ci->klass)) {
 	/* cache hit! */
     }
     else {
 	ci->me = rb_method_entry(klass, ci->mid, &ci->defined_class);
 	ci->klass = klass;
-	ci->vmstat = GET_VM_STATE_VERSION();
+	ci->vmstat = GET_METHOD_STATE_VERSION();
 	ci->seq = RCLASS_EXT(klass)->seq;
 	ci->call = vm_call_general;
     }

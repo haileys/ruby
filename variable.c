@@ -1951,8 +1951,8 @@ rb_const_remove(VALUE mod, ID id)
     /* CS_TODO clear cache by mod */
     /* the reason this is clearing the global cache is because getconstant in the VM
        is protected by only a global cache serial number */
-    /*rb_clear_cache_by_class(mod);*/
-    rb_clear_cache_by_class(rb_cObject);
+    /*rb_clear_constant_cache_by_class(mod);*/
+    rb_clear_constant_cache_by_class(rb_cObject);
 
     val = ((rb_const_entry_t*)v)->value;
     if (val == Qundef) {
@@ -2167,8 +2167,8 @@ rb_const_set(VALUE klass, ID id, VALUE val)
 		    /* CS_TODO clear cache by klass */
 		    /* the reason this is clearing the global cache is because getconstant in the VM
 		       is protected by only a global cache serial number */
-		    /*rb_clear_cache_by_class(klass);*/
-		    rb_clear_cache_by_class(rb_cObject);
+		    /*rb_clear_constant_cache_by_class(klass);*/
+		    rb_clear_constant_cache_by_class(rb_cObject);
 		    ele->value = val;
 		    return;
 		}
@@ -2195,7 +2195,7 @@ rb_const_set(VALUE klass, ID id, VALUE val)
     /* the reason this is clearing the global cache is because getconstant in the VM
        is protected by only a global cache serial number */
     /*rb_clear_cache_by_class(klass);*/
-    rb_clear_cache_by_class(rb_cObject);
+    rb_clear_constant_cache_by_class(rb_cObject);
 
     ce = ALLOC(rb_const_entry_t);
     ce->flag = (rb_const_flag_t)visibility;
@@ -2251,8 +2251,8 @@ set_const_visibility(VALUE mod, int argc, VALUE *argv, rb_const_flag_t flag)
 		/* CS_TODO clear cache by mod */
 		/* the reason this is clearing the global cache is because getconstant in the VM
 		   is protected by only a global cache serial number */
-		/*rb_clear_cache_by_class(mod);*/
-		rb_clear_cache_by_class(rb_cObject);
+		/*rb_clear_constant_cache_by_class(mod);*/
+		rb_clear_constant_cache_by_class(rb_cObject);
 	    }
 	    rb_name_error_str(val, "constant %"PRIsVALUE"::%"PRIsVALUE" not defined",
 			      rb_class_name(mod), QUOTE(val));
@@ -2263,7 +2263,7 @@ set_const_visibility(VALUE mod, int argc, VALUE *argv, rb_const_flag_t flag)
 	}
 	else {
 	    if (i > 0)
-		rb_clear_cache_by_class(mod);
+		rb_clear_constant_cache_by_class(mod);
 	    rb_name_error(id, "constant %"PRIsVALUE"::%"PRIsVALUE" not defined",
 			  rb_class_name(mod), QUOTE_ID(id));
 	}
@@ -2271,8 +2271,8 @@ set_const_visibility(VALUE mod, int argc, VALUE *argv, rb_const_flag_t flag)
     /* CS_TODO clear cache by mod */
     /* the reason this is clearing the global cache is because getconstant in the VM
        is protected by only a global cache serial number */
-    /*rb_clear_cache_by_class(mod);*/
-    rb_clear_cache_by_class(rb_cObject);
+    /*rb_clear_constant_cache_by_class(mod);*/
+    rb_clear_constant_cache_by_class(rb_cObject);
 }
 
 /*
