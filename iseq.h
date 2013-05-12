@@ -36,7 +36,6 @@ rb_iseq_t *rb_method_get_iseq(VALUE body);
 rb_iseq_t *rb_proc_get_iseq(VALUE proc, int *is_proc);
 
 struct rb_compile_option_struct {
-    int inline_const_cache;
     int peephole_optimization;
     int tailcall_optimization;
     int specialized_instruction;

@@ -179,22 +179,38 @@ setclassvariable
 /**
   @c variable
   @e
-   Get constant variable id. If klass is Qnil, constants
-   are searched in the current scope. If klass is Qfalse, constants
-   are searched as top level constants. Otherwise, get constant under klass
-   class or module.
-  @j 定数 id の値を得る。
-   klass が Qnil なら、そのスコープで得られる定数の値を得る。
-   Qfalse なら、トップレベルスコープを得る。
-   それ以外なら、klass クラスの下の定数を得る。
+   Get constant variable `id` in current scope.
  */
 DEFINE_INSN
-getconstant
+getcrefconstant
 (ID id)
+()
+(VALUE val)
+{
+    val = vm_get_ev_const(th, GET_ISEQ(), Qnil, id, 0);
+}
+
+/**
+  @c variable
+  @e
+   Get constant variable `id` under `klass` class or module.
+ */
+DEFINE_INSN
+getclassconstant
+(ID id, IC ic)
 (VALUE klass)
 (VALUE val)
 {
-    val = vm_get_ev_const(th, GET_ISEQ(), klass, id, 0);
+    if (LIKELY(ic->ic_vmstat == GET_VM_STATE_VERSION() && ic->ic_class == klass && ic->ic_seq == RCLASS_EXT(klass)->seq)) {
+	val = ic->ic_value.value;
+    } else {
+	vm_check_if_namespace(klass);
+	val = rb_public_const_get_from(klass, id);
+	ic->ic_class = klass;
+	ic->ic_vmstat = GET_VM_STATE_VERSION();
+	ic->ic_seq = RCLASS_EXT(klass)->seq;
+	ic->ic_value.value = val;
+    }
 }
 
 /**
@@ -1177,27 +1193,6 @@ branchunless
 
 /**
   @c optimize
-  @e inline cache
-  @j インラインキャッシュが有効なら、値をスタックにプッシュして dst へジャンプする。
- */
-DEFINE_INSN
-getinlinecache
-(OFFSET dst, IC ic)
-()
-(VALUE val)
-{
-    if (ic->ic_vmstat == GET_VM_STATE_VERSION()) {
-	val = ic->ic_value.value;
-	JUMP(dst);
-    }
-    else {
-	/* none */
-	val = Qnil;
-    }
-}
-
-/**
-  @c optimize
   @e inline cache (once)
   @j once を実現する。
  */
@@ -1231,7 +1226,7 @@ onceinlinecache
   @j インラインキャッシュの値を設定する。
  */
 DEFINE_INSN
-setinlinecache
+setonceinlinecache
 (IC ic)
 (VALUE val)
 (VALUE val)
@@ -1240,8 +1235,7 @@ setinlinecache
 	rb_iseq_add_mark_object(GET_ISEQ(), val);
     }
     ic->ic_value.value = val;
-    ic->ic_vmstat = GET_VM_STATE_VERSION() - ruby_vm_const_missing_count;
-    ruby_vm_const_missing_count = 0;
+    ic->ic_vmstat = 1;
 }
 
 /**
