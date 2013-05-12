@@ -265,10 +265,6 @@ static uint64_t ruby_global_method_state_version = 1;
 #define GET_METHOD_STATE_VERSION() (ruby_global_method_state_version)
 #define INC_METHOD_STATE_VERSION() (++ruby_global_method_state_version)
 
-static uint64_t ruby_global_ivar_state_version = 1;
-#define GET_IVAR_STATE_VERSION() (ruby_global_ivar_state_version)
-#define INC_IVAR_STATE_VERSION() (++ruby_global_ivar_state_version)
-
 static uint64_t ruby_global_const_state_version = 1;
 #define GET_CONST_STATE_VERSION() (ruby_global_const_state_version)
 #define INC_CONST_STATE_VERSION() (++ruby_global_const_state_version)
