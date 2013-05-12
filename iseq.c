@@ -318,7 +318,6 @@ cleanup_iseq_build(rb_iseq_t *iseq)
 }
 
 static rb_compile_option_t COMPILE_OPTION_DEFAULT = {
-    OPT_INLINE_CONST_CACHE, /* int inline_const_cache; */
     OPT_PEEPHOLE_OPTIMIZATION, /* int peephole_optimization; */
     OPT_TAILCALL_OPTIMIZATION, /* int tailcall_optimization */
     OPT_SPECIALISED_INSTRUCTION, /* int specialized_instruction; */
@@ -353,7 +352,6 @@ make_compile_option(rb_compile_option_t *option, VALUE opt)
   { VALUE num = rb_hash_aref(opt, ID2SYM(rb_intern(#mem))); \
       if (!NIL_P(num)) (o)->mem = NUM2INT(num); \
   }
-	SET_COMPILE_OPTION(option, opt, inline_const_cache);
 	SET_COMPILE_OPTION(option, opt, peephole_optimization);
 	SET_COMPILE_OPTION(option, opt, tailcall_optimization);
 	SET_COMPILE_OPTION(option, opt, specialized_instruction);
@@ -379,7 +377,6 @@ make_compile_option_value(rb_compile_option_t *option)
 #define SET_COMPILE_OPTION_NUM(o, h, mem) \
   rb_hash_aset((h), ID2SYM(rb_intern(#mem)), INT2NUM((o)->mem))
     {
-	SET_COMPILE_OPTION(option, opt, inline_const_cache);
 	SET_COMPILE_OPTION(option, opt, peephole_optimization);
 	SET_COMPILE_OPTION(option, opt, tailcall_optimization);
 	SET_COMPILE_OPTION(option, opt, specialized_instruction);
@@ -727,7 +724,6 @@ iseq_s_compile_file(int argc, VALUE *argv, VALUE self)
  *  Possible option names (which are keys in +options+) which can be set to
  *  +true+ or +false+ include:
  *
- *  * +:inline_const_cache+
  *  * +:instructions_unification+
  *  * +:operands_unification+
  *  * +:peephole_optimization+
