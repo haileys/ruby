@@ -201,13 +201,13 @@ getclassconstant
 (VALUE klass)
 (VALUE val)
 {
-    if (LIKELY(ic->ic_vmstat == GET_VM_STATE_VERSION() && ic->ic_class == klass && ic->ic_seq == RCLASS_EXT(klass)->seq)) {
+    if (LIKELY(ic->ic_vmstat == GET_CONST_STATE_VERSION() && ic->ic_class == klass && ic->ic_seq == RCLASS_EXT(klass)->seq)) {
 	val = ic->ic_value.value;
     } else {
 	vm_check_if_namespace(klass);
 	val = rb_public_const_get_from(klass, id);
 	ic->ic_class = klass;
-	ic->ic_vmstat = GET_VM_STATE_VERSION();
+	ic->ic_vmstat = GET_CONST_STATE_VERSION();
 	ic->ic_seq = RCLASS_EXT(klass)->seq;
 	ic->ic_value.value = val;
     }
@@ -234,7 +234,7 @@ setconstant
 {
     vm_check_if_namespace(cbase);
     rb_const_set(cbase, id, val);
-    rb_clear_cache_by_class(cbase);
+    rb_clear_constant_cache_by_class(cbase);
 }
 
 /**
@@ -991,7 +991,6 @@ defineclass
 		  class_iseq->local_size, 0);
     RESTORE_REGS();
 
-    rb_clear_cache_by_class(klass);
     NEXT_INSN();
 }
 
