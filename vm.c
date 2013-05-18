@@ -99,14 +99,6 @@ rb_event_flag_t ruby_vm_event_flags;
 
 static void thread_free(void *ptr);
 
-void
-rb_vm_change_state(void)
-{
-    INC_VM_STATE_VERSION();
-}
-
-static void vm_clear_global_method_cache(void);
-
 static void
 vm_clear_all_inline_method_cache(void)
 {
@@ -119,7 +111,6 @@ vm_clear_all_inline_method_cache(void)
 static void
 vm_clear_all_cache()
 {
-    vm_clear_global_method_cache();
     vm_clear_all_inline_method_cache();
     ruby_vm_global_state_version = 1;
 }
@@ -2035,11 +2026,13 @@ vm_define_method(rb_thread_t *th, VALUE obj, ID id, VALUE iseqval,
     miseq->klass = klass;
     miseq->defined_method_id = id;
     rb_add_method(klass, id, VM_METHOD_TYPE_ISEQ, miseq, noex);
+    rb_clear_cache_by_class(klass);
 
     if (!is_singleton && noex == NOEX_MODFUNC) {
-	rb_add_method(rb_singleton_class(klass), id, VM_METHOD_TYPE_ISEQ, miseq, NOEX_PUBLIC);
+	klass = rb_singleton_class(klass);
+	rb_add_method(klass, id, VM_METHOD_TYPE_ISEQ, miseq, NOEX_PUBLIC);
+	rb_clear_cache_by_class(klass);
     }
-    INC_VM_STATE_VERSION();
 }
 
 #define REWIND_CFP(expr) do { \
@@ -2088,7 +2081,8 @@ m_core_undef_method(VALUE self, VALUE cbase, VALUE sym)
 {
     REWIND_CFP({
 	rb_undef(cbase, SYM2ID(sym));
-	INC_VM_STATE_VERSION();
+	rb_clear_cache_by_class(cbase);
+	rb_clear_cache_by_class(self);
     });
     return Qnil;
 }

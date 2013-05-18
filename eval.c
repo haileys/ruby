@@ -1356,7 +1356,7 @@ top_using(VALUE self, VALUE module)
     }
     Check_Type(module, T_MODULE);
     rb_using_module(cref, module);
-    rb_clear_cache();
+    rb_clear_cache_by_class(rb_cObject);
     return self;
 }
 

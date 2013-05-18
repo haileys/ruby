@@ -1947,7 +1947,7 @@ rb_const_remove(VALUE mod, ID id)
 		      rb_class_name(mod), QUOTE_ID(id));
     }
 
-    rb_vm_change_state();
+    rb_clear_cache_by_class(mod);
 
     val = ((rb_const_entry_t*)v)->value;
     if (val == Qundef) {
@@ -2159,7 +2159,7 @@ rb_const_set(VALUE klass, ID id, VALUE val)
 		load = autoload_data(klass, id);
 		/* for autoloading thread, keep the defined value to autoloading storage */
 		if (load && (ele = check_autoload_data(load)) && (ele->thread == rb_thread_current())) {
-		    rb_vm_change_state();
+		    rb_clear_cache_by_class(klass);
 		    ele->value = val;
 		    return;
 		}
@@ -2182,7 +2182,7 @@ rb_const_set(VALUE klass, ID id, VALUE val)
 	}
     }
 
-    rb_vm_change_state();
+    rb_clear_cache_by_class(klass);
 
     ce = ALLOC(rb_const_entry_t);
     ce->flag = (rb_const_flag_t)visibility;
