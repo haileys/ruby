@@ -85,6 +85,10 @@ struct rb_classext_struct {
 #define RCLASS_ORIGIN(c) (RCLASS_EXT(c)->origin)
 #define RCLASS_REFINED_CLASS(c) (RCLASS_EXT(c)->refined_class)
 
+/* class.c */
+void rb_class_remove_from_super_subclasses(VALUE);
+void rb_class_subclass_add(VALUE, VALUE);
+
 #undef RCLASS_SUPER
 static inline VALUE
 RCLASS_SUPER(VALUE c)
@@ -118,7 +122,6 @@ VALUE rb_integer_float_eq(VALUE x, VALUE y);
 void rb_class_foreach_subclass(VALUE klass, void(*f)(VALUE));
 void rb_class_detach_subclasses(VALUE);
 void rb_class_detach_module_subclasses(VALUE);
-void rb_class_remove_from_super_subclasses(VALUE);
 void rb_class_remove_from_module_subclasses(VALUE);
 VALUE rb_obj_methods(int argc, VALUE *argv, VALUE obj);
 VALUE rb_obj_protected_methods(int argc, VALUE *argv, VALUE obj);
