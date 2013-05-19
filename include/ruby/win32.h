@@ -37,6 +37,9 @@ extern "C++" {			/* template without extern "C++" */
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#if !defined(_MSC_VER) || _MSC_VER >= 1400
+#include <iphlpapi.h>
+#endif
 #if defined(__cplusplus) && defined(_MSC_VER)
 }
 #endif
@@ -80,23 +83,33 @@ extern "C++" {			/* template without extern "C++" */
 # if !defined(_INTPTR_T_DEFINED)
 #  ifdef _WIN64
 typedef __int64 intptr_t;
-#    define INTPTR_MAX 9223372036854775807I64
 #  else
 typedef int intptr_t;
+#  endif
+#  define _INTPTR_T_DEFINED
+# endif
+# if !defined(INTPTR_MAX)
+#  ifdef _WIN64
+#    define INTPTR_MAX 9223372036854775807I64
+#  else
 #    define INTPTR_MAX 2147483647
 #  endif
 #  define INTPTR_MIN (-INTPTR_MAX-1)
-#  define _INTPTR_T_DEFINED
 # endif
 # if !defined(_UINTPTR_T_DEFINED)
 #  ifdef _WIN64
 typedef unsigned __int64 uintptr_t;
-#    define UINTPTR_MAX 18446744073709551615UI64
 #  else
 typedef unsigned int uintptr_t;
-#    define UINTPTR_MAX 4294967295U
 #  endif
 #  define _UINTPTR_T_DEFINED
+# endif
+# if !defined(UINTPTR_MAX)
+#  ifdef _WIN64
+#    define UINTPTR_MAX 18446744073709551615UI64
+#  else
+#    define UINTPTR_MAX 4294967295U
+#  endif
 # endif
 #endif
 #ifndef __MINGW32__
@@ -225,6 +238,26 @@ struct msghdr {
     int msg_flags;
 };
 
+/* for getifaddrs() and others */
+struct ifaddrs {
+    struct ifaddrs *ifa_next;
+    char *ifa_name;
+    u_int ifa_flags;
+    struct sockaddr *ifa_addr;
+    struct sockaddr *ifa_netmask;
+    struct sockaddr *ifa_broadaddr;
+    struct sockaddr *ifa_dstaddr;
+    void *ifa_data;
+};
+#ifdef IF_NAMESIZE
+#define IFNAMSIZ IF_NAMESIZE
+#else
+#define IFNAMSIZ 256
+#endif
+#ifdef IFF_POINTTOPOINT
+#define IFF_POINTOPOINT IFF_POINTTOPOINT
+#endif
+
 extern DWORD  rb_w32_osid(void);
 extern int    rb_w32_cmdvector(const char *, char ***);
 extern rb_pid_t  rb_w32_pipe_exec(const char *, const char *, int, int *, int *);
@@ -260,7 +293,9 @@ extern struct protoent *WSAAPI rb_w32_getprotobyname(const char *);
 extern struct protoent *WSAAPI rb_w32_getprotobynumber(int);
 extern struct servent  *WSAAPI rb_w32_getservbyname(const char *, const char *);
 extern struct servent  *WSAAPI rb_w32_getservbyport(int, const char *);
-extern int    rb_w32_socketpair(int, int, int, int *);
+extern int    socketpair(int, int, int, int *);
+extern int    getifaddrs(struct ifaddrs **);
+extern void   freeifaddrs(struct ifaddrs *);
 extern char * rb_w32_getcwd(char *, int);
 extern char * rb_w32_ugetenv(const char *);
 extern char * rb_w32_getenv(const char *);
@@ -385,8 +420,6 @@ scalb(double a, long b)
 
 extern int 	 rb_w32_ftruncate(int fd, off_t length);
 extern int 	 rb_w32_truncate(const char *path, off_t length);
-extern off_t	 rb_w32_ftello(FILE *stream);
-extern int 	 rb_w32_fseeko(FILE *stream, off_t offset, int whence);
 
 #undef HAVE_FTRUNCATE
 #define HAVE_FTRUNCATE 1
@@ -402,22 +435,6 @@ extern int 	 rb_w32_fseeko(FILE *stream, off_t offset, int whence);
 #define truncate truncate64
 #else
 #define truncate rb_w32_truncate
-#endif
-
-#undef HAVE_FSEEKO
-#define HAVE_FSEEKO 1
-#if defined HAVE_FSEEKO64
-#define fseeko fseeko64
-#else
-#define fseeko rb_w32_fseeko
-#endif
-
-#undef HAVE_FTELLO
-#define HAVE_FTELLO 1
-#if defined HAVE_FTELLO64
-#define ftello ftello64
-#else
-#define ftello rb_w32_ftello
 #endif
 
 /*
@@ -675,9 +692,6 @@ extern char *rb_w32_strerror(int);
 
 #undef getservbyport
 #define getservbyport(p, pr)	rb_w32_getservbyport(p, pr)
-
-#undef socketpair
-#define socketpair(a, t, p, s)	rb_w32_socketpair(a, t, p, s)
 
 #undef get_osfhandle
 #define get_osfhandle(h)	rb_w32_get_osfhandle(h)

@@ -77,15 +77,28 @@ struct rb_classext_struct {
     rb_alloc_func_t allocator;
 };
 
-#undef RCLASS_SUPER
 #define RCLASS_EXT(c) (RCLASS(c)->ptr)
-#define RCLASS_SUPER(c) (RCLASS_EXT(c)->super)
 #define RCLASS_IV_TBL(c) (RCLASS_EXT(c)->iv_tbl)
 #define RCLASS_CONST_TBL(c) (RCLASS_EXT(c)->const_tbl)
 #define RCLASS_M_TBL(c) (RCLASS(c)->m_tbl)
 #define RCLASS_IV_INDEX_TBL(c) (RCLASS(c)->iv_index_tbl)
 #define RCLASS_ORIGIN(c) (RCLASS_EXT(c)->origin)
 #define RCLASS_REFINED_CLASS(c) (RCLASS_EXT(c)->refined_class)
+
+#undef RCLASS_SUPER
+static inline VALUE
+RCLASS_SUPER(VALUE c)
+{
+  return RCLASS_EXT(c)->super;
+}
+
+static inline VALUE
+RCLASS_SET_SUPER(VALUE a, VALUE b) {
+  rb_class_remove_from_super_subclasses(a);
+  rb_class_subclass_add(a, b);
+  OBJ_WRITE(a, &RCLASS_EXT(a)->super, b);
+  return b;
+}
 
 struct vtm; /* defined by timev.h */
 
@@ -114,6 +127,7 @@ VALUE rb_obj_public_methods(int argc, VALUE *argv, VALUE obj);
 int rb_obj_basic_to_s_p(VALUE);
 VALUE rb_special_singleton_class(VALUE);
 VALUE rb_singleton_class_clone_and_attach(VALUE obj, VALUE attach);
+VALUE rb_singleton_class_get(VALUE obj);
 void Init_class_hierarchy(void);
 
 /* compar.c */
@@ -237,7 +251,18 @@ VALUE rb_int_pred(VALUE num);
 
 /* object.c */
 VALUE rb_obj_equal(VALUE obj1, VALUE obj2);
-VALUE rb_obj_hide(VALUE obj);
+
+struct RBasicRaw {
+    VALUE flags;
+    VALUE klass;
+};
+
+#define RBASIC_CLEAR_CLASS(obj)        (((struct RBasicRaw *)((VALUE)(obj)))->klass = 0)
+#define RBASIC_SET_CLASS_RAW(obj, cls) (((struct RBasicRaw *)((VALUE)(obj)))->klass = (cls))
+#define RBASIC_SET_CLASS(obj, cls)     do { \
+    VALUE _obj_ = (obj); \
+    OBJ_WRITE(_obj_, &((struct RBasicRaw *)(_obj_))->klass, cls); \
+} while (0)
 
 /* parse.y */
 VALUE rb_parser_get_yydebug(VALUE);

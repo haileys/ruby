@@ -166,7 +166,7 @@ rb_big_resize(VALUE big, long len)
 static VALUE
 bignew_1(VALUE klass, long len, int sign)
 {
-    NEWOBJ_OF(big, struct RBignum, klass, T_BIGNUM);
+    NEWOBJ_OF(big, struct RBignum, klass, T_BIGNUM | (RGENGC_WB_PROTECTED_BIGNUM ? FL_WB_PROTECTED : 0));
     RBIGNUM_SET_SIGN(big, sign?1:0);
     if (len <= RBIGNUM_EMBED_LEN_MAX) {
 	RBASIC(big)->flags |= RBIGNUM_EMBED_FLAG;
@@ -363,7 +363,7 @@ rb_int2inum(SIGNED_VALUE n)
  * is the sign bit: 1 means negative and 0 means zero or positive.
  *
  * If given size of buf (num_longs) is not enough to represent val,
- * higier words (including a sign bit) are ignored.
+ * higher words (including a sign bit) are ignored.
  */
 void
 rb_big_pack(VALUE val, unsigned long *buf, long num_longs)
@@ -3054,9 +3054,6 @@ bdigbitsize(BDIGIT x)
 
     return size;
 }
-
-static VALUE big_lshift(VALUE, unsigned long);
-static VALUE big_rshift(VALUE, unsigned long);
 
 static VALUE
 big_shift(VALUE x, long n)

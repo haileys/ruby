@@ -252,7 +252,7 @@ apply2files(void (*func)(const char *, VALUE, void *), VALUE vargs, void *arg)
     rb_secure(4);
     for (i=0; i<RARRAY_LEN(vargs); i++) {
 	const char *s;
-	path = rb_get_path(RARRAY_PTR(vargs)[i]);
+	path = rb_get_path(RARRAY_AREF(vargs, i));
 	path = rb_str_encode_ospath(path);
 	s = RSTRING_PTR(path);
 	(*func)(s, path, arg);
@@ -3722,7 +3722,7 @@ ruby_enc_find_basename(const char *name, long *baselen, long *alllen, rb_encodin
  *
  *  Returns the last component of the filename given in <i>file_name</i>,
  *  which can be formed using both <code>File::SEPARATOR</code> and
- *  <code>File::ALT_SEPARETOR</code> as the separator when
+ *  <code>File::ALT_SEPARATOR</code> as the separator when
  *  <code>File::ALT_SEPARATOR</code> is not <code>nil</code>. If
  *  <i>suffix</i> is given and present at the end of <i>file_name</i>,
  *  it is removed.
@@ -3779,7 +3779,7 @@ rb_file_s_basename(int argc, VALUE *argv)
  *
  *  Returns all components of the filename given in <i>file_name</i>
  *  except the last one. The filename can be formed using both
- *  <code>File::SEPARATOR</code> and <code>File::ALT_SEPARETOR</code> as the
+ *  <code>File::SEPARATOR</code> and <code>File::ALT_SEPARATOR</code> as the
  *  separator when <code>File::ALT_SEPARATOR</code> is not <code>nil</code>.
  *
  *     File.dirname("/home/gumby/work/ruby.rb")   #=> "/home/gumby/work"
@@ -3999,7 +3999,7 @@ rb_file_join(VALUE ary, VALUE sep)
 
     len = 1;
     for (i=0; i<RARRAY_LEN(ary); i++) {
-	tmp = RARRAY_PTR(ary)[i];
+	tmp = RARRAY_AREF(ary, i);
 	if (RB_TYPE_P(tmp, T_STRING)) {
 	    check_path_encoding(tmp);
 	    len += RSTRING_LEN(tmp);
@@ -4013,10 +4013,10 @@ rb_file_join(VALUE ary, VALUE sep)
 	len += RSTRING_LEN(sep) * (RARRAY_LEN(ary) - 1);
     }
     result = rb_str_buf_new(len);
-    RBASIC(result)->klass = 0;
+    RBASIC_CLEAR_CLASS(result);
     OBJ_INFECT(result, ary);
     for (i=0; i<RARRAY_LEN(ary); i++) {
-	tmp = RARRAY_PTR(ary)[i];
+	tmp = RARRAY_AREF(ary, i);
 	switch (TYPE(tmp)) {
 	  case T_STRING:
 	    if (!checked) check_path_encoding(tmp);
@@ -4057,7 +4057,7 @@ rb_file_join(VALUE ary, VALUE sep)
 	rb_str_buf_append(result, tmp);
 	rb_enc_associate(result, enc);
     }
-    RBASIC(result)->klass = rb_cString;
+    RBASIC_SET_CLASS_RAW(result, rb_cString);
 
     return result;
 }
@@ -4098,10 +4098,16 @@ rb_file_s_join(VALUE klass, VALUE args)
 static VALUE
 rb_file_s_truncate(VALUE klass, VALUE path, VALUE len)
 {
+#ifdef HAVE_TRUNCATE
+#define NUM2POS(n) NUM2OFFT(n)
     off_t pos;
+#else
+#define NUM2POS(n) NUM2LONG(n)
+    long pos;
+#endif
 
     rb_secure(2);
-    pos = NUM2OFFT(len);
+    pos = NUM2POS(len);
     FilePathValue(path);
     path = rb_str_encode_ospath(path);
 #ifdef HAVE_TRUNCATE
@@ -4123,6 +4129,7 @@ rb_file_s_truncate(VALUE klass, VALUE path, VALUE len)
     }
 #endif
     return INT2FIX(0);
+#undef NUM2POS
 }
 #else
 #define rb_file_s_truncate rb_f_notimplement
@@ -4147,10 +4154,16 @@ static VALUE
 rb_file_truncate(VALUE obj, VALUE len)
 {
     rb_io_t *fptr;
+#if defined(HAVE_FTRUNCATE)
+#define NUM2POS(n) NUM2OFFT(n)
     off_t pos;
+#else
+#define NUM2POS(n) NUM2LONG(n)
+    long pos;
+#endif
 
     rb_secure(2);
-    pos = NUM2OFFT(len);
+    pos = NUM2POS(len);
     GetOpenFile(obj, fptr);
     if (!(fptr->mode & FMODE_WRITABLE)) {
 	rb_raise(rb_eIOError, "not opened for writing");
@@ -4164,6 +4177,7 @@ rb_file_truncate(VALUE obj, VALUE len)
 	rb_sys_fail_path(fptr->pathv);
 #endif
     return INT2FIX(0);
+#undef NUM2POS
 }
 #else
 #define rb_file_truncate rb_f_notimplement
@@ -5290,7 +5304,7 @@ is_explicit_relative(const char *path)
 static VALUE
 copy_path_class(VALUE path, VALUE orig)
 {
-    RBASIC(path)->klass = rb_obj_class(orig);
+    RBASIC_SET_CLASS(path, rb_obj_class(orig));
     OBJ_FREEZE(path);
     return path;
 }
@@ -5346,14 +5360,14 @@ rb_find_file_ext_safe(VALUE *filep, const char *const *ext, int safe_level)
     if (!load_path) return 0;
 
     fname = rb_str_dup(*filep);
-    RBASIC(fname)->klass = 0;
+    RBASIC_CLEAR_CLASS(fname);
     fnlen = RSTRING_LEN(fname);
     tmp = rb_str_tmp_new(MAXPATHLEN + 2);
     rb_enc_associate_index(tmp, rb_usascii_encindex());
     for (j=0; ext[j]; j++) {
 	rb_str_cat2(fname, ext[j]);
 	for (i = 0; i < RARRAY_LEN(load_path); i++) {
-	    VALUE str = RARRAY_PTR(load_path)[i];
+	    VALUE str = RARRAY_AREF(load_path, i);
 
 	    RB_GC_GUARD(str) = rb_get_path_check(str, safe_level);
 	    if (RSTRING_LEN(str) == 0) continue;
@@ -5414,7 +5428,7 @@ rb_find_file_safe(VALUE path, int safe_level)
 	tmp = rb_str_tmp_new(MAXPATHLEN + 2);
 	rb_enc_associate_index(tmp, rb_usascii_encindex());
 	for (i = 0; i < RARRAY_LEN(load_path); i++) {
-	    VALUE str = RARRAY_PTR(load_path)[i];
+	    VALUE str = RARRAY_AREF(load_path, i);
 	    RB_GC_GUARD(str) = rb_get_path_check(str, safe_level);
 	    if (RSTRING_LEN(str) > 0) {
 		rb_file_expand_path_internal(path, str, 0, 0, tmp);

@@ -540,7 +540,7 @@ make_seed_value(const void *ptr)
 {
     const long len = DEFAULT_SEED_LEN/SIZEOF_BDIGITS;
     BDIGIT *digits;
-    NEWOBJ_OF(big, struct RBignum, rb_cBignum, T_BIGNUM);
+    NEWOBJ_OF(big, struct RBignum, rb_cBignum, T_BIGNUM | (RGENGC_WB_PROTECTED_ARRAY ? FL_WB_PROTECTED : 0));
 
     RBIGNUM_SET_SIGN(big, 1);
     rb_big_resize((VALUE)big, len + 1);
@@ -1435,7 +1435,7 @@ Init_RandomSeed2(void)
     VALUE seed = default_rand.seed;
 
     if (RB_TYPE_P(seed, T_BIGNUM)) {
-	RBASIC(seed)->klass = rb_cBignum;
+	rb_obj_reveal(seed, rb_cBignum);
     }
 }
 
@@ -1494,6 +1494,7 @@ Init_Random(void)
     {
 	VALUE rand_default = TypedData_Wrap_Struct(rb_cRandom, &random_data_type, &default_rand);
 	rb_gc_register_mark_object(rand_default);
+	/* Direct access to Ruby's Pseudorandom number generator (PRNG). */
 	rb_define_const(rb_cRandom, "DEFAULT", rand_default);
     }
 

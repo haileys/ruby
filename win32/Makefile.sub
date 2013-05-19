@@ -227,7 +227,11 @@ EXTLIBS =
 EXTSOLIBS =
 !endif
 !if !defined(LIBS)
-LIBS = oldnames.lib user32.lib advapi32.lib shell32.lib ws2_32.lib imagehlp.lib shlwapi.lib $(EXTLIBS)
+LIBS = oldnames.lib user32.lib advapi32.lib shell32.lib ws2_32.lib
+!if $(MSC_VER) >= 1400
+LIBS = $(LIBS) iphlpapi.lib
+!endif
+LIBS = $(LIBS) imagehlp.lib shlwapi.lib $(EXTLIBS)
 !endif
 !if !defined(MISSING)
 MISSING = acosh.obj cbrt.obj crypt.obj erf.obj ffs.obj langinfo.obj lgamma_r.obj strlcat.obj strlcpy.obj tgamma.obj win32/win32.obj win32/file.obj setproctitle.obj
@@ -634,6 +638,7 @@ $(CONFIG_H): $(MKFILES) $(srcdir)/win32/Makefile.sub $(win_srcdir)/Makefile.sub
 #define HAVE_MEMCMP 1
 #define HAVE_MEMMOVE 1
 #define HAVE_MKDIR 1
+#define HAVE_SPAWNV 1
 #define HAVE_STRCASECMP 1
 #define HAVE_STRNCASECMP 1
 #define HAVE_STRERROR 1
@@ -656,7 +661,6 @@ $(CONFIG_H): $(MKFILES) $(srcdir)/win32/Makefile.sub $(win_srcdir)/Makefile.sub
 #define HAVE_TRUNCATE 1
 #define HAVE_FTRUNCATE 1
 #define HAVE_FSEEKO 1
-#define HAVE_FTELLO 1
 #define HAVE_TIMES 1
 #define HAVE_FCNTL 1
 #define HAVE_LINK 1
@@ -695,6 +699,8 @@ $(CONFIG_H): $(MKFILES) $(srcdir)/win32/Makefile.sub $(win_srcdir)/Makefile.sub
 #define EXECUTABLE_EXTS $(EXECUTABLE_EXTS)
 #define RUBY_COREDLL "$(RT)"
 #define LIBRUBY_SO "$(LIBRUBY_SO)"
+#define RUBY_PLATFORM "$(arch)"
+#define RUBY_SITEARCH "$(sitearch)"
 #if 0
 $(BANG)if "$(RUBY_SO_NAME)"!="$$(RUBY_SO_NAME)" || "$(ARCH)-$(PLATFORM)"!="$$(ARCH)-$$(PLATFORM)"
 config.h: nul
@@ -702,14 +708,6 @@ $(BANG)endif
 #endif
 #endif /* $(guard) */
 <<
-	@echo Creating verconf.h
-	@$(IFCHANGE) verconf.h <<
-#define RUBY_LIB_VERSION_STYLE 3	/* full */
-#define RUBY_LIB_PREFIX "/lib/$(RUBY_BASE_NAME)"
-#define RUBY_PLATFORM "$(arch)"
-#define RUBY_SITEARCH "$(sitearch)"
-<<
-	@exit > $(@:/=\)
 
 #!if exist($(RUBY_CONFIG_H))
 #! if exist(config_h.bak)
@@ -871,7 +869,7 @@ s,@sitedir@,$${rubylibprefix}/site_ruby,;t t
 s,@sitearchdir@,$${sitelibdir}/$${sitearch},;t t
 s,@sitelibdir@,$${sitedir}/$${ruby_version},;t t
 s,@vendordir@,$${rubylibprefix}/vendor_ruby,;t t
-s,@vendorarchdir@,$${vendirlibdir}/$${sitearch},;t t
+s,@vendorarchdir@,$${vendorlibdir}/$${sitearch},;t t
 s,@vendorlibdir@,$${vendordir}/$${ruby_version},;t t
 s,@rubyhdrdir@,$$(includedir)/$${RUBY_BASE_NAME}-$$(ruby_version),;t t
 s,@sitehdrdir@,$$(rubyhdrdir)/site_ruby,;t t
@@ -1128,3 +1126,8 @@ INSNS	= opt_sc.inc optinsn.inc optunifs.inc insns.inc insns_info.inc \
 ! if [del insns_rules.mk > nul]
 ! endif
 !endif
+
+loadpath: verconf.h
+	@$(CPP) $(XCFLAGS) $(CPPFLAGS) $(srcdir)/loadpath.c | \
+	sed -e '1,/^const char ruby_initial_load_paths/d;/;/,$$d' \
+	    -e '/^^ /!d;s/ *"\\\\0"$$//;s/" *"//g'

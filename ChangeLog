@@ -1,3 +1,662 @@
+Sun May 19 17:29:07 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* lib/set.rb (Set#delete_if, Set#keep_if): Add comments.
+
+Sun May 19 11:37:36 2013  Kazuki Tsujimoto  <kazuki@callcc.net>
+
+	* ext/fiddle/extconf.rb: ignore rc version of libffi to fix build failure.
+
+Sun May 19 10:38:50 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* misc/ruby-electric.el (ruby-electric-delete-backward-char): Use
+	  delete-char instead of delete-backward-char, which is an
+	  interactive function.
+
+Sun May 19 03:59:29 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* string.c (str_scrub0): added for refactoring.
+
+Sun May 19 03:48:26 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* lib/uri/common.rb (URI.decode_www_form): scrub string if decoded
+	  bytes are invalid for the encoding.
+
+Sun May 19 02:46:32 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* lib/set.rb (Set#delete_if, Set#keep_if): Make Set#delete_if and
+	  Set#keep_if more space and time efficient by avoiding to_a.
+
+Sun May 19 02:33:09 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* misc/ruby-electric.el (ruby-electric-setup-keymap): Make
+	  backquotes electric as well.  It was listed in
+	  ruby-electric-expand-delimiters-list but not activated.
+
+	* misc/ruby-electric.el (ruby-electric-delete-backward-char):
+	  Introduce electric DEL that deletes what the previous electric
+	  command has input.
+
+	* misc/ruby-electric.el (ruby-electric-matching-char): Make
+	  electric quotes work again at the end of buffer.
+
+Sun May 19 01:39:50 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in (setjmp-type): check if setjmpex() is really available.
+	  workaround for i686-w64-mingw32 which declares it but lacks its
+	  definition.
+
+	* include/ruby/defines.h: include setjmpex.h only if also setjmpex()
+	  is available.
+
+Sat May 18 23:57:46 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in (setjmp-type): use setjmpex() on w64-mingw32 to get rid
+	  of -Wclobbered warnings.
+
+	* include/ruby/defines.h: include setjmpex.h here becase setjmp.h is
+	  included from win32.h via intrin.h, winnt.h, and so on.
+
+Sat May 18 20:28:12 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/mkconstants.rb (INTEGER2NUM): Make less comparisons.
+
+Sat May 18 20:15:28 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* string.c (str_scrub_bang): add String#scrub!. [Feature #8414]
+
+Sat May 18 16:59:52 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/mkconstants.rb (INTEGER2NUM): Renamed from INTEGER2VALUE.
+
+Sat May 18 16:57:58 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/mkconstants.rb (INTEGER2VALUE): Suppress a warning:
+	  comparison between signed and unsigned integer expressions
+
+Sat May 18 16:38:39 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* compile.c (iseq_compile_each): forward anonymous and first keyword
+	  rest argument one.  [ruby-core:55033] [Bug #8416].
+
+Sat May 18 15:49:14 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_core.h (rb_vm_tag): move jmpbuf between tag and prev so ensure to
+	  be accessible.
+
+Sat May 18 11:05:14 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* enumerator.c (inspect_enumerator): use VALUE instead of mere char*
+	  by using rb_sprintf() and rb_id2str().
+
+	* enumerator.c (append_method): extract from inspect_enumerator().
+
+Sat May 18 09:00:32 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/mkconstants.rb (INTEGER2VALUE): Use LONG2FIX if possible.
+
+Sat May 18 00:38:47 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/mkconstants.rb: Convert integer constants bigger than int
+	  correctly.
+
+Fri May 17 22:02:15 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/ifaddr.c: Use unsigned LONG_LONG to represent flags
+	  because SunOS 5.11 (OpenIndiana) defines ifa_flags as uint64_t.
+
+Fri May 17 21:47:00 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* cont.c: Typo in constant MAX_MACHINE_STACK_CACHE from '..MAHINE..'
+	  patch by @schmurfy [Fixes GH-307]
+
+Fri May 17 19:18:24 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* misc/ruby-electric.el (ruby-electric-matching-char): Do not put
+	  a closing quote when the quote typed does not start a string, as
+	  in $', ?\' or ?\".
+
+Fri May 17 18:06:15 2013  Tanaka Akira  <akr@fsij.org>
+
+	* configure.in: Consider error messages to find out version option of
+	  C compiler.
+	  The C compiler of Sun Studio C emits "Warning: Option -qversion
+	  passed to ld, if ld is invoked, ignored otherwise" and exit
+	  successfully.
+
+Fri May 17 17:34:48 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* gc.c (rb_gc_guarded_ptr): unoptimize on other compilers than gcc and
+	  msvc.
+
+Fri May 17 11:06:48 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* eval_intern.h (TH_PUSH_TAG): ensure jmpbuf to be accessible before
+	  pushing tag to get rid of unaccessible tag by stack overflow.
+
+Thu May 16 17:15:32 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* vm_eval.c (rb_catch_obj): add volatile to tag to prevent crash
+	  experimentally.
+	  http://www.rubyist.net/~akr/chkbuild/debian/ruby-trunk/log/20130515T133500Z.log.html.gz
+
+Thu May 16 16:19:50 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* win32/Makefile.sub (verconf.in): no longer used.
+
+	* win32/Makefile.sub (config.status): fix typo.
+
+	* configure.in, template/verconf.h.in (RUBY_EXEC_PREFIX): fix for
+	  default prefix.
+
+Thu May 16 13:12:27 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* template/verconf.h.in: generate verconf.h from the template and
+	  rbconfig.rb.
+
+Thu May 16 05:47:18 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/visitors/yaml_tree.rb: fix syntax error.
+	  Thanks @spastorino! [ruby-core:55011]
+
+Thu May 16 03:05:45 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (rb_node_newnode): use newobj_of() instead of rb_newobj().
+
+Thu May 16 02:03:39 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/depend: Add a dependency for ifaddr.o.
+
+Thu May 16 01:44:45 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* common.mk (verconf.h): $< cannot be used in explicit rules with
+	  nmake.
+
+	* win32/Makefile.sub (CONFIG_H): create verconf.in instead of
+	  verconf.h.
+
+Thu May 16 01:25:07 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/visitors/yaml_tree.rb: only emit warnings when
+	  -w is enabled.
+
+Wed May 15 18:58:17 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (newobj): rename to `newobj_of' and accept additional
+	  three parameters v1, v2, v3. newobj_of() do OBJSETUP() and
+	  fill values with v1, v2, v3.
+
+	* gc.c (rb_data_object_alloc, rb_data_typed_object_alloc):
+	  use newobj_of().
+
+Wed May 15 17:55:49 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in (RUBY_PLATFORM): move to config.h as needed by
+	  version.c.
+
+Wed May 15 17:04:11 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: add an additional RGENGC_PROFILE mode (2).
+	  Profiling result can be check by GC.stat.
+
+	* gc.c (type_name): separate from obj_type_name().
+
+Wed May 15 16:58:24 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in: save configured load path values into verconf.in.
+
+	* common.mk (verconf.h): create from verconf.in with shvar_to_cpp.rb.
+
+	* tool/shvar_to_cpp.rb: turn shell variables into C macros.
+	  [Bug #7959]
+
+	* loadpath.c: split load path staffs from version.c.
+
+	* dmyloadpath.c: miniruby has no builtin load paths, so verconf.h is
+	  not needed.
+
+Wed May 15 03:56:09 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych/visitors/yaml_tree.rb: adding backwards
+	  compatible YAMLTree.new method
+
+Wed May 15 02:22:16 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* ext/psych/lib/psych.rb: Adding Psych.safe_load for loading a user
+	  defined, restricted subset of Ruby object types.
+	* ext/psych/lib/psych/class_loader.rb: A class loader for
+	  encapsulating the logic for which objects are allowed to be
+	  deserialized.
+	* ext/psych/lib/psych/deprecated.rb: Changes to use the class loader
+	* ext/psych/lib/psych/exception.rb: ditto
+	* ext/psych/lib/psych/json/stream.rb: ditto
+	* ext/psych/lib/psych/nodes/node.rb: ditto
+	* ext/psych/lib/psych/scalar_scanner.rb: ditto
+	* ext/psych/lib/psych/stream.rb: ditto
+	* ext/psych/lib/psych/streaming.rb: ditto
+	* ext/psych/lib/psych/visitors/json_tree.rb: ditto
+	* ext/psych/lib/psych/visitors/to_ruby.rb: ditto
+	* ext/psych/lib/psych/visitors/yaml_tree.rb: ditto
+	* ext/psych/psych_to_ruby.c: ditto
+	* test/psych/helper.rb: ditto
+	* test/psych/test_safe_load.rb: tests for restricted subset.
+	* test/psych/test_scalar_scanner.rb: ditto
+	* test/psych/visitors/test_to_ruby.rb: ditto
+	* test/psych/visitors/test_yaml_tree.rb: ditto
+
+Wed May 15 02:06:35 2013  Aaron Patterson <aaron@tenderlovemaking.com>
+
+	* test/psych/helper.rb: envutil is not available outside Ruby, so
+	  port the functions from envutil to the test helper.
+
+	* test/psych/test_deprecated.rb: ditto
+
+	* test/psych/test_encoding.rb: ditto
+
+Wed May 15 00:42:54 2013  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* signal.c: need to include unistd.h for write(2).
+	  unistd.h is now included via ruby/defines.h, but should explicitly
+	  include here.  (suggested by kosaki)
+
+Tue May 14 23:43:05 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/.document: Add ifaddr.c.
+
+Tue May 14 23:24:31 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/socket/extconf.rb: check for if_nametoindex() for
+	  i686-w64-mingw32, and check for declarations of if_indextoname() and
+	  if_nametoindex().
+
+	* ext/socket/ifaddr.c (ifaddr_ifindex): not-implement unless
+	  if_nametoindex() is available.
+
+	* ext/socket/rubysocket.h: declare if_indextoname() and
+	  if_nametoindex() if available but not declared.
+
+Tue May 14 19:58:17 2013  CHIKANAGA Tomoyuki  <nagachika@ruby-lang.org>
+
+	* ext/dl/lib/dl/func.rb (DL::Function#call): check tainted when
+	  $SAFE > 0.
+	* ext/fiddle/function.c (function_call): check tainted when $SAFE > 0.
+	* test/fiddle/test_func.rb (module Fiddle): add test for above.
+
+
+Tue May 14 14:51:52 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* include/ruby/win32.h (INTPTR_MAX, INTPTR_MIN, UINTPTR_MAX): split
+	  from intptr_t and uintptr_t, since VC9 defines the latter only in
+	  crtdefs.h.
+
+Tue May 14 12:21:28 2013  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* win32/win32.c (NET_LUID): mingw may have NET_LUID and not defined
+	  _IFDEF_.
+
+Tue May 14 03:33:17 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* string.c (rb_str_new_frozen): remove debug print.
+
+Tue May 14 03:22:51 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: enable to generate write barrier protected
+	  arrays (T_ARRAY).
+
+Tue May 14 03:21:42 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: enable to generate write barrier protected
+	  strings (T_STRING).
+
+Tue May 14 03:19:59 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: enable to generate write barrier protected
+	  objects (T_OBJECT).
+
+Tue May 14 03:17:15 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: enable to generate write barrier protected
+	  objects for numeric types (Float, Complex, Rational, Bignum).
+
+Tue May 14 03:10:59 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: enable RGENGC (USE_RGENGC)
+	  but no type creates write protected (sunny) objects
+	  (RGENGC_WB_PROTECTED_* == 0).
+
+Tue May 14 02:47:30 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: support RGENGC. [ruby-trunk - Feature #8339]
+	  See this ticket about RGENGC.
+
+	* gc.c: Add several flags:
+	  * RGENGC_DEBUG: if >0, then prints debug information.
+	  * RGENGC_CHECK_MODE: if >0, add assertions.
+	  * RGENGC_PROFILE: if >0, add profiling features.
+	    check GC.stat and GC::Profiler.
+
+	* include/ruby/ruby.h: disable RGENGC by default (USE_RGENGC == 0).
+
+	* array.c: add write barriers for T_ARRAY and generate sunny objects.
+
+	* include/ruby/ruby.h (RARRAY_PTR_USE): added. Use this macro if
+	  you want to access raw pointers. If you modify the contents which
+	  pointer pointed, then you need to care write barrier.
+
+	* bignum.c, marshal.c, random.c: generate T_BIGNUM sunny objects.
+
+	* complex.c, include/ruby/ruby.h: add write barriers for T_COMPLEX
+	  and generate sunny objects.
+
+	* rational.c (nurat_s_new_internal), include/ruby/ruby.h: add write
+	  barriers for T_RATIONAL and generate sunny objects.
+
+	* internal.h: add write barriers for RBasic::klass.
+
+	* numeric.c (rb_float_new_in_heap): generate sunny T_FLOAT objects.
+
+	* object.c (rb_class_allocate_instance), range.c:
+	  generate sunny T_OBJECT objects.
+
+	* string.c: add write barriers for T_STRING and generate sunny objects.
+
+	* variable.c: add write barriers for ivars.
+
+	* vm_insnhelper.c (vm_setivar): ditto.
+
+	* include/ruby/ruby.h, debug.c: use two flags
+	  FL_WB_PROTECTED and FL_OLDGEN.
+
+	* node.h (NODE_FL_CREF_PUSHED_BY_EVAL, NODE_FL_CREF_OMOD_SHARED):
+	  move flag bits.
+
+Tue May 14 01:54:48 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: remove rb_objspace_t::marked_num.
+	  We can use `objspace_live_num()' instead of removed `marked_num'
+	  if it is after `after_gc_sweep()' function call.
+
+	* gc.c (after_gc_sweep): use objspace_live_num() instead of removed
+	  rb_objspace_t::marked_num.
+
+	* gc.c (gc_mark_ptr, gc_marks): remove rb_objspace_t::marked_num code.
+
+	* gc.c (gc_prepare_free_objects): do not call set_heaps_increment()
+	  with checking objspace->heap.marked_num. At this point, we only
+	  need to check availability of free-cell.
+
+	* gc.c (lazy_sweep): call after_gc_sweep() if there are no sweep_able entry.
+
+	* gc.c (rest_sweep, gc_prepare_free_objects): remove after_gc_sweep() call.
+
+Tue May 14 01:50:41 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: disable GC_PROFILE_MORE_DETAIL (fix last commit).
+
+	* gc.c (gc_prof_set_malloc_info): fix "objspace->heap.live_num" to
+	  "objspace_live_num(objspace)". There is no such member variable.
+
+Tue May 14 01:25:55 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: refactoring GC::Profiler.
+
+	* gc.c (gc_prof_sweep_timer_start/stop): removed because
+	  they doesn't support lazy sweep.
+
+	* gc.c (gc_prof_sweep_slot_timer_start/stop): added.
+	  redefine `sweeping time' to accumulated time of all of
+	  slot_sweep().
+
+	* gc.c (rb_objspace_t::profile::count): renamed to
+	  rb_objspace_t::profile::next_index. `counter' seems ambiguous.
+	  increment it when next record is acquired.
+
+Tue May 14 00:48:55 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: constify RRational::(num,den) and
+	  RComplex::(real,imag).
+	  Add macro to set these values:
+	    * RRATIONAL_SET_NUM()
+	    * RRATIONAL_SET_DEN()
+	    * RCOMPLEX_SET_REAL()
+	    * RCOMPLEX_SET_IMAG()
+	  This change is a part of RGENGC branch [ruby-trunk - Feature #8339].
+
+	  TODO: API design. RRATIONAL_SET(rat,num,den) is enough?
+	  TODO: Setting constify variable with cast has same issue of r40691.
+
+	* complex.c, rational.c: use above macros.
+
+Mon May 13 21:49:17 2013  Tanaka Akira  <akr@fsij.org>
+
+	* ext/socket/extconf.rb: Check socketpair again.
+	  It is required on Unix.
+
+Mon May 13 21:20:32 2013  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* win32/win32.c (getipaddrs): use alternative interface name if
+	  available, because if_nametoindex() requires them.
+
+Mon May 13 20:23:24 2013  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* win32/win32.c, include/ruby/win32.h (getipaddrs): [experimental]
+	  emulate getipaddrs(3) on Unix.
+
+	* win32/Makefile.sub, configure.in (LIBS): need iphlpapi.lib for above
+	  function.
+
+	* include/ruby/win32.h (socketpair): rb_w32_socketpair() doesn't
+	  substitute for any function, so use non-prefixed name.
+
+	* ext/socket/extconf.rb (socketpair); follow above change.
+
+Mon May 13 20:11:06 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* iseq.c (prepare_iseq_build): remove additional line break.
+
+Mon May 13 19:29:54 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: constify RBasic::klass and add
+	  RBASIC_CLASS(obj) macro which returns a class of `obj'.
+	  This change is a part of RGENGC branch [ruby-trunk - Feature #8339].
+
+	* object.c: add new function rb_obj_reveal().
+	  This function reveal internal (hidden) object by rb_obj_hide().
+	  Note that do not change class before and after hiding.
+	  Only permitted example is:
+	    klass = RBASIC_CLASS(obj);
+	    rb_obj_hide(obj);
+	    ....
+	    rb_obj_reveal(obj, klass);
+
+	  TODO: API design. rb_obj_reveal() should be replaced with others.
+
+	  TODO: modify constified variables using cast may be harmful for
+	        compiler's analysis and optimization.
+	        Any idea to prohibit inserting RBasic::klass directly?
+	        If rename RBasic::klass and force to use RBASIC_CLASS(obj),
+	        then all codes such as `RBASIC(obj)->klass' will be
+	        compilation error. Is it acceptable? (We have similar
+	        experience at Ruby 1.9,
+	        for example "RARRAY(ary)->ptr" to "RARRAY_PTR(ary)".
+
+	* internal.h: add some macros.
+	  * RBASIC_CLEAR_CLASS(obj) clear RBasic::klass to make it internal
+	    object.
+	  * RBASIC_SET_CLASS(obj, cls) set RBasic::klass.
+	  * RBASIC_SET_CLASS_RAW(obj, cls) same as RBASIC_SET_CLASS
+	    without write barrier (planned).
+	  * RCLASS_SET_SUPER(a, b) set super class of a.
+
+	* array.c, class.c, compile.c, encoding.c, enum.c, error.c, eval.c,
+	  file.c, gc.c, hash.c, io.c, iseq.c, marshal.c, object.c,
+	  parse.y, proc.c, process.c, random.c, ruby.c, sprintf.c,
+	  string.c, thread.c, transcode.c, vm.c, vm_eval.c, win32/file.c:
+	  Use above macros and functions to access RBasic::klass.
+
+	* ext/coverage/coverage.c, ext/readline/readline.c,
+	  ext/socket/ancdata.c, ext/socket/init.c,
+	* ext/zlib/zlib.c: ditto.
+
+Mon May 13 18:44:14 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* *.c, parse.y, insns.def: use RARRAY_AREF/ASET macro
+	  instead of using RARRAY_PTR().
+
+Mon May 13 16:53:53 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: add new utility macros to access
+	  Array's element.
+	  * RARRAY_AREF(a, i) returns i-th element of an array `a'
+	  * RARRAY_ASET(a, i, v) set i-th element of `a' to `v'
+	  This change is a part of RGENGC branch [ruby-trunk - Feature #8339].
+
+Mon May 13 15:31:10 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* object.c (rb_obj_setup): added.
+
+	* include/ruby/ruby.h (OBJSETUP): use rb_obj_setup() instead of
+	  a macro.
+
+Mon May 13 15:24:16 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (rb_data_object_alloc): check klass only if klass is not 0.
+	  klass==0 means internal object.
+
+Mon May 13 14:57:28 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (rb_data_object_alloc, rb_data_typed_object_alloc):
+	  use NEWOBJ_OF() instead of NEWOBJ().
+
+Mon May 13 14:51:59 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* proc.c (rb_obj_singleton_method): new method Kernel#singleton_method
+	  which returns a Method object of the singleton method.
+	  non-singleton method causes NameError, but not aliased or zsuper
+	  method, right now.
+	  [ruby-core:54914] [Feature #8391]
+
+	* vm_method.c (rb_method_entry_at): return the method entry for id at
+	  klass, without ancestors.
+
+	* class.c (rb_singleton_class_get): get the singleton class if exists,
+	  or nil.
+
+Mon May 13 10:20:59 2013  Yuki Yugui Sonoda  <yugui@google.com>
+
+	* ext/openssl/ossl_ssl.c: Disabled OpenSSL::SSL::SSLSocket if
+	  defined(OPENSSL_NO_SOCK).
+
+	  This fixes a linkage error on platforms which do not have socket.
+	  OpenSSL itself is still useful as a set of cryptographic functions
+	  even on such platforms.
+
+Mon May 13 10:30:04 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* hash.c: Hash[] and {} are not equivalent by @eam [Fixes GH-301]
+
+Mon May 13 10:04:22 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* random.c: Document Random::DEFAULT by @eLobato [Fixes GH-304]
+
+Sun May 12 21:12:42 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* include/ruby/ruby.h (OFFT2NUM): RUBY_REPLACE_TYPE also defines macro
+	  to convert int type to VALUE if found.
+
+Wed May  8 13:46:52 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* include/ruby/intern.h (rb_iv_set, rb_iv_get): removed. Because
+	  ruby.h has a declaration for that.
+
+Wed May  8 13:49:06 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* include/ruby/intern.h (rb_uint2big, rb_int2big, rb_uint2inum)
+	(rb_int2inum, rb_ll2inum, rb_ull2inum): removed because ruby.h
+	  has a declaration for these.
+
+Sun May 12 17:52:23 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: removes 'ac_cv_func_fseeko=yes' form MinGW
+	  specific definitions.
+
+Sun May 12 17:25:46 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* file.c (rb_file_s_truncate): use correct type. chsize takes
+	  a long.
+
+Sun May 12 17:18:46 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* process.c: move '#define HAVE_SPAWNV 1' to win32/Makefile.sub.
+	* win32/Makefile.sub: see above.
+
+Sun May 12 17:13:32 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: removes AC_CHECK_FUNCS(setitimer) because it's
+	  unused.
+
+Sun May 12 17:08:16 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: removes AC_CHECK_FUNCS(pause) because it's unused.
+
+Sun May 12 17:05:18 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* signal.c (rb_f_kill): fixes typo. s/HAS_KILLPG/HAVE_KILLPG/.
+
+Sun May 12 17:03:27 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: abort if gettimeofday doesn't exist.
+
+Sun May 12 16:31:27 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: adds RUBY_REPLACE_TYPE(off_t) for creating
+	  NUM2OFFT.
+	* file.c (rb_file_truncate): use correct type. chsize() take
+	  a long.
+	* include/ruby/ruby.h (NUM2OFFT): use a definition created by
+	  a configure script by default.
+
+Sun May 12 16:03:41 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: removes AC_CHECK_FUNC(fseeko, fseeko64, ftello,
+	  ftello64). They are not used from anywhere.
+
+	* win32/win32.c (fseeko): removes.
+	* win32/win32.c (rb_w32_ftello): removes.
+	* include/ruby/win32.h: removes declarations of rb_w32_ftello and
+	  rb_w32_fseeko.
+	* win32/Makefile.sub: removes '#define HAVE_FTELLO 1'.
+
+Sun May 12 15:51:47 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: remove AC_CHECK_FUNC(close). It is not used from
+	  anywhere.
+
+Sun May 12 15:50:45 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: adds comments for setjmp check.
+
+Sun May 12 15:38:09 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: move clock_gettime() check into regular place.
+
+Wed May  8 13:45:53 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: add getenv() declaration check.
+	* dln_find.c: add HAVE_DECL_GETENV test.
+
+Sun May 12 15:33:18 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: sorts AC_CHECK_FUNCS()s as alphabetical order.
+
+Wed May  8 13:41:57 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* bignum.c: remove redundant decl for big_lshift() big_rshift().
+
+Sun May 12 16:06:43 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/socket/rubysocket.h (rsock_inspect_sockaddr): as r40646
+	  check HAVE_TYPE_STRUCT_SOCKADDR_DL.
+
 Sat May 11 23:01:58 2013  NARUSE, Yui  <naruse@ruby-lang.org>
 
 	* ext/socket/rubysocket.h (HAVE_TYPE_STRUCT_SOCKADDR_DL):

@@ -1598,7 +1598,7 @@ rb_io_seek_m(int argc, VALUE *argv, VALUE io)
  *     ios.pos = integer    -> integer
  *
  *  Seeks to the given position (in bytes) in <em>ios</em>.
- *  It is not guranteed that seeking to the right position when <em>ios</em>
+ *  It is not guaranteed that seeking to the right position when <em>ios</em>
  *  is textmode.
  *
  *     f = File.new("testfile")
@@ -6061,7 +6061,7 @@ rb_io_s_popen(int argc, VALUE *argv, VALUE klass)
 	}
 #endif
 	tmp = rb_ary_dup(tmp);
-	RBASIC(tmp)->klass = 0;
+	RBASIC_CLEAR_CLASS(tmp);
 	execarg_obj = rb_execarg_new((int)len, RARRAY_PTR(tmp), FALSE);
 	rb_ary_clear(tmp);
     }
@@ -6091,7 +6091,7 @@ rb_io_s_popen(int argc, VALUE *argv, VALUE klass)
 	}
 	return Qnil;
     }
-    RBASIC(port)->klass = klass;
+    RBASIC_SET_CLASS(port, klass);
     if (rb_block_given_p()) {
 	return rb_ensure(rb_yield, port, io_close, port);
     }
@@ -6487,7 +6487,7 @@ io_reopen(VALUE io, VALUE nfile)
 	rb_io_binmode(io);
     }
 
-    RBASIC(io)->klass = rb_obj_class(nfile);
+    RBASIC_SET_CLASS(io, rb_obj_class(nfile));
     return io;
 }
 
@@ -6846,7 +6846,7 @@ io_puts_ary(VALUE ary, VALUE out, int recur)
     ary = rb_check_array_type(ary);
     if (NIL_P(ary)) return Qfalse;
     for (i=0; i<RARRAY_LEN(ary); i++) {
-	tmp = RARRAY_PTR(ary)[i];
+	tmp = RARRAY_AREF(ary, i);
 	rb_io_puts(1, &tmp, out);
     }
     return Qtrue;
@@ -8096,7 +8096,7 @@ select_internal(VALUE read, VALUE write, VALUE except, struct timeval *tp, rb_fd
     if (!NIL_P(read)) {
 	Check_Type(read, T_ARRAY);
 	for (i=0; i<RARRAY_LEN(read); i++) {
-	    GetOpenFile(rb_io_get_io(RARRAY_PTR(read)[i]), fptr);
+	    GetOpenFile(rb_io_get_io(RARRAY_AREF(read, i)), fptr);
 	    rb_fd_set(fptr->fd, &fds[0]);
 	    if (READ_DATA_PENDING(fptr) || READ_CHAR_PENDING(fptr)) { /* check for buffered data */
 		pending++;
@@ -8116,7 +8116,7 @@ select_internal(VALUE read, VALUE write, VALUE except, struct timeval *tp, rb_fd
     if (!NIL_P(write)) {
 	Check_Type(write, T_ARRAY);
 	for (i=0; i<RARRAY_LEN(write); i++) {
-            VALUE write_io = GetWriteIO(rb_io_get_io(RARRAY_PTR(write)[i]));
+            VALUE write_io = GetWriteIO(rb_io_get_io(RARRAY_AREF(write, i)));
 	    GetOpenFile(write_io, fptr);
 	    rb_fd_set(fptr->fd, &fds[1]);
 	    if (max < fptr->fd) max = fptr->fd;
@@ -8129,7 +8129,7 @@ select_internal(VALUE read, VALUE write, VALUE except, struct timeval *tp, rb_fd
     if (!NIL_P(except)) {
 	Check_Type(except, T_ARRAY);
 	for (i=0; i<RARRAY_LEN(except); i++) {
-            VALUE io = rb_io_get_io(RARRAY_PTR(except)[i]);
+            VALUE io = rb_io_get_io(RARRAY_AREF(except, i));
             VALUE write_io = GetWriteIO(io);
 	    GetOpenFile(io, fptr);
 	    rb_fd_set(fptr->fd, &fds[2]);
@@ -8160,7 +8160,7 @@ select_internal(VALUE read, VALUE write, VALUE except, struct timeval *tp, rb_fd
     rb_ary_push(res, ep?rb_ary_new():rb_ary_new2(0));
 
     if (rp) {
-	list = RARRAY_PTR(res)[0];
+	list = RARRAY_AREF(res, 0);
 	for (i=0; i< RARRAY_LEN(read); i++) {
 	    VALUE obj = rb_ary_entry(read, i);
 	    VALUE io = rb_io_get_io(obj);
@@ -8173,7 +8173,7 @@ select_internal(VALUE read, VALUE write, VALUE except, struct timeval *tp, rb_fd
     }
 
     if (wp) {
-	list = RARRAY_PTR(res)[1];
+	list = RARRAY_AREF(res, 1);
 	for (i=0; i< RARRAY_LEN(write); i++) {
 	    VALUE obj = rb_ary_entry(write, i);
 	    VALUE io = rb_io_get_io(obj);
@@ -8186,7 +8186,7 @@ select_internal(VALUE read, VALUE write, VALUE except, struct timeval *tp, rb_fd
     }
 
     if (ep) {
-	list = RARRAY_PTR(res)[2];
+	list = RARRAY_AREF(res, 2);
 	for (i=0; i< RARRAY_LEN(except); i++) {
 	    VALUE obj = rb_ary_entry(except, i);
 	    VALUE io = rb_io_get_io(obj);

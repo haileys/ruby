@@ -649,7 +649,7 @@ StartSockets(void)
     WSADATA retdata;
 
     //
-    // initalize the winsock interface and insure that it's
+    // initialize the winsock interface and insure that it's
     // cleaned up at exit.
     //
     version = MAKEWORD(2, 0);
@@ -1517,8 +1517,8 @@ rb_w32_cmdvector(const char *cmd, char ***vec)
     // When we've finished, and it's an input command (meaning that it's
     // the processes argv), we'll do globing and then build the argument
     // vector.
-    // The outer loop does one interation for each element seen.
-    // The inner loop does one interation for each character in the element.
+    // The outer loop does one iteration for each element seen.
+    // The inner loop does one iteration for each character in the element.
     //
 
     while (*(ptr = skipspace(ptr))) {
@@ -1569,7 +1569,7 @@ rb_w32_cmdvector(const char *cmd, char ***vec)
 		//
 		// if we're already in a string, see if this is the
 		// terminating close-quote. If it is, we're finished with
-		// the string, but not neccessarily with the element.
+		// the string, but not necessarily with the element.
 		// If we're not already in a string, start one.
 		//
 
@@ -1724,8 +1724,6 @@ rb_w32_cmdvector(const char *cmd, char ***vec)
 //
 // UNIX compatible directory access functions for NT
 //
-
-#define PATHLEN 1024
 
 //
 // The idea here is to read all the directory names into a string table
@@ -2589,7 +2587,7 @@ is_not_socket(SOCKET sock)
 
 /* License: Ruby's */
 static int
-is_pipe(SOCKET sock) /* DONT call this for SOCKET! it clains it is PIPE. */
+is_pipe(SOCKET sock) /* DONT call this for SOCKET! it claims it is PIPE. */
 {
     int ret;
 
@@ -3714,7 +3712,7 @@ socketpair_internal(int af, int type, int protocol, SOCKET *sv)
 
 /* License: Ruby's */
 int
-rb_w32_socketpair(int af, int type, int protocol, int *sv)
+socketpair(int af, int type, int protocol, int *sv)
 {
     SOCKET pair[2];
 
@@ -3737,6 +3735,152 @@ rb_w32_socketpair(int af, int type, int protocol, int *sv)
 
     return 0;
 }
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1400
+/* License: Ruby's */
+static void
+str2guid(const char *str, GUID *guid)
+{
+#define hex2byte(str) \
+    ((isdigit(*(str)) ? *(str) - '0' : toupper(*(str)) - 'A' + 10) << 4 | (isdigit(*((str) + 1)) ? *((str) + 1) - '0' : toupper(*((str) + 1)) - 'A' + 10))
+    char *end;
+    int i;
+    if (*str == '{') str++;
+    guid->Data1 = (long)strtoul(str, &end, 16);
+    str += 9;
+    guid->Data2 = (unsigned short)strtoul(str, &end, 16);
+    str += 5;
+    guid->Data3 = (unsigned short)strtoul(str, &end, 16);
+    str += 5;
+    guid->Data4[0] = hex2byte(str);
+    str += 2;
+    guid->Data4[1] = hex2byte(str);
+    str += 3;
+    for (i = 0; i < 6; i++) {
+	guid->Data4[i + 2] = hex2byte(str);
+	str += 2;
+    }
+}
+
+/* License: Ruby's */
+#if !defined(_IFDEF_) && !defined(__MINGW32__)
+    typedef struct {
+	uint64_t Value;
+	struct {
+	    uint64_t Reserved :24;
+	    uint64_t NetLuidIndex :24;
+	    uint64_t IfType :16;
+	} Info;
+    } NET_LUID;
+#endif
+typedef DWORD (WINAPI *cigl_t)(const GUID *, NET_LUID *);
+typedef DWORD (WINAPI *cilnA_t)(const NET_LUID *, char *, size_t);
+static cigl_t pConvertInterfaceGuidToLuid = NULL;
+static cilnA_t pConvertInterfaceLuidToNameA = NULL;
+
+int
+getifaddrs(struct ifaddrs **ifap)
+{
+    ULONG size = 0;
+    ULONG ret;
+    IP_ADAPTER_ADDRESSES *root, *addr;
+    struct ifaddrs *prev;
+
+    ret = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, NULL, &size);
+    if (ret != ERROR_BUFFER_OVERFLOW) {
+	errno = map_errno(ret);
+	return -1;
+    }
+    root = ruby_xmalloc(size);
+    ret = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, root, &size);
+    if (ret != ERROR_SUCCESS) {
+	errno = map_errno(ret);
+	ruby_xfree(root);
+	return -1;
+    }
+
+    if (!pConvertInterfaceGuidToLuid)
+	pConvertInterfaceGuidToLuid =
+	    (cigl_t)get_proc_address("iphlpapi.dll",
+				     "ConvertInterfaceGuidToLuid", NULL);
+    if (!pConvertInterfaceLuidToNameA)
+	pConvertInterfaceLuidToNameA =
+	    (cilnA_t)get_proc_address("iphlpapi.dll",
+				      "ConvertInterfaceLuidToNameA", NULL);
+
+    for (prev = NULL, addr = root; addr; addr = addr->Next) {
+	struct ifaddrs *ifa = ruby_xcalloc(1, sizeof(*ifa));
+	char name[IFNAMSIZ];
+	GUID guid;
+	NET_LUID luid;
+
+	if (prev)
+	    prev->ifa_next = ifa;
+	else
+	    *ifap = ifa;
+
+	str2guid(addr->AdapterName, &guid);
+	if (pConvertInterfaceGuidToLuid && pConvertInterfaceLuidToNameA &&
+	    pConvertInterfaceGuidToLuid(&guid, &luid) == NO_ERROR &&
+	    pConvertInterfaceLuidToNameA(&luid, name, sizeof(name)) == NO_ERROR) {
+	    ifa->ifa_name = ruby_xmalloc(lstrlen(name) + 1);
+	    lstrcpy(ifa->ifa_name, name);
+	}
+	else {
+	    ifa->ifa_name = ruby_xmalloc(lstrlen(addr->AdapterName) + 1);
+	    lstrcpy(ifa->ifa_name, addr->AdapterName);
+	}
+
+	if (addr->IfType & IF_TYPE_SOFTWARE_LOOPBACK)
+	    ifa->ifa_flags |= IFF_LOOPBACK;
+	if (addr->OperStatus == IfOperStatusUp) {
+	    ifa->ifa_flags |= IFF_UP;
+
+	    if (addr->FirstUnicastAddress) {
+		IP_ADAPTER_UNICAST_ADDRESS *cur;
+		int added = 0;
+		for (cur = addr->FirstUnicastAddress; cur; cur = cur->Next) {
+		    if (cur->Flags & IP_ADAPTER_ADDRESS_TRANSIENT ||
+			cur->DadState == IpDadStateDeprecated) {
+			continue;
+		    }
+		    if (added) {
+			prev = ifa;
+			ifa = ruby_xcalloc(1, sizeof(*ifa));
+			prev->ifa_next = ifa;
+			ifa->ifa_name =
+			    ruby_xmalloc(lstrlen(prev->ifa_name) + 1);
+			lstrcpy(ifa->ifa_name, prev->ifa_name);
+			ifa->ifa_flags = prev->ifa_flags;
+		    }
+		    ifa->ifa_addr = ruby_xmalloc(cur->Address.iSockaddrLength);
+		    memcpy(ifa->ifa_addr, cur->Address.lpSockaddr,
+			   cur->Address.iSockaddrLength);
+		    added = 1;
+		}
+	    }
+	}
+
+	prev = ifa;
+    }
+
+    ruby_xfree(root);
+    return 0;
+}
+
+/* License: Ruby's */
+void
+freeifaddrs(struct ifaddrs *ifp)
+{
+    while (ifp) {
+	struct ifaddrs *next = ifp->ifa_next;
+	if (ifp->ifa_addr) ruby_xfree(ifp->ifa_addr);
+	if (ifp->ifa_name) ruby_xfree(ifp->ifa_name);
+	ruby_xfree(ifp);
+	ifp = next;
+    }
+}
+#endif
 
 //
 // Networking stubs
@@ -3886,7 +4030,7 @@ poll_child_status(struct ChildRecord *child, int *stat_loc)
     DWORD err;
 
     if (!GetExitCodeProcess(child->hProcess, &exitcode)) {
-	/* If an error occured, return immediatly. */
+	/* If an error occurred, return immediately. */
     error_exit:
 	err = GetLastError();
 	if (err == ERROR_INVALID_PARAMETER)
@@ -4887,38 +5031,6 @@ _lseeki64(int fd, off_t offset, int whence)
     return ((off_t)u << 32) | l;
 }
 #endif
-
-/* License: Ruby's */
-int
-fseeko(FILE *stream, off_t offset, int whence)
-{
-    off_t pos;
-    switch (whence) {
-      case SEEK_CUR:
-	if (fgetpos(stream, (fpos_t *)&pos))
-	    return -1;
-	pos += offset;
-	break;
-      case SEEK_END:
-	if ((pos = _filelengthi64(fileno(stream))) == (off_t)-1)
-	    return -1;
-	pos += offset;
-	break;
-      default:
-	pos = offset;
-	break;
-    }
-    return fsetpos(stream, (fpos_t *)&pos);
-}
-
-/* License: Ruby's */
-off_t
-rb_w32_ftello(FILE *stream)
-{
-    off_t pos;
-    if (fgetpos(stream, (fpos_t *)&pos)) return (off_t)-1;
-    return pos;
-}
 
 /* License: Ruby's */
 static long

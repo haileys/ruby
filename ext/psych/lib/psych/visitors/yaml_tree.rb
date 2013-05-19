@@ -1,3 +1,7 @@
+require 'psych/tree_builder'
+require 'psych/scalar_scanner'
+require 'psych/class_loader'
+
 module Psych
   module Visitors
     ###
@@ -36,7 +40,23 @@ module Psych
       alias :finished? :finished
       alias :started? :started
 
-      def initialize options = {}, emitter = TreeBuilder.new, ss = ScalarScanner.new
+      def self.create options = {}, emitter = nil
+        emitter      ||= TreeBuilder.new
+        class_loader = ClassLoader.new
+        ss           = ScalarScanner.new class_loader
+        new(emitter, ss, options)
+      end
+
+      def self.new emitter = nil, ss = nil, options = nil
+        return super if emitter && ss && options
+
+        if $VERBOSE
+          warn "This API is deprecated, please pass an emitter, scalar scanner, and options or call #{self}.create() (#{caller.first})"
+        end
+        create emitter, ss
+      end
+
+      def initialize emitter, ss, options
         super()
         @started  = false
         @finished = false

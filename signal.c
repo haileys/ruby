@@ -19,6 +19,9 @@
 #include "ruby_atomic.h"
 #include "eval_intern.h"
 #include "internal.h"
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
 
 #if defined(__native_client__) && defined(NACL_NEWLIB)
 # include "nacl/signal.h"
@@ -364,7 +367,7 @@ ruby_default_signal(int sig)
 VALUE
 rb_f_kill(int argc, VALUE *argv)
 {
-#ifndef HAS_KILLPG
+#ifndef HAVE_KILLPG
 #define killpg(pg, sig) kill(-(pg), (sig))
 #endif
     int negative = 0;

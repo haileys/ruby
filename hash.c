@@ -375,11 +375,14 @@ rb_hash_initialize(int argc, VALUE *argv, VALUE hash)
  *     Hash[ [ [key, value], ... ] ]   -> new_hash
  *     Hash[ object ]                  -> new_hash
  *
- *  Creates a new hash populated with the given objects. Equivalent to
- *  the literal <code>{ <i>key</i> => <i>value</i>, ... }</code>. In the first
- *  form, keys and values occur in pairs, so there must be an even number of arguments.
- *  The second and third form take a single argument which is either
- *  an array of key-value pairs or an object convertible to a hash.
+ *  Creates a new hash populated with the given objects.
+ *
+ *  Similar to the literal <code>{ _key_ => _value_, ... }</code>. In the first
+ *  form, keys and values occur in pairs, so there must be an even number of
+ *  arguments.
+ *
+ *  The second and third form take a single argument which is either an array
+ *  of key-value pairs or an object convertible to a hash.
  *
  *     Hash["a", 100, "b", 200]             #=> {"a"=>100, "b"=>200}
  *     Hash[ [ ["a", 100], ["b", 200] ] ]   #=> {"a"=>100, "b"=>200}
@@ -408,7 +411,7 @@ rb_hash_s_create(int argc, VALUE *argv, VALUE klass)
 
 	    hash = hash_alloc(klass);
 	    for (i = 0; i < RARRAY_LEN(tmp); ++i) {
-		VALUE e = RARRAY_PTR(tmp)[i];
+		VALUE e = RARRAY_AREF(tmp, i);
 		VALUE v = rb_check_array_type(e);
 		VALUE key, val = Qnil;
 
@@ -430,9 +433,9 @@ rb_hash_s_create(int argc, VALUE *argv, VALUE klass)
 		    rb_raise(rb_eArgError, "invalid number of elements (%ld for 1..2)",
 			     RARRAY_LEN(v));
 		  case 2:
-		    val = RARRAY_PTR(v)[1];
+		    val = RARRAY_AREF(v, 1);
 		  case 1:
-		    key = RARRAY_PTR(v)[0];
+		    key = RARRAY_AREF(v, 0);
 		    rb_hash_aset(hash, key, val);
 		}
 	    }
@@ -2594,7 +2597,7 @@ env_each_key(VALUE ehash)
     RETURN_SIZED_ENUMERATOR(ehash, 0, 0, rb_env_size);
     keys = env_keys();	/* rb_secure(4); */
     for (i=0; i<RARRAY_LEN(keys); i++) {
-	rb_yield(RARRAY_PTR(keys)[i]);
+	rb_yield(RARRAY_AREF(keys, i));
     }
     return ehash;
 }
@@ -2643,7 +2646,7 @@ env_each_value(VALUE ehash)
     RETURN_SIZED_ENUMERATOR(ehash, 0, 0, rb_env_size);
     values = env_values();	/* rb_secure(4); */
     for (i=0; i<RARRAY_LEN(values); i++) {
-	rb_yield(RARRAY_PTR(values)[i]);
+	rb_yield(RARRAY_AREF(values, i));
     }
     return ehash;
 }
@@ -2682,7 +2685,7 @@ env_each_pair(VALUE ehash)
     FREE_ENVIRON(environ);
 
     for (i=0; i<RARRAY_LEN(ary); i+=2) {
-	rb_yield(rb_assoc_new(RARRAY_PTR(ary)[i], RARRAY_PTR(ary)[i+1]));
+	rb_yield(rb_assoc_new(RARRAY_AREF(ary, i), RARRAY_AREF(ary, i+1)));
     }
     return ehash;
 }
@@ -2705,13 +2708,13 @@ env_reject_bang(VALUE ehash)
 
     RETURN_SIZED_ENUMERATOR(ehash, 0, 0, rb_env_size);
     keys = env_keys();	/* rb_secure(4); */
-    RBASIC(keys)->klass = 0;
+    RBASIC_CLEAR_CLASS(keys);
     for (i=0; i<RARRAY_LEN(keys); i++) {
-	VALUE val = rb_f_getenv(Qnil, RARRAY_PTR(keys)[i]);
+	VALUE val = rb_f_getenv(Qnil, RARRAY_AREF(keys, i));
 	if (!NIL_P(val)) {
-	    if (RTEST(rb_yield_values(2, RARRAY_PTR(keys)[i], val))) {
-		FL_UNSET(RARRAY_PTR(keys)[i], FL_TAINT);
-		env_delete(Qnil, RARRAY_PTR(keys)[i]);
+	    if (RTEST(rb_yield_values(2, RARRAY_AREF(keys, i), val))) {
+		FL_UNSET(RARRAY_AREF(keys, i), FL_TAINT);
+		env_delete(Qnil, RARRAY_AREF(keys, i));
 		del++;
 	    }
 	}
@@ -2809,13 +2812,13 @@ env_select_bang(VALUE ehash)
 
     RETURN_SIZED_ENUMERATOR(ehash, 0, 0, rb_env_size);
     keys = env_keys();	/* rb_secure(4); */
-    RBASIC(keys)->klass = 0;
+    RBASIC_CLEAR_CLASS(keys);
     for (i=0; i<RARRAY_LEN(keys); i++) {
-	VALUE val = rb_f_getenv(Qnil, RARRAY_PTR(keys)[i]);
+	VALUE val = rb_f_getenv(Qnil, RARRAY_AREF(keys, i));
 	if (!NIL_P(val)) {
-	    if (!RTEST(rb_yield_values(2, RARRAY_PTR(keys)[i], val))) {
-		FL_UNSET(RARRAY_PTR(keys)[i], FL_TAINT);
-		env_delete(Qnil, RARRAY_PTR(keys)[i]);
+	    if (!RTEST(rb_yield_values(2, RARRAY_AREF(keys, i), val))) {
+		FL_UNSET(RARRAY_AREF(keys, i), FL_TAINT);
+		env_delete(Qnil, RARRAY_AREF(keys, i));
 		del++;
 	    }
 	}
@@ -2855,9 +2858,9 @@ rb_env_clear(void)
 
     keys = env_keys();	/* rb_secure(4); */
     for (i=0; i<RARRAY_LEN(keys); i++) {
-	VALUE val = rb_f_getenv(Qnil, RARRAY_PTR(keys)[i]);
+	VALUE val = rb_f_getenv(Qnil, RARRAY_AREF(keys, i));
 	if (!NIL_P(val)) {
-	    env_delete(Qnil, RARRAY_PTR(keys)[i]);
+	    env_delete(Qnil, RARRAY_AREF(keys, i));
 	}
     }
     return envtbl;
@@ -3260,7 +3263,7 @@ env_replace(VALUE env, VALUE hash)
     rb_hash_foreach(hash, env_replace_i, keys);
 
     for (i=0; i<RARRAY_LEN(keys); i++) {
-	env_delete(env, RARRAY_PTR(keys)[i]);
+	env_delete(env, RARRAY_AREF(keys, i));
     }
     return env;
 }

@@ -421,16 +421,25 @@ EOF
 
   have_func("getpeerucred(0, (ucred_t **)NULL)", headers) # SunOS
 
-  have_func('if_indextoname(0, "")', headers)
+  have_func_decl = proc do |name, headers|
+    if !checking_for("declaration of #{name}()") {!%w[int void].all? {|ret| try_compile(<<EOF)}}
+#{cpp_include(headers)}
+#{ret} #{name}(void);
+EOF
+      $defs << "-DNEED_#{name.tr_cpp}_DECL"
+    end
+  end
+  if have_func('if_indextoname(0, "")', headers)
+    have_func_decl["if_indextoname"]
+  end
+  if have_func('if_nametoindex("")', headers)
+    have_func_decl["if_nametoindex"]
+  end
 
   have_func("hsterror", headers)
   have_func('getipnodebyname("", 0, 0, (int *)0)', headers) # RFC 2553
   have_func('gethostbyname2("", 0)', headers) # RFC 2133
-  if !have_func("socketpair(0, 0, 0, 0)", headers) and
-     have_func("rb_w32_socketpair(0, 0, 0, 0)", headers)
-    $defs << "-Dsocketpair(a,b,c,d)=rb_w32_socketpair((a),(b),(c),(d))"
-    $defs << "-DHAVE_SOCKETPAIR"
-  end
+  have_func("socketpair(0, 0, 0, 0)", headers)
   unless have_func("gethostname((char *)0, 0)", headers)
     have_func("uname((struct utsname *)NULL)", headers)
   end

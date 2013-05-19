@@ -327,7 +327,7 @@ range_step_size(VALUE range, VALUE args)
     VALUE b = RANGE_BEG(range), e = RANGE_END(range);
     VALUE step = INT2FIX(1);
     if (args) {
-	step = RARRAY_PTR(args)[0];
+	step = RARRAY_AREF(args, 0);
 	if (!rb_obj_is_kind_of(step, rb_cNumeric)) {
 	    step = rb_to_int(step);
 	}
@@ -1211,7 +1211,7 @@ static VALUE
 range_dumper(VALUE range)
 {
     VALUE v;
-    NEWOBJ_OF(m, struct RObject, rb_cObject, T_OBJECT);
+    NEWOBJ_OF(m, struct RObject, rb_cObject, T_OBJECT | (RGENGC_WB_PROTECTED_OBJECT ? FL_WB_PROTECTED : 1));
 
     v = (VALUE)m;
 
@@ -1238,7 +1238,7 @@ static VALUE
 range_alloc(VALUE klass)
 {
   /* rb_struct_alloc_noinit itself should not be used because
-   * rb_marshal_define_compat uses equality of allocaiton function */
+   * rb_marshal_define_compat uses equality of allocation function */
     return rb_struct_alloc_noinit(klass);
 }
 

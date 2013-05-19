@@ -40,7 +40,7 @@ VALUE rb_eSysStackError;
 
 /* Initializes the Ruby VM and builtin libraries.
  * @retval 0 if succeeded.
- * @retval non-zero an error occured.
+ * @retval non-zero an error occurred.
  */
 int
 ruby_setup(void)
@@ -69,7 +69,7 @@ ruby_setup(void)
 
 /* Calls ruby_setup() and check error.
  *
- * Prints errors and calls exit(3) if an error occured.
+ * Prints errors and calls exit(3) if an error occurred.
  */
 void
 ruby_init(void)
@@ -84,7 +84,7 @@ ruby_init(void)
 /*! Processes command line arguments and compiles the Ruby source to execute.
  *
  * This function does:
- * \li  Processses the given command line flags and arguments for ruby(1)
+ * \li  Processes the given command line flags and arguments for ruby(1)
  * \li compiles the source code from the given argument, -e or stdin, and
  * \li returns the compiled source as an opaque pointer to an internal data structure
  *
@@ -151,7 +151,7 @@ ruby_finalize(void)
  * resources used by the VM.
  *
  * @param ex Default value to the return value.
- * @return If an error occured returns a non-zero. If otherwise, returns the
+ * @return If an error occurred returns a non-zero. If otherwise, returns the
  *         given ex.
  * @note This function does not raise any exception.
  */
@@ -297,7 +297,7 @@ ruby_executable_node(void *n, int *status)
 }
 
 /*! Runs the given compiled source and exits this process.
- * @retval 0 if successfully run thhe source
+ * @retval 0 if successfully run the source
  * @retval non-zero if an error occurred.
 */
 int
@@ -1060,7 +1060,7 @@ hidden_identity_hash_new()
     VALUE hash = rb_hash_new();
 
     rb_funcall(hash, rb_intern("compare_by_identity"), 0);
-    RBASIC(hash)->klass = 0;  /* hide from ObjectSpace */
+    RBASIC_CLEAR_CLASS(hash); /* hide from ObjectSpace */
     return hash;
 }
 
@@ -1097,7 +1097,7 @@ rb_using_refinement(NODE *cref, VALUE klass, VALUE module)
     module = RCLASS_SUPER(module);
     while (module && module != klass) {
 	FL_SET(module, RMODULE_IS_OVERLAID);
-	c = RCLASS_SUPER(c) = rb_include_class_new(module, RCLASS_SUPER(c));
+	c = RCLASS_SET_SUPER(c, rb_include_class_new(module, RCLASS_SUPER(c)));
 	RCLASS_REFINED_CLASS(c) = klass;
 	module = RCLASS_SUPER(module);
     }
@@ -1156,8 +1156,7 @@ add_activated_refinement(VALUE activated_refinements,
     refinement = RCLASS_SUPER(refinement);
     while (refinement) {
 	FL_SET(refinement, RMODULE_IS_OVERLAID);
-	c = RCLASS_SUPER(c) =
-	    rb_include_class_new(refinement, RCLASS_SUPER(c));
+	c = RCLASS_SET_SUPER(c, rb_include_class_new(refinement, RCLASS_SUPER(c)));
 	RCLASS_REFINED_CLASS(c) = klass;
 	refinement = RCLASS_SUPER(refinement);
     }
@@ -1210,7 +1209,7 @@ rb_mod_refine(VALUE module, VALUE klass)
     refinement = rb_hash_lookup(refinements, klass);
     if (NIL_P(refinement)) {
 	refinement = rb_module_new();
-	RCLASS_SUPER(refinement) = klass;
+	RCLASS_SET_SUPER(refinement, klass);
 	FL_SET(refinement, RMODULE_IS_REFINEMENT);
 	CONST_ID(id_refined_class, "__refined_class__");
 	rb_ivar_set(refinement, id_refined_class, klass);

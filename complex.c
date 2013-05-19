@@ -313,10 +313,10 @@ k_complex_p(VALUE x)
 inline static VALUE
 nucomp_s_new_internal(VALUE klass, VALUE real, VALUE imag)
 {
-    NEWOBJ_OF(obj, struct RComplex, klass, T_COMPLEX);
+    NEWOBJ_OF(obj, struct RComplex, klass, T_COMPLEX | (RGENGC_WB_PROTECTED_COMPLEX ? FL_WB_PROTECTED : 0));
 
-    obj->real = real;
-    obj->imag = imag;
+    RCOMPLEX_SET_REAL(obj, real);
+    RCOMPLEX_SET_IMAG(obj, imag);
 
     return (VALUE)obj;
 }
@@ -1332,8 +1332,8 @@ nucomp_loader(VALUE self, VALUE a)
 {
     get_dat1(self);
 
-    dat->real = rb_ivar_get(a, id_i_real);
-    dat->imag = rb_ivar_get(a, id_i_imag);
+    RCOMPLEX_SET_REAL(dat, rb_ivar_get(a, id_i_real));
+    RCOMPLEX_SET_IMAG(dat, rb_ivar_get(a, id_i_imag));
 
     return self;
 }
@@ -1357,8 +1357,8 @@ nucomp_marshal_load(VALUE self, VALUE a)
     Check_Type(a, T_ARRAY);
     if (RARRAY_LEN(a) != 2)
 	rb_raise(rb_eArgError, "marshaled complex must have an array whose length is 2 but %ld", RARRAY_LEN(a));
-    rb_ivar_set(self, id_i_real, RARRAY_PTR(a)[0]);
-    rb_ivar_set(self, id_i_imag, RARRAY_PTR(a)[1]);
+    rb_ivar_set(self, id_i_real, RARRAY_AREF(a, 0));
+    rb_ivar_set(self, id_i_imag, RARRAY_AREF(a, 1));
     return self;
 }
 

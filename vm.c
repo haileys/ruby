@@ -1165,7 +1165,6 @@ vm_exec(rb_thread_t *th)
     int state;
     VALUE result, err;
     VALUE initial = 0;
-    VALUE *escape_ep = NULL;
 
     TH_PUSH_TAG(th);
     _tag.retval = Qnil;
@@ -1185,6 +1184,7 @@ vm_exec(rb_thread_t *th)
 	VALUE catch_iseqval;
 	rb_control_frame_t *cfp;
 	VALUE type;
+	VALUE *escape_ep;
 
 	err = th->errinfo;
 
@@ -1203,6 +1203,7 @@ vm_exec(rb_thread_t *th)
 	cfp = th->cfp;
 	epc = cfp->pc - cfp->iseq->iseq_encoded;
 
+	escape_ep = NULL;
 	if (state == TAG_BREAK || state == TAG_RETURN) {
 	    escape_ep = GET_THROWOBJ_CATCH_POINT(err);
 
@@ -1705,7 +1706,7 @@ vm_init2(rb_vm_t *vm)
     MEMZERO(vm, rb_vm_t, 1);
     vm->src_encoding_index = -1;
     vm->at_exit.basic.flags = (T_ARRAY | RARRAY_EMBED_FLAG) & ~RARRAY_EMBED_LEN_MASK; /* len set 0 */
-    vm->at_exit.basic.klass = 0;
+    rb_obj_hide((VALUE)&vm->at_exit);
 
     vm_default_params_setup(vm);
 }
@@ -2107,7 +2108,7 @@ m_core_hash_from_ary(VALUE self, VALUE ary)
 
     assert(RARRAY_LEN(ary) % 2 == 0);
     for (i=0; i<RARRAY_LEN(ary); i+=2) {
-	rb_hash_aset(hash, RARRAY_PTR(ary)[i], RARRAY_PTR(ary)[i+1]);
+	rb_hash_aset(hash, RARRAY_AREF(ary, i), RARRAY_AREF(ary, i+1));
     }
 
     return hash;
@@ -2120,7 +2121,7 @@ m_core_hash_merge_ary(VALUE self, VALUE hash, VALUE ary)
 
     assert(RARRAY_LEN(ary) % 2 == 0);
     for (i=0; i<RARRAY_LEN(ary); i+=2) {
-	rb_hash_aset(hash, RARRAY_PTR(ary)[i], RARRAY_PTR(ary)[i+1]);
+	rb_hash_aset(hash, RARRAY_AREF(ary, i), RARRAY_AREF(ary, i+1));
     }
 
     return hash;
@@ -2440,7 +2441,7 @@ Init_VM(void)
 
     /* ::RubyVM::DEFAULT_PARAMS
      * This constant variable shows VM's default parameters.
-     * Note that changing these values does not affect VM exection.
+     * Note that changing these values does not affect VM execution.
      * Specification is not stable and you should not depend on this value.
      * Of course, this constant is MRI specific.
      */

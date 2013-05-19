@@ -68,7 +68,6 @@ VALUE rb_cSymbol;
     if (FL_TEST((s),STR_NOEMBED)) FL_UNSET((s),(ELTS_SHARED|STR_ASSOC));\
 } while (0)
 
-
 #define STR_SET_NOEMBED(str) do {\
     FL_SET((str), STR_NOEMBED);\
     STR_SET_EMBED_LEN((str), 0);\
@@ -117,6 +116,11 @@ VALUE rb_cSymbol;
 	if (!STR_NOCAPA_P(str))\
 	    RSTRING(str)->as.heap.aux.capa = (capacity);\
     }\
+} while (0)
+
+#define STR_SET_SHARED(str, shared_str) do { \
+    OBJ_WRITE((str), &RSTRING(str)->as.heap.aux.shared, (shared_str)); \
+    FL_SET((str), ELTS_SHARED); \
 } while (0)
 
 #define is_ascii_string(str) (rb_enc_str_coderange(str) == ENC_CODERANGE_7BIT)
@@ -375,7 +379,7 @@ rb_str_capacity(VALUE str)
 static inline VALUE
 str_alloc(VALUE klass)
 {
-    NEWOBJ_OF(str, struct RString, klass, T_STRING);
+    NEWOBJ_OF(str, struct RString, klass, T_STRING | (RGENGC_WB_PROTECTED_STRING ? FL_WB_PROTECTED : 0));
 
     str->as.heap.ptr = 0;
     str->as.heap.len = 0;
@@ -519,7 +523,7 @@ rb_str_conv_enc_opts(VALUE str, rb_encoding *from, rb_encoding *to, int ecflags,
     olen = len;
 
     econv_wrapper = rb_obj_alloc(rb_cEncodingConverter);
-    RBASIC(econv_wrapper)->klass = 0;
+    RBASIC_CLEAR_CLASS(econv_wrapper);
     ec = rb_econv_open_opts(from->name, to->name, ecflags, ecopts);
     if (!ec) return str;
     DATA_PTR(econv_wrapper) = ec;
@@ -649,8 +653,7 @@ str_replace_shared_without_enc(VALUE str2, VALUE str)
 	FL_SET(str2, STR_NOEMBED);
 	RSTRING(str2)->as.heap.len = RSTRING_LEN(str);
 	RSTRING(str2)->as.heap.ptr = RSTRING_PTR(str);
-	RSTRING(str2)->as.heap.aux.shared = str;
-	FL_SET(str2, ELTS_SHARED);
+	STR_SET_SHARED(str2, str);
     }
     return str2;
 }
@@ -699,12 +702,10 @@ str_new4(VALUE klass, VALUE str)
     if (STR_SHARED_P(str)) {
 	VALUE shared = RSTRING(str)->as.heap.aux.shared;
 	assert(OBJ_FROZEN(shared));
-	FL_SET(str2, ELTS_SHARED);
-	RSTRING(str2)->as.heap.aux.shared = shared;
+	STR_SET_SHARED(str2, shared); /* TODO: WB is not needed because str2 is *new* object */
     }
     else {
-	FL_SET(str, ELTS_SHARED);
-	RSTRING(str)->as.heap.aux.shared = str2;
+	STR_SET_SHARED(str, str2);
     }
     rb_enc_cr_str_exact_copy(str2, str);
     OBJ_INFECT(str2, str);
@@ -742,7 +743,8 @@ rb_str_new_frozen(VALUE orig)
 	FL_UNSET(orig, STR_ASSOC);
 	str = str_new4(klass, orig);
 	FL_SET(str, STR_ASSOC);
-	RSTRING(str)->as.heap.aux.shared = assoc;
+	OBJ_WRITE(str, &RSTRING(str)->as.heap.aux.shared, assoc);
+	/* TODO: WB is not needed because str is new object */
     }
     else {
 	str = str_new4(klass, orig);
@@ -878,8 +880,9 @@ rb_str_shared_replace(VALUE str, VALUE str2)
     RSTRING(str)->as.heap.ptr = RSTRING_PTR(str2);
     RSTRING(str)->as.heap.len = RSTRING_LEN(str2);
     if (STR_NOCAPA_P(str2)) {
+	VALUE shared = RSTRING(str2)->as.heap.aux.shared;
 	FL_SET(str, RBASIC(str2)->flags & STR_NOCAPA);
-	RSTRING(str)->as.heap.aux.shared = RSTRING(str2)->as.heap.aux.shared;
+	OBJ_WRITE(str, &RSTRING(str)->as.heap.aux.shared, shared);
     }
     else {
 	RSTRING(str)->as.heap.aux.capa = RSTRING(str2)->as.heap.aux.capa;
@@ -925,7 +928,7 @@ str_replace(VALUE str, VALUE str2)
 	RSTRING(str)->as.heap.ptr = RSTRING_PTR(str2);
 	FL_SET(str, ELTS_SHARED);
 	FL_UNSET(str, STR_ASSOC);
-	RSTRING(str)->as.heap.aux.shared = shared;
+	STR_SET_SHARED(str, shared);
     }
     else {
 	str_replace_shared(str, str2);
@@ -1090,7 +1093,7 @@ rb_enc_strlen_cr(const char *p, const char *e, rb_encoding *enc, int *cr)
 
 /*
  * UTF-8 leading bytes have either 0xxxxxxx or 11xxxxxx
- * bit represention. (see http://en.wikipedia.org/wiki/UTF-8)
+ * bit representation. (see http://en.wikipedia.org/wiki/UTF-8)
  * Therefore, following pseudo code can detect UTF-8 leading byte.
  *
  * if (!(byte & 0x80))
@@ -1446,8 +1449,8 @@ rb_str_associate(VALUE str, VALUE add)
 	    RESIZE_CAPA(str, RSTRING_LEN(str));
 	}
 	FL_SET(str, STR_ASSOC);
-	RBASIC(add)->klass = 0;
-	RSTRING(str)->as.heap.aux.shared = add;
+	RBASIC_CLEAR_CLASS(add);
+	OBJ_WRITE(str, &RSTRING(str)->as.heap.aux.shared, add);
     }
 }
 
@@ -3931,7 +3934,7 @@ str_gsub(int argc, VALUE *argv, VALUE str, int bang)
         rb_str_shared_replace(str, dest);
     }
     else {
-	RBASIC(dest)->klass = rb_obj_class(str);
+	RBASIC_SET_CLASS(dest, rb_obj_class(str));
 	OBJ_INFECT(dest, str);
 	str = dest;
     }
@@ -6115,7 +6118,7 @@ rb_str_split_m(int argc, VALUE *argv, VALUE str)
     if (NIL_P(limit) && lim == 0) {
 	long len;
 	while ((len = RARRAY_LEN(result)) > 0 &&
-	       (tmp = RARRAY_PTR(result)[len-1], RSTRING_LEN(tmp) == 0))
+	       (tmp = RARRAY_AREF(result, len-1), RSTRING_LEN(tmp) == 0))
 	    rb_ary_pop(result);
     }
 
@@ -7767,29 +7770,19 @@ str_compat_and_valid(VALUE str, rb_encoding *enc)
     return str;
 }
 
-/*
- *  call-seq:
- *    str.scrub -> new_str
- *    str.scrub(repl) -> new_str
- *    str.scrub{|bytes|} -> new_str
- *
- *  If the string is invalid byte sequence then replace invalid bytes with given replacement
- *  character, else returns self.
- *  If block is given, replace invalid bytes with returned value of the block.
- *
- *     "abc\u3042\x81".scrub #=> "abc\u3042\uFFFD"
- *     "abc\u3042\x81".scrub("*") #=> "abc\u3042*"
- *     "abc\u3042\xE3\x80".scrub{|bytes| '<'+bytes.unpack('H*')[0]+'>' } #=> "abc\u3042<e380>"
+/**
+ * @param repl the replacement character
+ * @return If given string is invalid, returns a new string. Otherwise, returns Qnil.
  */
-VALUE
-rb_str_scrub(int argc, VALUE *argv, VALUE str)
+static VALUE
+str_scrub0(int argc, VALUE *argv, VALUE str)
 {
     int cr = ENC_CODERANGE(str);
     rb_encoding *enc;
     VALUE repl;
 
     if (cr == ENC_CODERANGE_7BIT || cr == ENC_CODERANGE_VALID)
-	return rb_str_dup(str);
+	return Qnil;
 
     enc = STR_ENC_GET(str);
     rb_scan_args(argc, argv, "01", &repl);
@@ -7798,7 +7791,7 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
     }
 
     if (rb_enc_dummy_p(enc)) {
-	return rb_str_dup(str);
+	return Qnil;
     }
 
 #define DEFAULT_REPLACE_CHAR(str) do { \
@@ -7813,7 +7806,7 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 	const char *rep;
 	long replen;
 	int rep7bit_p;
-	VALUE buf = rb_str_buf_new(RSTRING_LEN(str));
+	VALUE buf = Qnil;
 	if (rb_block_given_p()) {
 	    rep = NULL;
 	    replen = 0;
@@ -7853,6 +7846,7 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 		 * p ~e: invalid bytes + unknown bytes
 		 */
 		long clen = rb_enc_mbmaxlen(enc);
+		if (NIL_P(buf)) buf = rb_str_buf_new(RSTRING_LEN(str));
 		if (p > p1) {
 		    rb_str_buf_cat(buf, p1, p - p1);
 		}
@@ -7894,6 +7888,13 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 		UNREACHABLE;
 	    }
 	}
+	if (NIL_P(buf)) {
+	    if (p == e) {
+		ENC_CODERANGE_SET(str, cr);
+		return Qnil;
+	    }
+	    buf = rb_str_buf_new(RSTRING_LEN(str));
+	}
 	if (p1 < p) {
 	    rb_str_buf_cat(buf, p1, p - p1);
 	}
@@ -7918,7 +7919,7 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 	const char *p = RSTRING_PTR(str);
 	const char *e = RSTRING_END(str);
 	const char *p1 = p;
-	VALUE buf = rb_str_buf_new(RSTRING_LEN(str));
+	VALUE buf = Qnil;
 	const char *rep;
 	long replen;
 	long mbminlen = rb_enc_mbminlen(enc);
@@ -7963,6 +7964,7 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 	    else if (MBCLEN_INVALID_P(ret)) {
 		const char *q = p;
 		long clen = rb_enc_mbmaxlen(enc);
+		if (NIL_P(buf)) buf = rb_str_buf_new(RSTRING_LEN(str));
 		if (p > p1) rb_str_buf_cat(buf, p1, p - p1);
 
 		if (e - p < clen) clen = e - p;
@@ -7993,6 +7995,13 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 		UNREACHABLE;
 	    }
 	}
+	if (NIL_P(buf)) {
+	    if (p == e) {
+		ENC_CODERANGE_SET(str, ENC_CODERANGE_VALID);
+		return Qnil;
+	    }
+	    buf = rb_str_buf_new(RSTRING_LEN(str));
+	}
 	if (p1 < p) {
 	    rb_str_buf_cat(buf, p1, p - p1);
 	}
@@ -8009,6 +8018,49 @@ rb_str_scrub(int argc, VALUE *argv, VALUE str)
 	ENCODING_CODERANGE_SET(buf, rb_enc_to_index(enc), ENC_CODERANGE_VALID);
 	return buf;
     }
+}
+
+/*
+ *  call-seq:
+ *    str.scrub -> new_str
+ *    str.scrub(repl) -> new_str
+ *    str.scrub{|bytes|} -> new_str
+ *
+ *  If the string is invalid byte sequence then replace invalid bytes with given replacement
+ *  character, else returns self.
+ *  If block is given, replace invalid bytes with returned value of the block.
+ *
+ *     "abc\u3042\x81".scrub #=> "abc\u3042\uFFFD"
+ *     "abc\u3042\x81".scrub("*") #=> "abc\u3042*"
+ *     "abc\u3042\xE3\x80".scrub{|bytes| '<'+bytes.unpack('H*')[0]+'>' } #=> "abc\u3042<e380>"
+ */
+VALUE
+rb_str_scrub(int argc, VALUE *argv, VALUE str)
+{
+    VALUE new = str_scrub0(argc, argv, str);
+    return NIL_P(new) ? rb_str_dup(str): new;
+}
+
+/*
+ *  call-seq:
+ *    str.scrub! -> str
+ *    str.scrub!(repl) -> str
+ *    str.scrub!{|bytes|} -> str
+ *
+ *  If the string is invalid byte sequence then replace invalid bytes with given replacement
+ *  character, else returns self.
+ *  If block is given, replace invalid bytes with returned value of the block.
+ *
+ *     "abc\u3042\x81".scrub! #=> "abc\u3042\uFFFD"
+ *     "abc\u3042\x81".scrub!("*") #=> "abc\u3042*"
+ *     "abc\u3042\xE3\x80".scrub!{|bytes| '<'+bytes.unpack('H*')[0]+'>' } #=> "abc\u3042<e380>"
+ */
+static VALUE
+str_scrub_bang(int argc, VALUE *argv, VALUE str)
+{
+    VALUE new = str_scrub0(argc, argv, str);
+    if (!NIL_P(new)) rb_str_replace(str, new);
+    return str;
 }
 
 /**********************************************************************
@@ -8497,6 +8549,7 @@ Init_String(void)
     rb_define_method(rb_cString, "setbyte", rb_str_setbyte, 2);
     rb_define_method(rb_cString, "byteslice", rb_str_byteslice, -1);
     rb_define_method(rb_cString, "scrub", rb_str_scrub, -1);
+    rb_define_method(rb_cString, "scrub!", str_scrub_bang, -1);
 
     rb_define_method(rb_cString, "to_i", rb_str_to_i, -1);
     rb_define_method(rb_cString, "to_f", rb_str_to_f, 0);

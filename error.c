@@ -723,7 +723,7 @@ rb_check_backtrace(VALUE bt)
 	    rb_raise(rb_eTypeError, err);
 	}
 	for (i=0;i<RARRAY_LEN(bt);i++) {
-	    if (!RB_TYPE_P(RARRAY_PTR(bt)[i], T_STRING)) {
+	    if (!RB_TYPE_P(RARRAY_AREF(bt, i), T_STRING)) {
 		rb_raise(rb_eTypeError, err);
 	    }
 	}
@@ -1261,7 +1261,7 @@ syserr_initialize(int argc, VALUE *argv, VALUE self)
 	    if (!RB_TYPE_P(self, T_OBJECT)) { /* insurance to avoid type crash */
 		rb_raise(rb_eTypeError, "invalid instance type");
 	    }
-	    RBASIC(self)->klass = klass;
+	    RBASIC_SET_CLASS(self, klass);
 	}
     }
     else {

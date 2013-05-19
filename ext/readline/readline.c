@@ -302,7 +302,7 @@ readline_get(VALUE prompt)
  * 1. stdin is not tty.
  * 2. stdin was closed. (errno is EBADF after called isatty(2).)
  *
- * This method supports thread. Switchs the thread context when waits
+ * This method supports thread. Switches the thread context when waits
  * inputting line.
  *
  * Supports line edit when inputs line. Provides VI and Emacs editing mode.
@@ -1217,7 +1217,7 @@ readline_s_set_special_prefixes(VALUE self, VALUE str)
     if (!NIL_P(str)) {
 	OutputStringValue(str);
 	str = rb_str_dup_frozen(str);
-	RBASIC(str)->klass = 0;
+	rb_obj_hide(str);
     }
     rb_ivar_set(mReadline, id_special_prefixes, str);
     if (NIL_P(str)) {
@@ -1252,7 +1252,7 @@ readline_s_get_special_prefixes(VALUE self)
     str = rb_ivar_get(mReadline, id_special_prefixes);
     if (!NIL_P(str)) {
 	str = rb_str_dup_frozen(str);
-	RBASIC(str)->klass = rb_cString;
+	rb_obj_reveal(str, rb_cString);
     }
     return str;
 }

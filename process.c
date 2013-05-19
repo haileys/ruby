@@ -1356,10 +1356,6 @@ static const rb_data_type_t exec_arg_data_type = {
   {mark_exec_arg, free_exec_arg, memsize_exec_arg},
 };
 
-#if defined(_WIN32)
-#define HAVE_SPAWNV 1
-#endif
-
 #if !defined(HAVE_FORK) && defined(HAVE_SPAWNV)
 # define USE_SPAWNV 1
 #else
@@ -1439,7 +1435,7 @@ proc_spawn_sh(char *str)
 static VALUE
 hide_obj(VALUE obj)
 {
-    RBASIC(obj)->klass = 0;
+    RBASIC_CLEAR_CLASS(obj);
     return obj;
 }
 
@@ -1497,7 +1493,7 @@ check_exec_redirect1(VALUE ary, VALUE key, VALUE param)
     else {
         int i, n=0;
         for (i = 0 ; i < RARRAY_LEN(key); i++) {
-            VALUE v = RARRAY_PTR(key)[i];
+            VALUE v = RARRAY_AREF(key, i);
             VALUE fd = check_exec_redirect_fd(v, !NIL_P(param));
             rb_ary_push(ary, hide_obj(rb_assoc_new(fd, param)));
             n++;
@@ -1812,21 +1808,21 @@ check_exec_fds_1(struct rb_execarg *eargp, VALUE h, int maxhint, VALUE ary)
 
     if (ary != Qfalse) {
         for (i = 0; i < RARRAY_LEN(ary); i++) {
-            VALUE elt = RARRAY_PTR(ary)[i];
-            int fd = FIX2INT(RARRAY_PTR(elt)[0]);
+            VALUE elt = RARRAY_AREF(ary, i);
+            int fd = FIX2INT(RARRAY_AREF(elt, 0));
             if (RTEST(rb_hash_lookup(h, INT2FIX(fd)))) {
                 rb_raise(rb_eArgError, "fd %d specified twice", fd);
             }
             if (ary == eargp->fd_open || ary == eargp->fd_dup2)
                 rb_hash_aset(h, INT2FIX(fd), Qtrue);
             else if (ary == eargp->fd_dup2_child)
-                rb_hash_aset(h, INT2FIX(fd), RARRAY_PTR(elt)[1]);
+                rb_hash_aset(h, INT2FIX(fd), RARRAY_AREF(elt, 1));
             else /* ary == eargp->fd_close */
                 rb_hash_aset(h, INT2FIX(fd), INT2FIX(-1));
             if (maxhint < fd)
                 maxhint = fd;
             if (ary == eargp->fd_dup2 || ary == eargp->fd_dup2_child) {
-                fd = FIX2INT(RARRAY_PTR(elt)[1]);
+                fd = FIX2INT(RARRAY_AREF(elt, 1));
                 if (maxhint < fd)
                     maxhint = fd;
             }
@@ -1851,9 +1847,9 @@ check_exec_fds(struct rb_execarg *eargp)
     if (eargp->fd_dup2_child) {
         ary = eargp->fd_dup2_child;
         for (i = 0; i < RARRAY_LEN(ary); i++) {
-            VALUE elt = RARRAY_PTR(ary)[i];
-            int newfd = FIX2INT(RARRAY_PTR(elt)[0]);
-            int oldfd = FIX2INT(RARRAY_PTR(elt)[1]);
+            VALUE elt = RARRAY_AREF(ary, i);
+            int newfd = FIX2INT(RARRAY_AREF(elt, 0));
+            int oldfd = FIX2INT(RARRAY_AREF(elt, 1));
             int lastfd = oldfd;
             VALUE val = rb_hash_lookup(h, INT2FIX(lastfd));
             long depth = 0;
@@ -1949,8 +1945,8 @@ rb_check_argv(int argc, VALUE *argv)
 	if (RARRAY_LEN(tmp) != 2) {
 	    rb_raise(rb_eArgError, "wrong first argument");
 	}
-	prog = RARRAY_PTR(tmp)[0];
-	argv[0] = RARRAY_PTR(tmp)[1];
+	prog = RARRAY_AREF(tmp, 0);
+	argv[0] = RARRAY_AREF(tmp, 1);
 	SafeStringValue(prog);
 	StringValueCStr(prog);
 	prog = rb_str_new_frozen(prog);
@@ -2122,7 +2118,7 @@ rb_exec_fillarg(VALUE prog, int argc, VALUE *argv, VALUE env, VALUE opthash, VAL
 		has_meta = 1;
 	}
 	if (!has_meta) {
-            /* avoid shell since no shell meta charactor found. */
+            /* avoid shell since no shell meta character found. */
             eargp->use_shell = 0;
         }
         if (!eargp->use_shell) {
@@ -2283,9 +2279,9 @@ rb_execarg_fixup(VALUE execarg_obj)
             st_table *stenv = RHASH_TBL(envtbl);
             long i;
             for (i = 0; i < RARRAY_LEN(envopts); i++) {
-                VALUE pair = RARRAY_PTR(envopts)[i];
-                VALUE key = RARRAY_PTR(pair)[0];
-                VALUE val = RARRAY_PTR(pair)[1];
+                VALUE pair = RARRAY_AREF(envopts, i);
+                VALUE key = RARRAY_AREF(pair, 0);
+                VALUE val = RARRAY_AREF(pair, 1);
                 if (NIL_P(val)) {
                     st_data_t stkey = (st_data_t)key;
                     st_delete(stenv, &stkey, NULL);
@@ -2350,7 +2346,7 @@ static int rb_exec_without_timer_thread(const struct rb_execarg *eargp, char *er
  *  If _commandline_ is simple enough,
  *  no meta characters, no shell reserved word and no special built-in,
  *  Ruby invokes the command directly without shell.
- *  You can force shell invocation by adding ";" for _commandline_ (because ";" is a meta characetr).
+ *  You can force shell invocation by adding ";" for _commandline_ (because ";" is a meta character).
  *  Note that this behavior is observable by pid obtained
  *  (return value of spawn() and IO#pid for IO.popen) is the pid of the invoked command, not shell.
  *
@@ -2564,9 +2560,9 @@ run_exec_dup2(VALUE ary, VALUE tmpbuf, struct rb_execarg *sargp, char *errmsg, s
 
     /* initialize oldfd and newfd: O(n) */
     for (i = 0; i < n; i++) {
-        VALUE elt = RARRAY_PTR(ary)[i];
-        pairs[i].oldfd = FIX2INT(RARRAY_PTR(elt)[1]);
-        pairs[i].newfd = FIX2INT(RARRAY_PTR(elt)[0]); /* unique */
+        VALUE elt = RARRAY_AREF(ary, i);
+        pairs[i].oldfd = FIX2INT(RARRAY_AREF(elt, 1));
+        pairs[i].newfd = FIX2INT(RARRAY_AREF(elt, 0)); /* unique */
         pairs[i].older_index = -1;
     }
 
@@ -2690,8 +2686,8 @@ run_exec_close(VALUE ary, char *errmsg, size_t errmsg_buflen)
     int ret;
 
     for (i = 0; i < RARRAY_LEN(ary); i++) {
-        VALUE elt = RARRAY_PTR(ary)[i];
-        int fd = FIX2INT(RARRAY_PTR(elt)[0]);
+        VALUE elt = RARRAY_AREF(ary, i);
+        int fd = FIX2INT(RARRAY_AREF(elt, 0));
         ret = redirect_close(fd); /* async-signal-safe */
         if (ret == -1) {
             ERRMSG("close");
@@ -2709,12 +2705,12 @@ run_exec_open(VALUE ary, struct rb_execarg *sargp, char *errmsg, size_t errmsg_b
     int ret;
 
     for (i = 0; i < RARRAY_LEN(ary);) {
-        VALUE elt = RARRAY_PTR(ary)[i];
-        int fd = FIX2INT(RARRAY_PTR(elt)[0]);
-        VALUE param = RARRAY_PTR(elt)[1];
-        char *path = RSTRING_PTR(RARRAY_PTR(param)[0]);
-        int flags = NUM2INT(RARRAY_PTR(param)[1]);
-        int perm = NUM2INT(RARRAY_PTR(param)[2]);
+        VALUE elt = RARRAY_AREF(ary, i);
+        int fd = FIX2INT(RARRAY_AREF(elt, 0));
+        VALUE param = RARRAY_AREF(elt, 1);
+        char *path = RSTRING_PTR(RARRAY_AREF(param, 0));
+        int flags = NUM2INT(RARRAY_AREF(param, 1));
+        int perm = NUM2INT(RARRAY_AREF(param, 2));
         int need_close = 1;
         int fd2 = redirect_open(path, flags, perm); /* async-signal-safe */
         if (fd2 == -1) {
@@ -2723,8 +2719,8 @@ run_exec_open(VALUE ary, struct rb_execarg *sargp, char *errmsg, size_t errmsg_b
         }
         rb_update_max_fd(fd2);
         while (i < RARRAY_LEN(ary) &&
-               (elt = RARRAY_PTR(ary)[i], RARRAY_PTR(elt)[1] == param)) {
-            fd = FIX2INT(RARRAY_PTR(elt)[0]);
+               (elt = RARRAY_AREF(ary, i), RARRAY_AREF(elt, 1) == param)) {
+            fd = FIX2INT(RARRAY_AREF(elt, 0));
             if (fd == fd2) {
                 need_close = 0;
             }
@@ -2759,9 +2755,9 @@ run_exec_dup2_child(VALUE ary, struct rb_execarg *sargp, char *errmsg, size_t er
     int ret;
 
     for (i = 0; i < RARRAY_LEN(ary); i++) {
-        VALUE elt = RARRAY_PTR(ary)[i];
-        int newfd = FIX2INT(RARRAY_PTR(elt)[0]);
-        int oldfd = FIX2INT(RARRAY_PTR(elt)[1]);
+        VALUE elt = RARRAY_AREF(ary, i);
+        int newfd = FIX2INT(RARRAY_AREF(elt, 0));
+        int oldfd = FIX2INT(RARRAY_AREF(elt, 1));
 
         if (save_redirect_fd(newfd, sargp, errmsg, errmsg_buflen) < 0) /* async-signal-safe */
             return -1;
@@ -2815,8 +2811,8 @@ run_exec_rlimit(VALUE ary, struct rb_execarg *sargp, char *errmsg, size_t errmsg
 {
     long i;
     for (i = 0; i < RARRAY_LEN(ary); i++) {
-        VALUE elt = RARRAY_PTR(ary)[i];
-        int rtype = NUM2INT(RARRAY_PTR(elt)[0]);
+        VALUE elt = RARRAY_AREF(ary, i);
+        int rtype = NUM2INT(RARRAY_AREF(elt, 0));
         struct rlimit rlim;
         if (sargp) {
             VALUE tmp, newary;
@@ -2824,7 +2820,7 @@ run_exec_rlimit(VALUE ary, struct rb_execarg *sargp, char *errmsg, size_t errmsg
                 ERRMSG("getrlimit");
                 return -1;
             }
-            tmp = hide_obj(rb_ary_new3(3, RARRAY_PTR(elt)[0],
+            tmp = hide_obj(rb_ary_new3(3, RARRAY_AREF(elt, 0),
                                        RLIM2NUM(rlim.rlim_cur),
                                        RLIM2NUM(rlim.rlim_max)));
             if (sargp->rlimit_limits == Qfalse)
@@ -2833,8 +2829,8 @@ run_exec_rlimit(VALUE ary, struct rb_execarg *sargp, char *errmsg, size_t errmsg
                 newary = sargp->rlimit_limits;
             rb_ary_push(newary, tmp);
         }
-        rlim.rlim_cur = NUM2RLIM(RARRAY_PTR(elt)[1]);
-        rlim.rlim_max = NUM2RLIM(RARRAY_PTR(elt)[2]);
+        rlim.rlim_cur = NUM2RLIM(RARRAY_AREF(elt, 1));
+        rlim.rlim_max = NUM2RLIM(RARRAY_AREF(elt, 2));
         if (setrlimit(rtype, &rlim) == -1) { /* hopefully async-signal-safe */
             ERRMSG("setrlimit");
             return -1;
@@ -2909,9 +2905,9 @@ rb_execarg_run_options(const struct rb_execarg *eargp, struct rb_execarg *sargp,
         long i;
         save_env(sargp);
         for (i = 0; i < RARRAY_LEN(obj); i++) {
-            VALUE pair = RARRAY_PTR(obj)[i];
-            VALUE key = RARRAY_PTR(pair)[0];
-            VALUE val = RARRAY_PTR(pair)[1];
+            VALUE pair = RARRAY_AREF(obj, i);
+            VALUE key = RARRAY_AREF(pair, 0);
+            VALUE val = RARRAY_AREF(pair, 1);
             if (NIL_P(val))
                 ruby_setenv(StringValueCStr(key), 0);
             else
@@ -5531,7 +5527,7 @@ proc_setgroups(VALUE obj, VALUE ary)
     groups = ALLOCA_N(rb_gid_t, ngroups);
 
     for (i = 0; i < ngroups; i++) {
-	VALUE g = RARRAY_PTR(ary)[i];
+	VALUE g = RARRAY_AREF(ary, i);
 
 	groups[i] = OBJ2GID(g);
     }

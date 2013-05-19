@@ -1,5 +1,6 @@
 #include "ruby/ruby.h"
 #include "ruby/encoding.h"
+#include "internal.h"
 #include <winbase.h>
 #include <wchar.h>
 #include <shlwapi.h>
@@ -193,7 +194,7 @@ code_page(rb_encoding *enc)
     enc_name = (char *)rb_enc_name(enc);
 
     fake_str.basic.flags = T_STRING|RSTRING_NOEMBED;
-    fake_str.basic.klass = rb_cString;
+    RBASIC_SET_CLASS_RAW((VALUE)&fake_str, rb_cString);
     fake_str.as.heap.len = strlen(enc_name);
     fake_str.as.heap.ptr = enc_name;
     fake_str.as.heap.aux.capa = fake_str.as.heap.len;
@@ -412,7 +413,7 @@ rb_file_expand_path_internal(VALUE fname, VALUE dname, int abs_mode, int long_na
 	path_encoding = rb_filesystem_encoding();
 	cp = path_cp = system_code_page();
 
-	/* ignores dir since we are expading home */
+	/* ignores dir since we are expanding home */
 	ignore_dir = 1;
 
 	/* exclude ~ from the result */

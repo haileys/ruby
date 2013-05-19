@@ -622,7 +622,7 @@ thread_create_core(VALUE thval, VALUE args, VALUE (*fn)(ANYARGS))
     th->pending_interrupt_queue = rb_ary_tmp_new(0);
     th->pending_interrupt_queue_checked = 0;
     th->pending_interrupt_mask_stack = rb_ary_dup(current_th->pending_interrupt_mask_stack);
-    RBASIC(th->pending_interrupt_mask_stack)->klass = 0;
+    RBASIC_CLEAR_CLASS(th->pending_interrupt_mask_stack);
 
     th->interrupt_mask = 0;
 
@@ -708,8 +708,8 @@ thread_initialize(VALUE thread, VALUE args)
         if (!proc || !RTEST(loc = rb_proc_location(proc))) {
             rb_raise(rb_eThreadError, "already initialized thread");
         }
-	file = RSTRING_PTR(RARRAY_PTR(loc)[0]);
-	if (NIL_P(line = RARRAY_PTR(loc)[1])) {
+	file = RSTRING_PTR(RARRAY_AREF(loc, 0));
+	if (NIL_P(line = RARRAY_AREF(loc, 1))) {
 	    rb_raise(rb_eThreadError, "already initialized thread - %s",
 		     file);
 	}
@@ -1258,7 +1258,7 @@ call_without_gvl(void *(*func)(void *), void *data1,
 /*
  * rb_thread_call_without_gvl - permit concurrent/parallel execution.
  * rb_thread_call_without_gvl2 - permit concurrent/parallel execution
- *                               without interrupt proceess.
+ *                               without interrupt process.
  *
  * rb_thread_call_without_gvl() does:
  *   (1) Check interrupts.
@@ -1499,7 +1499,7 @@ thread_s_pass(VALUE klass)
 /*
  * rb_threadptr_pending_interrupt_* - manage asynchronous error queue
  *
- * Async events such as an exception throwed by Thread#raise,
+ * Async events such as an exception thrown by Thread#raise,
  * Thread#kill and thread termination (after main thread termination)
  * will be queued to th->pending_interrupt_queue.
  * - clear: clear the queue.
@@ -1582,7 +1582,7 @@ rb_threadptr_pending_interrupt_include_p(rb_thread_t *th, VALUE err)
 {
     int i;
     for (i=0; i<RARRAY_LEN(th->pending_interrupt_queue); i++) {
-	VALUE e = RARRAY_PTR(th->pending_interrupt_queue)[i];
+	VALUE e = RARRAY_AREF(th->pending_interrupt_queue, i);
 	if (rb_class_inherited_p(e, err)) {
 	    return TRUE;
 	}
@@ -1597,7 +1597,7 @@ rb_threadptr_pending_interrupt_deque(rb_thread_t *th, enum handle_interrupt_timi
     int i;
 
     for (i=0; i<RARRAY_LEN(th->pending_interrupt_queue); i++) {
-	VALUE err = RARRAY_PTR(th->pending_interrupt_queue)[i];
+	VALUE err = RARRAY_AREF(th->pending_interrupt_queue, i);
 
 	enum handle_interrupt_timing mask_timing = rb_threadptr_pending_interrupt_check_mask(th, CLASS_OF(err));
 
@@ -1699,7 +1699,7 @@ handle_interrupt_arg_check_i(VALUE key, VALUE val)
  * ::handle_interrupt block we can purposefully handle RuntimeError exceptions.
  *
  *   th = Thread.new do
- *     Thead.handle_interrupt(RuntimeError => :never) {
+ *     Thread.handle_interrupt(RuntimeError => :never) {
  *       begin
  *         # You can write resource allocation code safely.
  *         Thread.handle_interrupt(RuntimeError => :immediate) {
@@ -1807,7 +1807,7 @@ rb_thread_s_handle_interrupt(VALUE self, VALUE mask_arg)
  * call-seq:
  *   target_thread.pending_interrupt?(error = nil) -> true/false
  *
- * Returns whether or not the asychronous queue is empty for the target thread.
+ * Returns whether or not the asynchronous queue is empty for the target thread.
  *
  * If +error+ is given, then check only for +error+ type deferred events.
  *
@@ -1960,7 +1960,7 @@ rb_threadptr_execute_interrupts(rb_thread_t *th, int blocking_timing)
 	    if (err == Qundef) {
 		/* no error */
 	    }
-	    else if (err == eKillSignal        /* Thread#kill receieved */  ||
+	    else if (err == eKillSignal        /* Thread#kill received */   ||
 		     err == eTerminateSignal   /* Terminate thread */       ||
 		     err == INT2FIX(TAG_FATAL) /* Thread.exit etc. */         ) {
 		rb_threadptr_to_kill(th);
@@ -2749,7 +2749,7 @@ rb_thread_local_aref(VALUE thread, ID id)
  *      thr[sym]   -> obj or nil
  *
  *  Attribute Reference---Returns the value of a fiber-local variable (current thread's root fiber
- *  if not explicitely inside a Fiber), using either a symbol or a string name.
+ *  if not explicitly inside a Fiber), using either a symbol or a string name.
  *  If the specified variable does not exist, returns +nil+.
  *
  *     [
@@ -3869,8 +3869,8 @@ clear_coverage_i(st_data_t key, st_data_t val, st_data_t dummy)
     VALUE lines = (VALUE)val;
 
     for (i = 0; i < RARRAY_LEN(lines); i++) {
-	if (RARRAY_PTR(lines)[i] != Qnil) {
-	    RARRAY_PTR(lines)[i] = INT2FIX(0);
+	if (RARRAY_AREF(lines, i) != Qnil) {
+	    RARRAY_ASET(lines, i, INT2FIX(0));
 	}
     }
     return ST_CONTINUE;
@@ -4880,7 +4880,7 @@ exec_recursive_i(VALUE tag, struct exec_recursive_params *p)
  * to Qtrue, otherwise the outermost func will be called. In the latter case,
  * all inner func are short-circuited by throw.
  * Implementation details: the value thrown is the recursive list which is
- * proper to the current method and unlikely to be catched anywhere else.
+ * proper to the current method and unlikely to be caught anywhere else.
  * list[recursive_key] is used as a flag for the outermost call.
  */
 
@@ -5210,12 +5210,12 @@ update_coverage(rb_event_flag_t event, VALUE proc, VALUE self, ID id, VALUE klas
     if (coverage && RBASIC(coverage)->klass == 0) {
 	long line = rb_sourceline() - 1;
 	long count;
-	if (RARRAY_PTR(coverage)[line] == Qnil) {
+	if (RARRAY_AREF(coverage, line) == Qnil) {
 	    return;
 	}
-	count = FIX2LONG(RARRAY_PTR(coverage)[line]) + 1;
+	count = FIX2LONG(RARRAY_AREF(coverage, line)) + 1;
 	if (POSFIXABLE(count)) {
-	    RARRAY_PTR(coverage)[line] = LONG2FIX(count);
+	    RARRAY_ASET(coverage, line, LONG2FIX(count));
 	}
     }
 }

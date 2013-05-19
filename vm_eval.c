@@ -750,7 +750,7 @@ rb_apply(VALUE recv, ID mid, VALUE args)
     argc = RARRAY_LENINT(args);
     if (argc >= 0x100) {
 	args = rb_ary_subseq(args, 0, argc);
-	RBASIC(args)->klass = 0;
+	RBASIC_CLEAR_CLASS(args);
 	OBJ_FREEZE(args);
 	ret = rb_call(recv, mid, argc, RARRAY_PTR(args), CALL_FCALL);
 	RB_GC_GUARD(args);
@@ -1164,7 +1164,6 @@ eval_string_with_cref(VALUE self, VALUE src, VALUE scope, NODE *cref, const char
     int state;
     VALUE result = Qundef;
     VALUE envval;
-    rb_binding_t *bind = 0;
     rb_thread_t *th = GET_THREAD();
     rb_env_t *env = NULL;
     rb_block_t block, *base_block;
@@ -1180,6 +1179,7 @@ eval_string_with_cref(VALUE self, VALUE src, VALUE scope, NODE *cref, const char
     mild_compile_error = th->mild_compile_error;
     TH_PUSH_TAG(th);
     if ((state = TH_EXEC_TAG()) == 0) {
+	rb_binding_t *bind = 0;
 	rb_iseq_t *iseq;
 	volatile VALUE iseqval;
 
@@ -1256,15 +1256,15 @@ eval_string_with_cref(VALUE self, VALUE src, VALUE scope, NODE *cref, const char
 		    (bt2 = rb_vm_backtrace_str_ary(th, 0, 0), RARRAY_LEN(bt2) > 0)) {
 		    if (!NIL_P(mesg) && RB_TYPE_P(mesg, T_STRING) && !RSTRING_LEN(mesg)) {
 			if (OBJ_FROZEN(mesg)) {
-			    VALUE m = rb_str_cat(rb_str_dup(RARRAY_PTR(errat)[0]), ": ", 2);
+			    VALUE m = rb_str_cat(rb_str_dup(RARRAY_AREF(errat, 0)), ": ", 2);
 			    rb_ivar_set(errinfo, id_mesg, rb_str_append(m, mesg));
 			}
 			else {
 			    rb_str_update(mesg, 0, 0, rb_str_new2(": "));
-			    rb_str_update(mesg, 0, 0, RARRAY_PTR(errat)[0]);
+			    rb_str_update(mesg, 0, 0, RARRAY_AREF(errat, 0));
 			}
 		    }
-		    RARRAY_PTR(errat)[0] = RARRAY_PTR(bt2)[0];
+		    RARRAY_AREF(errat, 0) = RARRAY_AREF(bt2, 0);
 		}
 	    }
 	    rb_exc_raise(errinfo);
@@ -1432,7 +1432,7 @@ VALUE
 rb_eval_cmd(VALUE cmd, VALUE arg, int level)
 {
     int state;
-    VALUE val = Qnil;		/* OK */
+    volatile VALUE val = Qnil;		/* OK */
     volatile int safe = rb_safe_level();
 
     if (OBJ_TAINTED(cmd)) {
@@ -1798,12 +1798,13 @@ rb_catch(const char *tag, VALUE (*func)(), VALUE data)
 }
 
 VALUE
-rb_catch_obj(VALUE tag, VALUE (*func)(), VALUE data)
+rb_catch_obj(VALUE t, VALUE (*func)(), VALUE data)
 {
     int state;
     volatile VALUE val = Qnil;		/* OK */
     rb_thread_t *th = GET_THREAD();
     rb_control_frame_t *saved_cfp = th->cfp;
+    volatile VALUE tag = t;
 
     TH_PUSH_TAG(th);
 

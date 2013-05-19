@@ -246,7 +246,7 @@ rb_iseq_add_mark_object(rb_iseq_t *iseq, VALUE obj)
     if (!RTEST(iseq->mark_ary)) {
 	iseq->mark_ary = rb_ary_tmp_new(3);
 	OBJ_UNTRUST(iseq->mark_ary);
-	RBASIC(iseq->mark_ary)->klass = 0;
+	RBASIC_CLEAR_CLASS(iseq->mark_ary);
     }
     rb_ary_push(iseq->mark_ary, obj);
 }
@@ -274,7 +274,6 @@ prepare_iseq_build(rb_iseq_t *iseq,
 
     iseq->defined_method_id = 0;
     iseq->mark_ary = 0;
-
 
     /*
      * iseq->special_block_builder = GC_GUARDED_PTR_REF(block_opt);
@@ -1844,7 +1843,7 @@ iseq_data_to_ary(rb_iseq_t *iseq)
     ti = 0;
 
     for (i=0, pos=0; i<RARRAY_LEN(nbody); i++) {
-	VALUE ary = RARRAY_PTR(nbody)[i];
+	VALUE ary = RARRAY_AREF(nbody, i);
 	st_data_t label;
 
 	if (st_lookup(labels_table, pos, &label)) {

@@ -341,7 +341,8 @@ enumerator_initialize(int argc, VALUE *argv, VALUE obj)
             if (NIL_P(argv[0]) || rb_obj_is_proc(argv[0]) ||
                 (RB_TYPE_P(argv[0], T_FLOAT) && RFLOAT_VALUE(argv[0]) == INFINITY)) {
                 size = argv[0];
-            } else {
+            }
+            else {
                 size = rb_to_int(argv[0]);
             }
             argc = 0;
@@ -696,7 +697,7 @@ ary2sv(VALUE args, int dup)
         return Qnil;
 
       case 1:
-        return RARRAY_PTR(args)[0];
+        return RARRAY_AREF(args, 0);
 
       default:
         if (dup)
@@ -873,24 +874,24 @@ enumerator_rewind(VALUE obj)
     return obj;
 }
 
+static VALUE append_method(VALUE obj, VALUE str, ID default_method, VALUE default_args);
+
 static VALUE
 inspect_enumerator(VALUE obj, VALUE dummy, int recur)
 {
     struct enumerator *e;
-    const char *cname;
-    VALUE eobj, eargs, str, method;
-    int tainted, untrusted;
+    VALUE eobj, str, cname;
 
     TypedData_Get_Struct(obj, struct enumerator, &enumerator_data_type, e);
 
-    cname = rb_obj_classname(obj);
+    cname = rb_obj_class(obj);
 
     if (!e || e->obj == Qundef) {
-	return rb_sprintf("#<%s: uninitialized>", cname);
+	return rb_sprintf("#<%"PRIsVALUE": uninitialized>", rb_class_path(cname));
     }
 
     if (recur) {
-	str = rb_sprintf("#<%s: ...>", cname);
+	str = rb_sprintf("#<%"PRIsVALUE": ...>", rb_class_path(cname));
 	OBJ_TAINT(str);
 	return str;
     }
@@ -900,26 +901,34 @@ inspect_enumerator(VALUE obj, VALUE dummy, int recur)
 	eobj = e->obj;
     }
 
-    tainted   = OBJ_TAINTED(eobj);
-    untrusted = OBJ_UNTRUSTED(eobj);
-
     /* (1..100).each_cons(2) => "#<Enumerator: 1..100:each_cons(2)>" */
-    str = rb_sprintf("#<%s: ", cname);
-    rb_str_concat(str, rb_inspect(eobj));
+    str = rb_sprintf("#<%"PRIsVALUE": %+"PRIsVALUE, rb_class_path(cname), eobj);
+    append_method(obj, str, e->meth, e->args);
+
+    rb_str_buf_cat2(str, ">");
+
+    return str;
+}
+
+static VALUE
+append_method(VALUE obj, VALUE str, ID default_method, VALUE default_args)
+{
+    VALUE method, eargs;
+
     method = rb_attr_get(obj, id_method);
-    if (NIL_P(method)) {
+    if (method != Qfalse) {
+	ID mid = default_method;
+	if (!NIL_P(method)) {
+	    Check_Type(method, T_SYMBOL);
+	    mid = SYM2ID(method);
+	}
 	rb_str_buf_cat2(str, ":");
-	rb_str_buf_cat2(str, rb_id2name(e->meth));
-    }
-    else if (method != Qfalse) {
-	Check_Type(method, T_SYMBOL);
-	rb_str_buf_cat2(str, ":");
-	rb_str_buf_cat2(str, rb_id2name(SYM2ID(method)));
+	rb_str_buf_append(str, rb_id2str(mid));
     }
 
     eargs = rb_attr_get(obj, id_arguments);
     if (NIL_P(eargs)) {
-	eargs = e->args;
+	eargs = default_args;
     }
     if (eargs != Qfalse) {
 	long   argc = RARRAY_LEN(eargs);
@@ -931,19 +940,13 @@ inspect_enumerator(VALUE obj, VALUE dummy, int recur)
 	    while (argc--) {
 		VALUE arg = *argv++;
 
-		rb_str_concat(str, rb_inspect(arg));
+		rb_str_append(str, rb_inspect(arg));
 		rb_str_buf_cat2(str, argc > 0 ? ", " : ")");
-
-		if (OBJ_TAINTED(arg)) tainted = TRUE;
-		if (OBJ_UNTRUSTED(arg)) untrusted = TRUE;
+		OBJ_INFECT(str, arg);
 	    }
 	}
     }
 
-    rb_str_buf_cat2(str, ">");
-
-    if (tainted) OBJ_TAINT(str);
-    if (untrusted) OBJ_UNTRUST(str);
     return str;
 }
 
@@ -1474,7 +1477,7 @@ lazy_flat_map_to_ary(VALUE obj, VALUE yielder)
     else {
 	long i;
 	for (i = 0; i < RARRAY_LEN(ary); i++) {
-	    rb_funcall(yielder, id_yield, 1, RARRAY_PTR(ary)[i]);
+	    rb_funcall(yielder, id_yield, 1, RARRAY_AREF(ary, i));
 	}
     }
     return Qnil;
@@ -1487,7 +1490,7 @@ lazy_flat_map_func(VALUE val, VALUE m, int argc, VALUE *argv)
     if (RB_TYPE_P(result, T_ARRAY)) {
 	long i;
 	for (i = 0; i < RARRAY_LEN(result); i++) {
-	    rb_funcall(argv[0], id_yield, 1, RARRAY_PTR(result)[i]);
+	    rb_funcall(argv[0], id_yield, 1, RARRAY_AREF(result, i));
 	}
     }
     else {
@@ -1641,7 +1644,7 @@ lazy_zip_arrays_func(VALUE val, VALUE arrays, int argc, VALUE *argv)
     ary = rb_ary_new2(RARRAY_LEN(arrays) + 1);
     rb_ary_push(ary, argv[1]);
     for (i = 0; i < RARRAY_LEN(arrays); i++) {
-	rb_ary_push(ary, rb_ary_entry(RARRAY_PTR(arrays)[i], count));
+	rb_ary_push(ary, rb_ary_entry(RARRAY_AREF(arrays, i), count));
     }
     rb_funcall(yielder, id_yield, 1, ary);
     rb_ivar_set(yielder, id_memo, LONG2NUM(++count));
@@ -1659,7 +1662,7 @@ lazy_zip_func(VALUE val, VALUE zip_args, int argc, VALUE *argv)
     if (NIL_P(arg)) {
 	arg = rb_ary_new2(RARRAY_LEN(zip_args));
 	for (i = 0; i < RARRAY_LEN(zip_args); i++) {
-	    rb_ary_push(arg, rb_funcall(RARRAY_PTR(zip_args)[i], id_to_enum, 0));
+	    rb_ary_push(arg, rb_funcall(RARRAY_AREF(zip_args, i), id_to_enum, 0));
 	}
 	rb_ivar_set(yielder, id_memo, arg);
     }
@@ -1667,7 +1670,7 @@ lazy_zip_func(VALUE val, VALUE zip_args, int argc, VALUE *argv)
     ary = rb_ary_new2(RARRAY_LEN(arg) + 1);
     rb_ary_push(ary, argv[1]);
     for (i = 0; i < RARRAY_LEN(arg); i++) {
-	v = rb_rescue2(call_next, RARRAY_PTR(arg)[i], next_stopped, 0,
+	v = rb_rescue2(call_next, RARRAY_AREF(arg, i), next_stopped, 0,
 		       rb_eStopIteration, (VALUE)0);
 	rb_ary_push(ary, v);
     }
@@ -1731,7 +1734,7 @@ static VALUE
 lazy_take_size(VALUE generator, VALUE args, VALUE lazy)
 {
     VALUE receiver = lazy_size(lazy);
-    long len = NUM2LONG(RARRAY_PTR(rb_ivar_get(lazy, id_arguments))[0]);
+    long len = NUM2LONG(RARRAY_AREF(rb_ivar_get(lazy, id_arguments), 0));
     if (NIL_P(receiver) || (FIXNUM_P(receiver) && FIX2LONG(receiver) < len))
 	return receiver;
     return LONG2NUM(len);
@@ -1780,7 +1783,7 @@ lazy_take_while(VALUE obj)
 static VALUE
 lazy_drop_size(VALUE generator, VALUE args, VALUE lazy)
 {
-    long len = NUM2LONG(RARRAY_PTR(rb_ivar_get(lazy, id_arguments))[0]);
+    long len = NUM2LONG(RARRAY_AREF(rb_ivar_get(lazy, id_arguments), 0));
     VALUE receiver = lazy_size(lazy);
     if (NIL_P(receiver))
 	return receiver;
