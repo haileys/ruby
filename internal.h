@@ -93,11 +93,11 @@ RCLASS_SUPER(VALUE c)
 }
 
 static inline VALUE
-RCLASS_SET_SUPER(VALUE a, VALUE b) {
-  rb_class_remove_from_super_subclasses(a);
-  rb_class_subclass_add(a, b);
-  OBJ_WRITE(a, &RCLASS_EXT(a)->super, b);
-  return b;
+RCLASS_SET_SUPER(VALUE klass, VALUE super) {
+  rb_class_remove_from_super_subclasses(klass);
+  rb_class_subclass_add(klass, super);
+  OBJ_WRITE(klass, &RCLASS_EXT(klass)->super, super);
+  return super;
 }
 
 struct vtm; /* defined by timev.h */
