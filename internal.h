@@ -99,7 +99,7 @@ RCLASS_SUPER(VALUE c)
 static inline VALUE
 RCLASS_SET_SUPER(VALUE klass, VALUE super) {
   rb_class_remove_from_super_subclasses(klass);
-  rb_class_subclass_add(klass, super);
+  rb_class_subclass_add(super, klass);
   OBJ_WRITE(klass, &RCLASS_EXT(klass)->super, super);
   return super;
 }

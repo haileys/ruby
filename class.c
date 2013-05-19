@@ -157,7 +157,6 @@ class_alloc(VALUE flags, VALUE klass)
     RCLASS_IV_TBL(obj) = 0;
     RCLASS_CONST_TBL(obj) = 0;
     RCLASS_M_TBL(obj) = 0;
-    RCLASS_SET_SUPER((VALUE)obj, 0);
     RCLASS_ORIGIN(obj) = (VALUE)obj;
     RCLASS_IV_INDEX_TBL(obj) = 0;
 
@@ -166,6 +165,8 @@ class_alloc(VALUE flags, VALUE klass)
     RCLASS_EXT(obj)->module_subclasses = NULL;
     RCLASS_EXT(obj)->seq = rb_next_seq();
     RCLASS_EXT(obj)->mc_tbl = NULL;
+
+    RCLASS_SET_SUPER((VALUE)obj, 0);
 
     RCLASS_REFINED_CLASS(obj) = Qnil;
     RCLASS_EXT(obj)->allocator = 0;
