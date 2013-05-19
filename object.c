@@ -1847,21 +1847,6 @@ rb_class_superclass(VALUE klass)
 }
 
 VALUE
-rb_class_subclasses(VALUE klass)
-{
-    VALUE ary = rb_ary_new();
-    rb_subclass_entry_t *cur;
-    for (cur = RCLASS_EXT(klass)->subclasses; cur; cur = cur->next) {
-	if (BUILTIN_TYPE(cur->klass) == T_ICLASS) {
-	    rb_ary_push(ary, RCLASS_EXT(cur->klass)->subclasses->klass);
-	} else {
-	    rb_ary_push(ary, cur->klass);
-	}
-    }
-    return ary;
-}
-
-VALUE
 rb_class_get_superclass(VALUE klass)
 {
     return RCLASS_SUPER(klass);
@@ -3230,7 +3215,6 @@ Init_Object(void)
     rb_define_method(rb_cModule, "class_variable_defined?", rb_mod_cvar_defined, 1);
     rb_define_method(rb_cModule, "public_constant", rb_mod_public_constant, -1); /* in variable.c */
     rb_define_method(rb_cModule, "private_constant", rb_mod_private_constant, -1); /* in variable.c */
-    rb_define_method(rb_cModule, "subclasses", rb_class_subclasses, 0);
 
     rb_define_method(rb_cClass, "allocate", rb_obj_alloc, 0);
     rb_define_method(rb_cClass, "new", rb_class_new_instance, -1);
