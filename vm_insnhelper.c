@@ -510,7 +510,7 @@ vm_getivar(VALUE obj, ID id, IC ic, rb_call_info_t *ci, int is_attr)
 	VALUE val = Qundef;
 	VALUE klass = RBASIC(obj)->klass;
 
-	if (LIKELY((!is_attr && ic->ic_class == klass) ||
+	if (LIKELY((!is_attr && ic->ic_seq == RCLASS_EXT(klass)->seq) ||
 		   (is_attr && ci->aux.index > 0))) {
 	    long index = !is_attr ? ic->ic_value.index : ci->aux.index - 1;
 	    long len = ROBJECT_NUMIV(obj);
@@ -532,7 +532,7 @@ vm_getivar(VALUE obj, ID id, IC ic, rb_call_info_t *ci, int is_attr)
 			val = ptr[index];
 		    }
 		    if (!is_attr) {
-			ic->ic_class = klass;
+			ic->ic_seq = RCLASS_EXT(klass)->seq;
 			ic->ic_value.index = index;
 		    }
 		    else { /* call_info */
@@ -569,7 +569,7 @@ vm_setivar(VALUE obj, ID id, VALUE val, IC ic, rb_call_info_t *ci, int is_attr)
 	st_data_t index;
 
 	if (LIKELY(
-	    (!is_attr && ic->ic_class == klass) ||
+	    (!is_attr && ic->ic_seq == RCLASS_EXT(klass)->seq) ||
 	    (is_attr && ci->aux.index > 0))) {
 	    long index = !is_attr ? ic->ic_value.index : ci->aux.index-1;
 	    long len = ROBJECT_NUMIV(obj);
@@ -585,7 +585,7 @@ vm_setivar(VALUE obj, ID id, VALUE val, IC ic, rb_call_info_t *ci, int is_attr)
 
 	    if (iv_index_tbl && st_lookup(iv_index_tbl, (st_data_t)id, &index)) {
 		if (!is_attr) {
-		    ic->ic_class = klass;
+		    ic->ic_seq = RCLASS_EXT(klass)->seq;
 		    ic->ic_value.index = index;
 		}
 		else {
@@ -849,12 +849,11 @@ vm_search_method(rb_call_info_t *ci, VALUE recv)
     VALUE klass = CLASS_OF(recv);
 
 #if OPT_INLINE_METHOD_CACHE
-    if (LIKELY(GET_METHOD_STATE_VERSION() == ci->vmstat && RCLASS_EXT(klass)->seq == ci->seq && klass == ci->klass)) {
+    if (LIKELY(GET_METHOD_STATE_VERSION() == ci->vmstat && RCLASS_EXT(klass)->seq == ci->seq)) {
 	/* cache hit! */
     }
     else {
 	ci->me = rb_method_entry(klass, ci->mid, &ci->defined_class);
-	ci->klass = klass;
 	ci->vmstat = GET_METHOD_STATE_VERSION();
 	ci->seq = RCLASS_EXT(klass)->seq;
 	ci->call = vm_call_general;

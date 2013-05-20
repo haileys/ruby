@@ -134,7 +134,6 @@ typedef struct rb_compile_option_struct rb_compile_option_t;
 struct iseq_inline_cache_entry {
     vm_state_version_t ic_vmstat;
     vm_state_version_t ic_seq;
-    VALUE ic_class;
     union {
 	VALUE value;
 	long index;
