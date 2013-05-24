@@ -300,7 +300,7 @@ class PP < PrettyPrint
     include PPMethods
   end
 
-  module ObjectMixin
+  module ObjectMixin # :nodoc:
     # 1. specific pretty_print
     # 2. specific inspect
     # 3. generic pretty_print

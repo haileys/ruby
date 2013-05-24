@@ -768,6 +768,12 @@ console_dev(VALUE klass)
     return con;
 }
 
+/*
+ * call-seq:
+ *   io.getch(min: nil, time: nil)       -> char
+ *
+ * See IO#getch.
+ */
 static VALUE
 io_getch(int argc, VALUE *argv, VALUE io)
 {
@@ -803,7 +809,7 @@ InitVM_console(void)
     rb_define_method(rb_cIO, "ioflush", console_ioflush, 0);
     rb_define_singleton_method(rb_cIO, "console", console_dev, 0);
     {
-	VALUE mReadable = rb_define_module_under(rb_cIO, "readable");
+	VALUE mReadable = rb_define_module_under(rb_cIO, "generic_readable");
 	rb_define_method(mReadable, "getch", io_getch, -1);
     }
 }

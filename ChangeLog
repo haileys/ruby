@@ -1,3 +1,257 @@
+Fri May 24 19:32:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* variable.c (set_const_visibility): use rb_frame_this_func() instead
+	  of rb_frame_callee() for getting the name of the called method
+
+	* test/ruby/test_module.rb: add test for private_constant with no args
+
+Fri May 24 18:53:10 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: do major/full GC when:
+	  * number of oldgen object is biggger than twice of
+	    number of oldgen object at last full GC.
+	  * number of remembered shady object is bigger than twice of
+	    number of remembered shady object at last full GC.
+	  * number of oldgen object and remembered shady object is bigger
+	    than half of total object space.
+	  (please fix my English!)
+
+Fri May 24 17:07:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* intern.h: remove dangling rb_class_init_copy declaration
+	  [ruby-core:55120] [Bug #8434]
+
+Fri May 24 16:31:23 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/strscan/strscan.c (strscan_aref): raise error if given
+	  name reference is not found.
+
+Fri May 24 15:48:18 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (after_gc_sweep, garbage_collect_body): do major GC (full GC)
+	  before extending heaps.
+	  TODO: do major GC when there are many old (promoted) objects.
+
+	* gc.c (after_gc_sweep): remove TODO comments.
+
+Fri May 24 11:04:00 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in (LIBRUBY_RPATHFLAGS): do not append -L option with
+	  runtime library directory if cross compiling, but only -R option.
+	  runtime path makes no sense on the host system.  [ruby-dev:47363]
+	  [Bug #8443]
+
+Fri May 24 02:57:17 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* object.c (rb_obj_clone): should not propagate OLDGEN status.
+	  This propagation had caused WB miss for class.
+
+Thu May 23 17:35:30 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* load.c (loaded_feature_path): fix invalid read by index underflow.
+	  the beginning of name is also a boundary as well as just after '/'.
+
+Thu May 23 17:21:22 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* gc.c (gc_profile_dump_on): revert r40898.  ok to show the record
+	  accumulating while lazy_sweep().
+
+Wed May 22 16:50:18 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* gc.c (gc_profile_dump_on): use size_t to get rid of overflow and
+	  show the header when next_index > 0, instead of next_index != 1.
+
+Wed May 22 15:18:59 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* win32/win32.c (setup_overlapped): check the error code in addition
+	  to the result of SetFilePointer() to determine if an error occurred,
+	  because INVALID_SET_FILE_POINTER is a valid value.
+	  [ruby-core:55098] [Bug #8431]
+
+	* win32/win32.c (setup_overlapped, finish_overlapped): extract from
+	  rb_w32_read() and rb_w32_write().
+
+Wed May 22 14:19:56 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (gc_prepare_free_objects, rest_sweep, lazy_sweep): fix position
+	  of `during_gc' setting.
+
+Wed May 22 07:36:08 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (garbage_collect): all GC is start from garbage_collect()
+	  (or garbage_collect_body()). `garbage_collect()' accept additional
+	  two parameters `full_mark' and `immediate_sweep'.
+	  If `full_mark' is TRUE, then force it full gc (major gc), otherwise,
+	  it depends on status of object space. Now, it will be minor gc.
+	  If `immediate_sweep' is TRUE, then disable lazy sweep.
+	  To allocate free memory, `full_mark' and `immediate_sweep' should be
+	  TRUE. Otherwise, they should be FALSE.
+
+	* gc.c (gc_prepare_free_objects): use `garbage_collect_body()'.
+
+	* gc.c (slot_sweep, before_gc_sweep, after_gc_sweep): add logging code.
+
+Tue May 21 22:47:06 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/strscan/strscan.c (strscan_aref): support named captures.
+	  patched by Konstantin Haase [ruby-core:54664] [Feature #8343]
+
+Tue May 21 21:48:44 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* test/ruby/test_dir_m17n.rb (TestDir_M17N#test_entries_compose):
+	  Use #each instead of #map just for iteration.
+
+Tue May 21 19:57:22 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* ext/digest/lib/digest.rb (Digest::Class.file): Take optional
+	  arguments that are passed to the constructor of the digest
+	  class.
+
+Tue May 21 17:21:12 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: remove gc_profile_record::is_marked. always true.
+
+Tue May 21 17:13:40 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: fix to collect additional information for GC::Profiler.
+	  * major/minor GC
+	  * trigger reason of GC
+
+	* gc.c (gc_profile_dump_on): change reporting format with
+	  added information.
+
+	* gc.c (gc_profile_record_get): return added information by
+	  :GC_FLAGS => array.
+
+Tue May 21 16:45:31 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: GC::Profiler's sweeping time is accumulated all slot
+	  sweeping time. At lazy GC, GC::Profiler makes new record entry
+	  for each lazy_sweep(). In this change, accumulating all
+	  slot_sweep() time.
+	  And change indentation.
+
+Tue May 21 16:29:09 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* common.mk (rdoc-bench): add a benchmark rule
+	  using RDoc. Generate all rdoc related files
+	  (same as `make rdoc') in temporary directory
+	  and remove them. Execution time, GC::Profiler
+	  and results of GC.stat are printed.
+
+	* tool/rdocbench.rb: added for `rdoc-bench'.
+
+Tue May 21 16:25:05 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (gc_profile_dump_on): `count' should be (int) because it
+	  can be negative number.
+	  And use pointer for `record' (don't copy).
+
+Tue May 21 03:11:18 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* dir.c (dir_each): compose HFS file names from
+	  UTF8-MAC. [ruby-core:48745] [Bug #7267]
+
+Tue May 21 03:08:52 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* test/ruby/envutil.rb (assert_separately): require envutil in the
+	  child process too.
+
+Tue May 21 03:07:26 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* string.c (rb_str_conv_enc_opts): should infect.
+
+Mon May 20 22:24:45 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* lib/set.rb (Set#delete_if, Set#keep_if): Avoid blockless call of
+	  proc, which is not portable to JRuby.  Replace &method() with
+	  faster and simpler literal blocks while at it.
+
+Mon May 20 22:00:31 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/e2mmap.rb: Format of E2MM documentation
+
+Mon May 20 21:41:15 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/extmk.rb: nodoc this file
+
+Mon May 20 20:43:32 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/cmath.rb: Remove duplicate RDoc heading from overview
+
+Mon May 20 20:36:19 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/securerandom.rb: Update position of overview for RDoc
+
+Mon May 20 19:33:55 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* math.c: improve and fix documentation of sin, tan and log
+
+Mon May 20 19:31:49 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* lib/logger.rb (Logger::Application): show namespace in documentation
+
+Mon May 20 11:50:12 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/pp.rb: Revert part of r40834 and nodoc PP::ObjectMixin
+	  [ruby-core:55068]
+
+Mon May 20 10:40:21 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* lib/webrick/htmlutils.rb (WEBrick::HTMLUtils#escape): replace HTML
+	  meta chars even in non-ascii string.  [Bug #8425] [ruby-core:55052]
+
+	* lib/webrick/httputils.rb (WEBrick::HTTPUtils#{_escape,_unescape}):
+	  fix %-escape encodings.  [Bug #8425] [ruby-core:55052]
+
+	* lib/webrick/httpservlet/filehandler.rb (set_dir_list): revert r20152
+	  partially and fix misuse of bytesize and regexp repetition operator.
+
+Mon May 20 08:03:51 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/profiler.rb: Document Profiler__ methods
+
+Mon May 20 08:02:13 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/tempfile.rb: nodoc Tempfile#inspect
+
+Mon May 20 07:48:24 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/stringio/stringio.c: Correct position of method rdoc
+
+Mon May 20 07:27:41 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* math.c: RDoc formatting of Math core docs with domains and codomains
+	  Patch by @eLobato [Fixes GH-309]
+
+Mon May 20 05:58:12 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/bigdecimal/bigdecimal.c: Formatting for BigMath [Fixes GH-306]
+	  Based on a patch by @eLobato.
+	* ext/bigdecimal/lib/bigdecimal/math.rb: ditto
+
+Mon May 20 04:56:59 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/forwardable.rb: Forwardable examples in overview were broken
+	  Based on patch by @joem [Fixes GH-303] [Bug #8392]
+
+Mon May 20 03:35:26 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/optparse.rb: nodoc OptionParser::Version and SPLAT_PROC
+
+Mon May 20 03:16:52 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/pp.rb: Document PP::ObjectMixin [Fixes GH-312]
+
+Sun May 19 23:52:22 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* test/webrick/test_htmlutils.rb: add test for WEBrick::HTMLUtils.
+
+Sun May 19 23:12:07 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* encoding.c: document fix, change default script encoding.
+	  patched by @windwiny [Fixes GH-310]
+
 Sun May 19 17:29:07 2013  Akinori MUSHA  <knu@iDaemons.org>
 
 	* lib/set.rb (Set#delete_if, Set#keep_if): Add comments.
