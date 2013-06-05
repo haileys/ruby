@@ -72,6 +72,8 @@ recalc_add_ruby_vm_event_flags(rb_event_flag_t events)
 	}
 	ruby_vm_event_flags |= ruby_event_flag_count[i] ? (1<<i) : 0;
     }
+
+    rb_objspace_set_event_hook(ruby_vm_event_flags);
 }
 
 static void
@@ -86,6 +88,8 @@ recalc_remove_ruby_vm_event_flags(rb_event_flag_t events)
 	}
 	ruby_vm_event_flags |= ruby_event_flag_count[i] ? (1<<i) : 0;
     }
+
+    rb_objspace_set_event_hook(ruby_vm_event_flags);
 }
 
 /* add/remove hooks */
@@ -260,7 +264,7 @@ exec_hooks(rb_thread_t *th, rb_hook_list_t *list, const rb_trace_arg_t *trace_ar
 	rb_event_hook_t *hook;
 
 	for (hook = list->hooks; hook; hook = hook->next) {
-	    if (LIKELY(!(hook->hook_flags & RUBY_EVENT_HOOK_FLAG_DELETED)) && (trace_arg->event & hook->events)) {
+	    if (!(hook->hook_flags & RUBY_EVENT_HOOK_FLAG_DELETED) && (trace_arg->event & hook->events)) {
 		if (!(hook->hook_flags & RUBY_EVENT_HOOK_FLAG_RAW_ARG)) {
 		    (*hook->func)(trace_arg->event, hook->data, trace_arg->self, trace_arg->id, trace_arg->klass);
 		}
@@ -692,6 +696,12 @@ rb_tracearg_from_tracepoint(VALUE tpval)
     return get_trace_arg();
 }
 
+rb_event_flag_t
+rb_tracearg_event_flag(rb_trace_arg_t *trace_arg)
+{
+    return trace_arg->event;
+}
+
 VALUE
 rb_tracearg_event(rb_trace_arg_t *trace_arg)
 {
@@ -802,6 +812,21 @@ VALUE
 rb_tracearg_raised_exception(rb_trace_arg_t *trace_arg)
 {
     if (trace_arg->event & (RUBY_EVENT_RAISE)) {
+	/* ok */
+    }
+    else {
+	rb_raise(rb_eRuntimeError, "not supported by this event");
+    }
+    if (trace_arg->data == Qundef) {
+	rb_bug("tp_attr_raised_exception_m: unreachable");
+    }
+    return trace_arg->data;
+}
+
+VALUE
+rb_tracearg_object(rb_trace_arg_t *trace_arg)
+{
+    if (trace_arg->event & (RUBY_INTERNAL_EVENT_NEWOBJ | RUBY_INTERNAL_EVENT_FREEOBJ)) {
 	/* ok */
     }
     else {
@@ -1352,3 +1377,60 @@ Init_vm_trace(void)
     rb_define_method(rb_cTracePoint, "raised_exception", tracepoint_attr_raised_exception, 0);
 }
 
+typedef struct rb_postponed_job_struct {
+    unsigned long flags; /* reserve */
+    rb_thread_t *th; /* created thread, reserve */
+    rb_postponed_job_func_t func;
+    void *data;
+    struct rb_postponed_job_struct *next;
+} rb_postponed_job_t;
+
+int
+rb_postponed_job_register(unsigned int flags, rb_postponed_job_func_t func, void *data)
+{
+    rb_thread_t *th = GET_THREAD();
+    rb_vm_t *vm = th->vm;
+    rb_postponed_job_t *pjob = (rb_postponed_job_t *)ruby_xmalloc(sizeof(rb_postponed_job_t));
+    if (pjob == NULL) return 0; /* failed */
+
+    pjob->flags = flags;
+    pjob->th = th;
+    pjob->func = func;
+    pjob->data = data;
+
+    pjob->next = vm->postponed_job;
+    vm->postponed_job = pjob;
+
+    RUBY_VM_SET_POSTPONED_JOB_INTERRUPT(th);
+    return 1;
+}
+
+int
+rb_postponed_job_register_one(unsigned int flags, rb_postponed_job_func_t func, void *data)
+{
+    rb_vm_t *vm = GET_VM();
+    rb_postponed_job_t *pjob = vm->postponed_job;
+
+    while (pjob) {
+	if (pjob->func == func) {
+	    return 2;
+	}
+	pjob = pjob->next;
+    }
+
+    return rb_postponed_job_register(flags, func, data);
+}
+
+void
+rb_postponed_job_flush(rb_vm_t *vm)
+{
+    rb_postponed_job_t *pjob = vm->postponed_job, *next_pjob;
+    vm->postponed_job = 0;
+
+    while (pjob) {
+	next_pjob = pjob->next;
+	pjob->func(pjob->data);
+	ruby_xfree(pjob);
+	pjob = next_pjob;
+    }
+}

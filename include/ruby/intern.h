@@ -48,9 +48,9 @@ void rb_mem_clear(register VALUE*, register long);
 VALUE rb_assoc_new(VALUE, VALUE);
 VALUE rb_check_array_type(VALUE);
 VALUE rb_ary_new(void);
-VALUE rb_ary_new2(long);
-VALUE rb_ary_new3(long,...);
-VALUE rb_ary_new4(long, const VALUE *);
+VALUE rb_ary_new_capa(long capa);
+VALUE rb_ary_new_from_args(long n, ...);
+VALUE rb_ary_new_from_values(long n, const VALUE *elts);
 VALUE rb_ary_tmp_new(long);
 void rb_ary_free(VALUE);
 void rb_ary_modify(VALUE);
@@ -86,6 +86,9 @@ VALUE rb_ary_cmp(VALUE, VALUE);
 VALUE rb_ary_replace(VALUE copy, VALUE orig);
 VALUE rb_get_values_at(VALUE, long, int, VALUE*, VALUE(*)(VALUE,long));
 VALUE rb_ary_resize(VALUE ary, long len);
+#define rb_ary_new2 rb_ary_new_capa
+#define rb_ary_new3 rb_ary_new_from_args
+#define rb_ary_new4 rb_ary_new_from_values
 /* bignum.c */
 VALUE rb_big_new(long, int);
 int rb_bigzero_p(VALUE x);
@@ -205,8 +208,10 @@ VALUE rb_enumeratorize_with_size(VALUE, VALUE, int, VALUE *, VALUE (*)(ANYARGS))
 #define RETURN_ENUMERATOR(obj, argc, argv) RETURN_SIZED_ENUMERATOR(obj, argc, argv, 0)
 /* error.c */
 VALUE rb_exc_new(VALUE, const char*, long);
-VALUE rb_exc_new2(VALUE, const char*);
-VALUE rb_exc_new3(VALUE, VALUE);
+VALUE rb_exc_new_cstr(VALUE, const char*);
+VALUE rb_exc_new_str(VALUE, VALUE);
+#define rb_exc_new2 rb_exc_new_cstr
+#define rb_exc_new3 rb_exc_new_str
 PRINTF_ARGS(NORETURN(void rb_loaderror(const char*, ...)), 1, 2);
 PRINTF_ARGS(NORETURN(void rb_loaderror_with_path(VALUE path, const char*, ...)), 2, 3);
 PRINTF_ARGS(NORETURN(void rb_name_error(ID, const char*, ...)), 2, 3);
@@ -461,6 +466,7 @@ VALUE rb_hash_aset(VALUE, VALUE, VALUE);
 VALUE rb_hash_clear(VALUE);
 VALUE rb_hash_delete_if(VALUE);
 VALUE rb_hash_delete(VALUE,VALUE);
+VALUE rb_hash_set_ifnone(VALUE hash, VALUE ifnone);
 typedef VALUE rb_hash_update_func(VALUE newkey, VALUE oldkey, VALUE value);
 VALUE rb_hash_update_by(VALUE hash1, VALUE hash2, rb_hash_update_func *func);
 struct st_table *rb_hash_tbl(VALUE);
@@ -658,16 +664,11 @@ VALUE rb_str_format(int, const VALUE *, VALUE);
 /* string.c */
 VALUE rb_str_new(const char*, long);
 VALUE rb_str_new_cstr(const char*);
-VALUE rb_str_new2(const char*);
 VALUE rb_str_new_shared(VALUE);
-VALUE rb_str_new3(VALUE);
 VALUE rb_str_new_frozen(VALUE);
-VALUE rb_str_new4(VALUE);
 VALUE rb_str_new_with_class(VALUE, const char*, long);
-VALUE rb_str_new5(VALUE, const char*, long);
 VALUE rb_tainted_str_new_cstr(const char*);
 VALUE rb_tainted_str_new(const char*, long);
-VALUE rb_tainted_str_new2(const char*);
 VALUE rb_external_str_new(const char*, long);
 VALUE rb_external_str_new_cstr(const char*);
 VALUE rb_locale_str_new(const char*, long);
@@ -680,7 +681,6 @@ VALUE rb_str_buf_new2(const char*);
 VALUE rb_str_tmp_new(long);
 VALUE rb_usascii_str_new(const char*, long);
 VALUE rb_usascii_str_new_cstr(const char*);
-VALUE rb_usascii_str_new2(const char*);
 void rb_str_free(VALUE);
 void rb_str_shared_replace(VALUE, VALUE);
 VALUE rb_str_buf_append(VALUE, VALUE);
@@ -789,11 +789,11 @@ VALUE rb_str_ellipsize(VALUE, long);
 	rb_str_cat((str), (ptr), (long)strlen(ptr)) : \
 	rb_str_cat2((str), (ptr));			\
 })
-#define rb_exc_new2(klass, ptr) __extension__ ( \
+#define rb_exc_new_cstr(klass, ptr) __extension__ ( \
 {						\
     (__builtin_constant_p(ptr)) ?	        \
 	rb_exc_new((klass), (ptr), (long)strlen(ptr)) : \
-	rb_exc_new2((klass), (ptr));		\
+	rb_exc_new_cstr((klass), (ptr));		\
 })
 #endif
 #define rb_str_new2 rb_str_new_cstr

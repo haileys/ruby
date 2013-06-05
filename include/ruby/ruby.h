@@ -345,7 +345,7 @@ rb_long2int_inline(long n)
 
 #define IMMEDIATE_P(x) ((VALUE)(x) & IMMEDIATE_MASK)
 
-#define SYMBOL_P(x) (((VALUE)(x)&~(~(VALUE)0<<RUBY_SPECIAL_SHIFT))==SYMBOL_FLAG)
+#define SYMBOL_P(x) (((VALUE)(x)&~((~(VALUE)0)<<RUBY_SPECIAL_SHIFT))==SYMBOL_FLAG)
 #define ID2SYM(x) (((VALUE)(x)<<RUBY_SPECIAL_SHIFT)|SYMBOL_FLAG)
 #define SYM2ID(x) RSHIFT((unsigned long)(x),RUBY_SPECIAL_SHIFT)
 
@@ -689,6 +689,11 @@ VALUE rb_obj_setup(VALUE obj, VALUE klass, VALUE type);
 #ifndef RGENGC_WB_PROTECTED_ARRAY
 #define RGENGC_WB_PROTECTED_ARRAY 1
 #endif
+
+#ifndef RGENGC_WB_PROTECTED_HASH
+#define RGENGC_WB_PROTECTED_HASH 1
+#endif
+
 #ifndef RGENGC_WB_PROTECTED_STRING
 #define RGENGC_WB_PROTECTED_STRING 1
 #endif
@@ -966,14 +971,15 @@ struct RHash {
     struct RBasic basic;
     struct st_table *ntbl;      /* possibly 0 */
     int iter_lev;
-    VALUE ifnone;
+    const VALUE ifnone;
 };
 /* RHASH_TBL allocates st_table if not available. */
 #define RHASH_TBL(h) rb_hash_tbl(h)
 #define RHASH_ITER_LEV(h) (RHASH(h)->iter_lev)
 #define RHASH_IFNONE(h) (RHASH(h)->ifnone)
-#define RHASH_SIZE(h) (RHASH(h)->ntbl ? RHASH(h)->ntbl->num_entries : 0)
+#define RHASH_SIZE(h) (RHASH(h)->ntbl ? (st_index_t)RHASH(h)->ntbl->num_entries : 0)
 #define RHASH_EMPTY_P(h) (RHASH_SIZE(h) == 0)
+#define RHASH_SET_IFNONE(h, ifnone) rb_hash_set_ifnone((VALUE)h, ifnone)
 
 struct RFile {
     struct RBasic basic;
@@ -1463,8 +1469,10 @@ VALUE rb_eval_string(const char*);
 VALUE rb_eval_string_protect(const char*, int*);
 VALUE rb_eval_string_wrap(const char*, int*);
 VALUE rb_funcall(VALUE, ID, int, ...);
-VALUE rb_funcall2(VALUE, ID, int, const VALUE*);
-VALUE rb_funcall3(VALUE, ID, int, const VALUE*);
+VALUE rb_funcallv(VALUE, ID, int, const VALUE*);
+VALUE rb_funcallv_public(VALUE, ID, int, const VALUE*);
+#define rb_funcall2 rb_funcallv
+#define rb_funcall3 rb_funcallv_public
 VALUE rb_funcall_passing_block(VALUE, ID, int, const VALUE*);
 int rb_scan_args(int, const VALUE*, const char*, ...);
 VALUE rb_call_super(int, const VALUE*);
@@ -1715,16 +1723,25 @@ int ruby_native_thread_p(void);
 #define RUBY_EVENT_ALL       0x00ff
 
 /* for TracePoint extended events */
-#define RUBY_EVENT_B_CALL          0x0100
-#define RUBY_EVENT_B_RETURN        0x0200
-#define RUBY_EVENT_THREAD_BEGIN    0x0400
-#define RUBY_EVENT_THREAD_END      0x0800
-#define RUBY_EVENT_TRACEPOINT_ALL  0xFFFF
+#define RUBY_EVENT_B_CALL            0x0100
+#define RUBY_EVENT_B_RETURN          0x0200
+#define RUBY_EVENT_THREAD_BEGIN      0x0400
+#define RUBY_EVENT_THREAD_END        0x0800
+#define RUBY_EVENT_TRACEPOINT_ALL    0xffff
 
 /* special events */
-#define RUBY_EVENT_SPECIFIED_LINE 0x10000
-#define RUBY_EVENT_SWITCH         0x20000
-#define RUBY_EVENT_COVERAGE       0x40000
+#define RUBY_EVENT_SPECIFIED_LINE         0x010000
+#define RUBY_EVENT_COVERAGE               0x020000
+
+/* internal events */
+#define RUBY_INTERNAL_EVENT_SWITCH        0x040000
+                                       /* 0x080000 */
+#define RUBY_INTERNAL_EVENT_NEWOBJ        0x100000
+#define RUBY_INTERNAL_EVENT_FREEOBJ       0x200000
+#define RUBY_INTERNAL_EVENT_GC_START      0x400000
+#define RUBY_INTERNAL_EVENT_GC_END        0x800000
+#define RUBY_INTERNAL_EVENT_OBJSPACE_MASK 0xf00000
+#define RUBY_INTERNAL_EVENT_MASK        0xfffe0000
 
 typedef unsigned long rb_event_flag_t;
 typedef void (*rb_event_hook_func_t)(rb_event_flag_t evflag, VALUE data, VALUE self, ID mid, VALUE klass);

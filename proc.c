@@ -1791,6 +1791,7 @@ rb_method_entry_min_max_arity(const rb_method_entry_t *me, int *max)
 	  default:
 	    break;
 	}
+	break;
       }
       case VM_METHOD_TYPE_REFINED:
 	*max = UNLIMITED_ARGUMENTS;
@@ -2117,7 +2118,7 @@ method_proc(VALUE method)
 }
 
 /*
- * call_seq:
+ * call-seq:
  *   local_jump_error.exit_value  -> obj
  *
  * Returns the exit value associated with this +LocalJumpError+.

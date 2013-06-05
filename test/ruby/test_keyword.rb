@@ -22,7 +22,6 @@ class TestKeywordArguments < Test::Unit::TestCase
 
   def test_f2
     assert_equal([:xyz, "foo", 424242], f2(:xyz))
-    assert_raise(ArgumentError) { f2({}) } # [ruby-dev:46712] [Bug #7529]
     assert_equal([{"bar"=>42}, "foo", 424242], f2("bar"=>42))
   end
 
@@ -264,9 +263,16 @@ class TestKeywordArguments < Test::Unit::TestCase
 
   def test_rest_keyrest
     bug7665 = '[ruby-core:51278]'
+    bug8463 = '[ruby-core:55203] [Bug #8463]'
     expect = [*%w[foo bar], {zzz: 42}]
     assert_equal(expect, rest_keyrest(*expect), bug7665)
-    assert_equal(expect, proc {|*args, **opt| next *args, opt}.call(*expect), bug7665)
+    pr = proc {|*args, **opt| next *args, opt}
+    assert_equal(expect, pr.call(*expect), bug7665)
+    assert_equal(expect, pr.call(expect), bug8463)
+    pr = proc {|a, *b, **opt| next a, *b, opt}
+    assert_equal(expect, pr.call(expect), bug8463)
+    pr = proc {|a, **opt| next a, opt}
+    assert_equal(expect.values_at(0, -1), pr.call(expect), bug8463)
   end
 
   def test_bare_kwrest
@@ -378,5 +384,16 @@ class TestKeywordArguments < Test::Unit::TestCase
       end
     end
     assert_equal({:bar=>"x"}, a.new.foo(bar: "x"), bug8416)
+  end
+
+  def test_precedence_of_keyword_arguments
+    bug8040 = '[ruby-core:53199] [Bug #8040]'
+    a = Class.new do
+      def foo(x, **h)
+        [x, h]
+      end
+    end
+    assert_equal([{}, {}], a.new.foo({}))
+    assert_equal([{}, {:bar=>"x"}], a.new.foo({}, bar: "x"))
   end
 end

@@ -534,7 +534,7 @@ VALUE rb_eSystemCallError;
 VALUE rb_mErrno;
 static VALUE rb_eNOERROR;
 
-#undef rb_exc_new2
+#undef rb_exc_new_cstr
 
 VALUE
 rb_exc_new(VALUE etype, const char *ptr, long len)
@@ -543,13 +543,13 @@ rb_exc_new(VALUE etype, const char *ptr, long len)
 }
 
 VALUE
-rb_exc_new2(VALUE etype, const char *s)
+rb_exc_new_cstr(VALUE etype, const char *s)
 {
     return rb_exc_new(etype, s, strlen(s));
 }
 
 VALUE
-rb_exc_new3(VALUE etype, VALUE str)
+rb_exc_new_str(VALUE etype, VALUE str)
 {
     StringValue(str);
     return rb_funcall(etype, rb_intern("new"), 1, str);
@@ -1753,6 +1753,7 @@ Init_Exception(void)
     rb_eSyntaxError = rb_define_class("SyntaxError", rb_eScriptError);
 
     rb_eLoadError   = rb_define_class("LoadError", rb_eScriptError);
+    /* the path failed to load */
     rb_attr(rb_eLoadError, rb_intern("path"), 1, 0, Qfalse);
 
     rb_eNotImpError = rb_define_class("NotImplementedError", rb_eScriptError);

@@ -11,19 +11,11 @@
 
 #ifdef RUBY_EXPORT
 #include "ruby/ruby.h"
-#define dln_notimplement rb_notimplement
-#define dln_memerror rb_memerror
-#define dln_exit rb_exit
-#define dln_loaderror rb_loaderror
 #define dln_warning rb_warning
 #define dln_warning_arg
 #else
-#define dln_notimplement --->>> dln not implemented <<<---
-#define dln_memerror abort
-#define dln_exit exit
 #define dln_warning fprintf
 #define dln_warning_arg stderr,
-static void dln_loaderror(const char *format, ...);
 #endif
 #include "dln.h"
 
@@ -100,20 +92,6 @@ dln_find_file_r(const char *fname, const char *path, char *buf, size_t size)
 {
     if (!path) path = ".";
     return dln_find_1(fname, path, buf, size, 0);
-}
-
-static char fbuf[MAXPATHLEN];
-
-char *
-dln_find_exe(const char *fname, const char *path)
-{
-    return dln_find_exe_r(fname, path, fbuf, sizeof(fbuf));
-}
-
-char *
-dln_find_file(const char *fname, const char *path)
-{
-    return dln_find_file_r(fname, path, fbuf, sizeof(fbuf));
 }
 
 static char *

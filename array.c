@@ -425,11 +425,10 @@ ary_new(VALUE klass, long capa)
 }
 
 VALUE
-rb_ary_new2(long capa)
+rb_ary_new_capa(long capa)
 {
     return ary_new(rb_cArray, capa);
 }
-
 
 VALUE
 rb_ary_new(void)
@@ -437,10 +436,8 @@ rb_ary_new(void)
     return rb_ary_new2(RARRAY_EMBED_LEN_MAX);
 }
 
-#include <stdarg.h>
-
 VALUE
-rb_ary_new3(long n, ...)
+rb_ary_new_from_args(long n, ...)
 {
     va_list ar;
     VALUE ary;
@@ -459,7 +456,7 @@ rb_ary_new3(long n, ...)
 }
 
 VALUE
-rb_ary_new4(long n, const VALUE *elts)
+rb_ary_new_from_values(long n, const VALUE *elts)
 {
     VALUE ary;
 
@@ -3360,8 +3357,9 @@ rb_ary_fill(int argc, VALUE *argv, VALUE ary)
  *
  *     [ 1, 2, 3 ] + [ 4, 5 ]    #=> [ 1, 2, 3, 4, 5 ]
  *     a = [ "a", "b", "c" ]
- *     a + [ "d", "e", "f" ]
- *     a                         #=> [ "a", "b", "c", "d", "e", "f" ]
+ *     c = a + [ "d", "e", "f" ]
+ *     c                         #=> [ "a", "b", "c", "d", "e", "f" ]
+ *     a                         #=> [ "a", "b", "c" ]
  *
  *  See also Array#concat.
  */
@@ -3840,7 +3838,7 @@ rb_ary_diff(VALUE ary1, VALUE ary2)
     ary3 = rb_ary_new();
 
     for (i=0; i<RARRAY_LEN(ary1); i++) {
-	if (st_lookup(RHASH_TBL(hash), RARRAY_AREF(ary1, i), 0)) continue;
+	if (st_lookup(rb_hash_tbl_raw(hash), RARRAY_AREF(ary1, i), 0)) continue;
 	rb_ary_push(ary3, rb_ary_elt(ary1, i));
     }
     ary_recycle_hash(hash);
@@ -3881,7 +3879,7 @@ rb_ary_and(VALUE ary1, VALUE ary2)
 
     for (i=0; i<RARRAY_LEN(ary1); i++) {
 	vv = (st_data_t)(v = rb_ary_elt(ary1, i));
-	if (st_delete(RHASH_TBL(hash), &vv, 0)) {
+	if (st_delete(rb_hash_tbl_raw(hash), &vv, 0)) {
 	    rb_ary_push(ary3, v);
 	}
     }
@@ -3917,13 +3915,13 @@ rb_ary_or(VALUE ary1, VALUE ary2)
 
     for (i=0; i<RARRAY_LEN(ary1); i++) {
 	vv = (st_data_t)(v = rb_ary_elt(ary1, i));
-	if (st_delete(RHASH_TBL(hash), &vv, 0)) {
+	if (st_delete(rb_hash_tbl_raw(hash), &vv, 0)) {
 	    rb_ary_push(ary3, v);
 	}
     }
     for (i=0; i<RARRAY_LEN(ary2); i++) {
 	vv = (st_data_t)(v = rb_ary_elt(ary2, i));
-	if (st_delete(RHASH_TBL(hash), &vv, 0)) {
+	if (st_delete(rb_hash_tbl_raw(hash), &vv, 0)) {
 	    rb_ary_push(ary3, v);
 	}
     }
@@ -3983,7 +3981,7 @@ rb_ary_uniq_bang(VALUE ary)
 	    FL_SET_EMBED(ary);
 	}
 	ary_resize_capa(ary, i);
-	st_foreach(RHASH_TBL(hash), push_value, ary);
+	st_foreach(rb_hash_tbl_raw(hash), push_value, ary);
     }
     else {
 	hash = ary_make_hash(ary);
@@ -3992,7 +3990,7 @@ rb_ary_uniq_bang(VALUE ary)
 	}
 	for (i=j=0; i<RARRAY_LEN(ary); i++) {
 	    st_data_t vv = (st_data_t)(v = rb_ary_elt(ary, i));
-	    if (st_delete(RHASH_TBL(hash), &vv, 0)) {
+	    if (st_delete(rb_hash_tbl_raw(hash), &vv, 0)) {
 		rb_ary_store(ary, j++, v);
 	    }
 	}
@@ -4033,14 +4031,14 @@ rb_ary_uniq(VALUE ary)
     if (rb_block_given_p()) {
 	hash = ary_make_hash_by(ary);
 	uniq = ary_new(rb_obj_class(ary), RHASH_SIZE(hash));
-	st_foreach(RHASH_TBL(hash), push_value, uniq);
+	st_foreach(rb_hash_tbl_raw(hash), push_value, uniq);
     }
     else {
 	hash = ary_make_hash(ary);
 	uniq = ary_new(rb_obj_class(ary), RHASH_SIZE(hash));
 	for (i=0; i<RARRAY_LEN(ary); i++) {
 	    st_data_t vv = (st_data_t)(v = rb_ary_elt(ary, i));
-	    if (st_delete(RHASH_TBL(hash), &vv, 0)) {
+	    if (st_delete(rb_hash_tbl_raw(hash), &vv, 0)) {
 		rb_ary_push(uniq, v);
 	    }
 	}

@@ -109,11 +109,12 @@ void rb_class_subclass_add(VALUE, VALUE);
 static inline VALUE
 RCLASS_SUPER(VALUE c)
 {
-  return RCLASS_EXT(c)->super;
+    return RCLASS_EXT(c)->super;
 }
 
 static inline VALUE
-RCLASS_SET_SUPER(VALUE klass, VALUE super) {
+RCLASS_SET_SUPER(VALUE klass, VALUE super)
+{
   rb_class_remove_from_super_subclasses(klass);
   rb_class_subclass_add(super, klass);
   OBJ_WRITE(klass, &RCLASS_EXT(klass)->super, super);
@@ -226,6 +227,11 @@ void rb_w32_init_file(void);
 /* gc.c */
 void Init_heap(void);
 void *ruby_mimmalloc(size_t size);
+void rb_objspace_set_event_hook(const rb_event_flag_t event);
+
+/* hash.c */
+struct st_table *rb_hash_tbl_raw(VALUE hash);
+#define RHASH_TBL_RAW(h) rb_hash_tbl_raw(h)
 
 /* inits.c */
 void rb_call_inits(void);
@@ -478,6 +484,9 @@ void rb_execarg_setenv(VALUE execarg_obj, VALUE env);
 void rb_gc_mark_global_tbl(void);
 void rb_mark_generic_ivar(VALUE);
 void rb_mark_generic_ivar_tbl(void);
+
+/* gc.c */
+size_t rb_gc_count();
 
 RUBY_SYMBOL_EXPORT_END
 

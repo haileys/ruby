@@ -154,6 +154,11 @@ module FileUtils
   end
   module_function :uptodate?
 
+  def remove_tailing_slash(dir)
+    dir == '/' ? dir : dir.chomp(?/)
+  end
+  private_module_function :remove_tailing_slash
+
   #
   # Options: mode noop verbose
   #
@@ -200,7 +205,7 @@ module FileUtils
     fu_output_message "mkdir -p #{options[:mode] ? ('-m %03o ' % options[:mode]) : ''}#{list.join ' '}" if options[:verbose]
     return *list if options[:noop]
 
-    list.map {|path| path.chomp(?/) }.each do |path|
+    list.map {|path| remove_tailing_slash(path)}.each do |path|
       # optimize for the most common case
       begin
         fu_mkdir path, options[:mode]
@@ -237,7 +242,7 @@ module FileUtils
   OPT_TABLE['makedirs'] = [:mode, :noop, :verbose]
 
   def fu_mkdir(path, mode)   #:nodoc:
-    path = path.chomp(?/)
+    path = remove_tailing_slash(path)
     if mode
       Dir.mkdir path, mode
       File.chmod mode, path
@@ -265,7 +270,7 @@ module FileUtils
     return if options[:noop]
     list.each do |dir|
       begin
-        Dir.rmdir(dir = dir.chomp(?/))
+        Dir.rmdir(dir = remove_tailing_slash(dir))
         if parents
           until (parent = File.dirname(dir)) == '.' or parent == dir
             Dir.rmdir(dir)

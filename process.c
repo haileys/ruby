@@ -1884,7 +1884,7 @@ rb_check_exec_options(VALUE opthash, VALUE execarg_obj)
 {
     if (RHASH_EMPTY_P(opthash))
         return;
-    st_foreach(RHASH_TBL(opthash), check_exec_options_i, (st_data_t)execarg_obj);
+    st_foreach(rb_hash_tbl_raw(opthash), check_exec_options_i, (st_data_t)execarg_obj);
 }
 
 VALUE
@@ -1895,7 +1895,7 @@ rb_execarg_extract_options(VALUE execarg_obj, VALUE opthash)
         return Qnil;
     args[0] = execarg_obj;
     args[1] = Qnil;
-    st_foreach(RHASH_TBL(opthash), check_exec_options_i_extract, (st_data_t)args);
+    st_foreach(rb_hash_tbl_raw(opthash), check_exec_options_i_extract, (st_data_t)args);
     return args[1];
 }
 
@@ -1925,7 +1925,7 @@ rb_check_exec_env(VALUE hash)
     VALUE env;
 
     env = hide_obj(rb_ary_new());
-    st_foreach(RHASH_TBL(hash), check_exec_env_i, (st_data_t)env);
+    st_foreach(rb_hash_tbl_raw(hash), check_exec_env_i, (st_data_t)env);
 
     return env;
 }
@@ -2191,8 +2191,8 @@ rb_execarg_new(int argc, VALUE *argv, int accept_shell)
     return execarg_obj;
 }
 
-struct rb_execarg
-*rb_execarg_get(VALUE execarg_obj)
+struct rb_execarg *
+rb_execarg_get(VALUE execarg_obj)
 {
     struct rb_execarg *eargp;
     TypedData_Get_Struct(execarg_obj, struct rb_execarg, &exec_arg_data_type, eargp);
@@ -2330,54 +2330,70 @@ static int rb_exec_without_timer_thread(const struct rb_execarg *eargp, char *er
  *  call-seq:
  *     exec([env,] command... [,options])
  *
- *  Replaces the current process by running the given external _command_.
- *  _command..._ is one of following forms.
+ *  Replaces the current process by running the given external _command_, which
+ *  can take one of the following forms:
  *
- *    commandline                 : command line string which is passed to the standard shell
- *    cmdname, arg1, ...          : command name and one or more arguments (no shell)
- *    [cmdname, argv0], arg1, ... : command name, argv[0] and zero or more arguments (no shell)
+ *  [<code>exec(commandline)</code>]
+ *	command line string which is passed to the standard shell
+ *  [<code>exec(cmdname, arg1, ...)</code>]
+ *	command name and one or more arguments (no shell)
+ *  [<code>exec([cmdname, argv0], arg1, ...)</code>]
+ *	command name, argv[0] and zero or more arguments (no shell)
  *
- *  If single string is given as the command,
- *  it is taken as a command line that is subject to shell expansion before being executed.
+ *  In the first form, the string is taken as a command line that is subject to
+ *  shell expansion before being executed.
  *
- *  The standard shell means always <code>"/bin/sh"</code> on Unix-like systems,
- *  <code>ENV["RUBYSHELL"]</code> or <code>ENV["COMSPEC"]</code> on Windows NT series, and
- *  similar.
- *  If _commandline_ is simple enough,
- *  no meta characters, no shell reserved word and no special built-in,
- *  Ruby invokes the command directly without shell.
- *  You can force shell invocation by adding ";" for _commandline_ (because ";" is a meta character).
+ *  The standard shell always means <code>"/bin/sh"</code> on Unix-like systems,
+ *  same as <code>ENV["RUBYSHELL"]</code>
+ *  (or <code>ENV["COMSPEC"]</code> on Windows NT series), and similar.
+ *
+ *  If the string from the first form (<code>exec("command")</code>) follows
+ *  these simple rules:
+ *
+ *  * no meta characters
+ *  * no shell reserved word and no special built-in
+ *  * Ruby invokes the command directly without shell
+ *
+ *  You can force shell invocation by adding ";" to the string (because ";" is
+ *  a meta character).
+ *
  *  Note that this behavior is observable by pid obtained
- *  (return value of spawn() and IO#pid for IO.popen) is the pid of the invoked command, not shell.
+ *  (return value of spawn() and IO#pid for IO.popen) is the pid of the invoked
+ *  command, not shell.
  *
- *  If two or more +string+ given,
- *  the first is taken as a command name and
- *  the rest are passed as parameters to command with no shell expansion.
+ *  In the second form (<code>exec("command1", "arg1", ...)</code>), the first
+ *  is taken as a command name and the rest are passed as parameters to command
+ *  with no shell expansion.
  *
- *  If a two-element array at the beginning of the command,
- *  the first element is the command to be executed,
- *  and the second argument is used as the <code>argv[0]</code> value,
- *  which may show up in process listings.
+ *  In the third form (<code>exec(["command", "argv0"], "arg1", ...)</code>),
+ *  starting a two-element array at the beginning of the command, the first
+ *  element is the command to be executed, and the second argument is used as
+ *  the <code>argv[0]</code> value, which may show up in process listings.
  *
- *  In order to execute the command, one of the <code>exec(2)</code>
- *  system calls is used, so the running command may inherit some of the environment
+ *  In order to execute the command, one of the <code>exec(2)</code> system
+ *  calls are used, so the running command may inherit some of the environment
  *  of the original program (including open file descriptors).
- *  This behavior is modified by env and options.
- *  See <code>spawn</code> for details.
  *
- *  Raises SystemCallError if the command couldn't execute (typically
- *  <code>Errno::ENOENT</code> when it was not found).
+ *  This behavior is modified by the given +env+ and +options+ parameters. See
+ *  ::spawn for details.
  *
- *  This method modifies process attributes according to _options_
- *  (details described in <code>spawn</code>)
- *  before <code>exec(2)</code> system call.
- *  The modified attributes may be retained when <code>exec(2)</code> system call fails.
- *  For example, hard resource limits is not restorable.
- *  If it is not acceptable, consider to create a child process using <code>spawn</code> or <code>system</code>.
+ *  If the command fails to execute (typically <code>Errno::ENOENT</code> when
+ *  it was not found) a SystemCallError exception is raised.
+ *
+ *  This method modifies process attributes according to given +options+ before
+ *  <code>exec(2)</code> system call. See ::spawn for more details about the
+ *  given +options+.
+ *
+ *  The modified attributes may be retained when <code>exec(2)</code> system
+ *  call fails.
+ *
+ *  For example, hard resource limits are not restorable.
+ *
+ *  Consider to create a child process using ::spawn or Kernel#system if this
+ *  is not acceptable.
  *
  *     exec "echo *"       # echoes list of files in current directory
  *     # never get here
- *
  *
  *     exec "echo", "*"    # echoes an asterisk
  *     # never get here
@@ -3446,6 +3462,9 @@ rb_fork_ruby(int *status)
  *  fork doesn't copy other threads.
  *
  *  If fork is not usable, Process.respond_to?(:fork) returns false.
+ *
+ *  Note that fork(2) is not avaiable on some platforms like Windows and NetBSD 4.
+ *  Therefore you should use spawn() instead of fork().
  */
 
 static VALUE
@@ -3800,7 +3819,15 @@ rb_f_system(int argc, VALUE *argv)
  *
  *  spawn executes specified command and return its pid.
  *
- *  This method doesn't wait for end of the command.
+ *    pid = spawn("tar xf ruby-2.0.0-p195.tar.bz2")
+ *    Process.wait pid
+ *
+ *    pid = spawn(RbConfig.ruby, "-eputs'Hello, world!'")
+ *    Process.wait pid
+ *
+ *  This method is similar to Kernel#system but it doesn't wait for the command
+ *  to finish.
+ *
  *  The parent process should
  *  use <code>Process.wait</code> to collect
  *  the termination status of its child or
@@ -4766,6 +4793,17 @@ obj2uid(VALUE id
 }
 
 # ifdef p_uid_from_name
+/*
+ *  call-seq:
+ *     Process::UID.from_name(name)   -> uid
+ *
+ *  Get the user ID by the _name_.
+ *  If the user is not found, +ArgumentError+ will be raised.
+ *
+ *     Process::UID.from_name("root") #=> 0
+ *     Process::UID.from_name("nosuchuser") #=> can't find user for nosuchuser (ArgumentError)
+ */
+
 static VALUE
 p_uid_from_name(VALUE self, VALUE id)
 {
@@ -4814,6 +4852,17 @@ obj2gid(VALUE id
 }
 
 # ifdef p_gid_from_name
+/*
+ *  call-seq:
+ *     Process::GID.from_name(name)   -> gid
+ *
+ *  Get the group ID by the _name_.
+ *  If the group is not found, +ArgumentError+ will be raised.
+ *
+ *     Process::GID.from_name("wheel") #=> 0
+ *     Process::GID.from_name("nosuchgroup") #=> can't find group for nosuchgroup (ArgumentError)
+ */
+
 static VALUE
 p_gid_from_name(VALUE self, VALUE id)
 {

@@ -12,17 +12,6 @@
 
 **********************************************************************/
 
-/* objspace library extends ObjectSpace module and add several
- * methods to get internal statistic information about
- * object/memory management.
- *
- * Generally, you *SHOULD NOT*use this library if you do not know
- * about the MRI implementation.  Mainly, this library is for (memory)
- * profiler developers and MRI developers who need to know how MRI
- * memory usage.
- *
- */
-
 #include <ruby/ruby.h>
 #include <ruby/st.h>
 #include <ruby/io.h>
@@ -721,13 +710,13 @@ collect_values(st_data_t key, st_data_t value, st_data_t data)
  *  [MRI specific feature] Return all reachable objects from `obj'.
  *
  *  This method returns all reachable objects from `obj'.
- *  If `obj' has references two or more references to same object `x',
- *  them returned array only include one `x' object.
- *  If `obj' is non-markable (non-heap management) object such as
- *  true, false, nil, symbols and Fixnums (and Flonum) them it simply
+ *  If `obj' has two or more references to the same object `x',
+ *  then returned array only includes one `x' object.
+ *  If `obj' is a non-markable (non-heap management) object such as
+ *  true, false, nil, symbols and Fixnums (and Flonum) then it simply
  *  returns nil.
  *
- *  If `obj' has references to internal object, then it returns
+ *  If `obj' has references to an internal object, then it returns
  *  instances of `ObjectSpace::InternalObjectWrapper' class.
  *  This object contains a reference to an internal object and
  *  you can check the type of internal object with `type' method.
@@ -738,7 +727,7 @@ collect_values(st_data_t key, st_data_t value, st_data_t data)
  *
  *  With this method, you can find memory leaks.
  *
- *  This method is not expected to work except C Ruby.
+ *  This method is not expected to work except in C Ruby.
  *
  *  Example:
  *    ObjectSpace.reachable_objects_from(['a', 'b', 'c'])
@@ -779,13 +768,16 @@ reachable_objects_from(VALUE self, VALUE obj)
     }
 }
 
-/* objspace library extends ObjectSpace module and add several
+void Init_object_tracing(VALUE rb_mObjSpace);
+void Init_gc_hook(VALUE rb_mObjSpace);
+
+/* The objspace library extends the ObjectSpace module and adds several
  * methods to get internal statistic information about
  * object/memory management.
  *
- * Generally, you *SHOULD NOT*use this library if you do not know
+ * Generally, you *SHOULD NOT* use this library if you do not know
  * about the MRI implementation.  Mainly, this library is for (memory)
- * profiler developers and MRI developers who need to know how MRI
+ * profiler developers and MRI developers who need to know about MRI
  * memory usage.
  */
 
@@ -807,4 +799,7 @@ Init_objspace(void)
     rb_define_method(rb_mInternalObjectWrapper, "type", iow_type, 0);
     rb_define_method(rb_mInternalObjectWrapper, "inspect", iow_inspect, 0);
     rb_define_method(rb_mInternalObjectWrapper, "internal_object_id", iow_internal_object_id, 0);
+
+    Init_object_tracing(rb_mObjSpace);
+    Init_gc_hook(rb_mObjSpace);
 }

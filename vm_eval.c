@@ -802,7 +802,7 @@ rb_funcall(VALUE recv, ID mid, int n, ...)
  * \param argv   pointer to an array of method arguments
  */
 VALUE
-rb_funcall2(VALUE recv, ID mid, int argc, const VALUE *argv)
+rb_funcallv(VALUE recv, ID mid, int argc, const VALUE *argv)
 {
     return rb_call(recv, mid, argc, argv, CALL_FCALL);
 }
@@ -817,7 +817,7 @@ rb_funcall2(VALUE recv, ID mid, int argc, const VALUE *argv)
  * \param argv   pointer to an array of method arguments
  */
 VALUE
-rb_funcall3(VALUE recv, ID mid, int argc, const VALUE *argv)
+rb_funcallv_public(VALUE recv, ID mid, int argc, const VALUE *argv)
 {
     return rb_call(recv, mid, argc, argv, CALL_PUBLIC);
 }
@@ -1663,6 +1663,8 @@ rb_mod_module_eval(int argc, VALUE *argv, VALUE mod)
  *
  *  Evaluates the given block in the context of the class/module.
  *  The method defined in the block will belong to the receiver.
+ *  Any arguments passed to the method will be passed to the block.
+ *  This can be used if the block needs to access instance variables.
  *
  *     class Thing
  *     end

@@ -1,3 +1,622 @@
+Wed Jun  5 20:05:29 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (int_pair_to_real_inclusive): Add a cast to BDIGIT.
+	  (random_load): Fix shift width for fixnums.
+	  Re-implement bignum extraction without ifdefs.
+
+Wed Jun  5 15:26:10 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* gc.c (before_gc_sweep): don't optimize it to avoid segv on Ubuntu
+	  10.04 gcc 4.4.
+	  http://u32.rubyci.org/~chkbuild/ruby-trunk/log/20130527T190301Z.diff.html.gz
+
+Wed Jun  5 09:46:46 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* test/fileutils/test_fileutils.rb (TestFileUtils#test_mkdir): add
+	  EACCES for Windows.
+
+Wed Jun  5 08:13:37 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_big_pow): Don't need to multiply SIZEOF_BDIGITS.
+	  Use nlz instead of bitlength_bdigit.
+	  (bitlength_bdigit): Removed.
+
+Wed Jun  5 07:14:18 2013  Tadayoshi Funaba  <tadf@dotrb.org>
+
+	* ext/date/date_core.c (d_lite_cmp, d_lite_equal): simplified.
+
+Wed Jun  5 07:07:01 2013  Tadayoshi Funaba  <tadf@dotrb.org>
+
+	* ext/date/date_core.c: fixed a bug [ruby-core:55295].  reported
+	  by Riley Lynch.
+
+Wed Jun  5 06:44:08 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* lib/rubygems:  Update to RubyGems 2.0.3
+
+	* test/rubygems:  Tests for the above.
+
+	* NEWS:  Added RubyGems 2.0.3 note.
+
+Wed Jun  5 06:35:15 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* doc/marshal.rdoc:  Add description of Marshal format.
+
+Wed Jun  5 01:16:09 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* array.c (Array#+): fix documentation example.
+	  Patch by Logan Serman. [Fixes GH-324]
+
+Wed Jun  5 00:21:54 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* lib/irb/lc/ja/help-message: update help messages.
+	  following r41028. [ruby-dev:46707] [Feature #7510]
+
+Wed Jun  5 00:09:32 2013  Tanaka Akira  <akr@fsij.org>
+
+	* marshal.c (r_object0): Generalize a round up expression.
+	  Use BDIGIT instead of int.
+
+Tue Jun  4 23:44:02 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* object.c (rb_Hash): fix docs. patched by Stefan Sch"ussler.
+	  [ruby-core:55299] [Bug #8487]
+
+Tue Jun  4 23:16:49 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* lib/irb/completion.rb: Use %w literal construction for long lists.
+	  Patch by Dave Goodchild. [Fixes GH-299]
+
+Tue Jun  4 23:08:42 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* ext/objspace/objspace.c: improve wording and remove duplicated comment.
+	  Based on a patch by Dave Goodchild. [Fixes GH-299]
+
+Tue Jun  4 18:41:47 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (bitlength_bdigit): Fix an off-by-one error.
+
+Tue Jun  4 15:30:00 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* ext/bigdecimal/lib/bigdecimal/util.rb (Float#to_d): fix the number
+	  of figures.  Patch by Vipul A M <vipulnsward@gmail.com>.
+	  https://github.com/ruby/ruby/pull/323  fix GH-323
+
+	* test/bigdecimal/test_bigdecimal_util.rb: fix for the above change.
+
+Tue Jun  4 00:44:27 2013  Kazuhiro NISHIYAMA  <zn@mbf.nifty.com>
+
+	* test/fileutils/test_fileutils.rb (TestFileUtils#test_mkdir): add
+	  EEXIST for Linux. (suggested by nurse)
+
+Mon Jun  3 23:58:19 2013  Kazuhiro NISHIYAMA  <zn@mbf.nifty.com>
+
+	* lib/fileutils.rb (FileUtils.rmdir): use remove_tailing_slash.
+	* test/fileutils/test_fileutils.rb: test for above.
+
+Mon Jun  3 23:47:55 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (bitlength_bdigit): New function.
+	  (rb_big_pow): Use bitlength_bdigit instead of ffs.
+
+Mon Jun  3 23:11:19 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* lib/fileutils.rb: fix behavior when mkdir/mkdir_p accepted "/".
+	* test/fileutils/test_fileutils.rb: add test for above change.
+	  Patched by Mitsunori Komatsu. [GH-319]
+
+Mon Jun  3 19:02:20 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* dir.c (is_hfs): use the file descriptor instead of a path.
+
+Mon Jun  3 07:15:17 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
+
+	* configure.in: removes AC_CHECK_FUNCS(readdir_r). readdir_r()
+	  is only used from dir.c and it doesn't need readdir_r().
+	* configure.in (SIZEOF_STRUCT_DIRENT_TOO_SMALL): removed. It is
+	  only used for readdir_r.
+	* dir.c: removes NAME_MAX_FOR_STRUCT_DIRENT. It is not right way
+	  to detect maximum length of path len. POSIX require to use
+	  fpathconf(). IOW, it might have lead to make a vulnerability
+	  using stack smashing. Moreover, readdir() works enough for our
+	  usage.
+	* dir.c (READDIR): removes an implementation which uses
+	  readdir_r() and parenthesize in a macro body correctly.
+	* dir.c (dir_read): removes IF_HAVE_READDIR_R(DEFINE_STRUCT_DIRENT
+	  entry), it is used only for readdir_r().
+	* dir.c (dir_each): ditto.
+	* dir.c (glob_helper): ditto.
+
+	* dir.c (READDIR): removes entry and dp argument.
+	* dir.c (dir_read): adjust for the above change.
+	* dir.c (dir_each): ditto.
+	* dir.c (glob_helper): ditto.
+
+Mon Jun  3 03:40:29 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* vm_insnhelper.c (vm_yield_setup_block_args): partially revert r41019.
+	  The code is not useless.
+
+Mon Jun  3 01:25:25 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* test/socket/test_sockopt.rb: change test name. follow r41037.
+
+Mon Jun  3 01:08:43 2013  Ayumu AIZAWA  <ayumu.aizawa@gmail.com>
+
+	* test/rinda/test_rinda.rb: rename functions introduced in r41009.
+
+Sun Jun  2 23:33:42 2013  Kazuki Tsujimoto  <kazuki@callcc.net>
+
+	* enc/trans/japanese_euc.trans, test/ruby/test_transcode.rb,
+	  tool/transcode-tblgen.rb: change EUC-JP-2004 to EUC-JIS-2004.
+	  This is follow up to changes in r41024.
+
+Sun Jun  2 22:44:42 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/socket/option.c: rename functions introduced in r41009
+	  s/ip/ipv4/g because they are ipv4 functions.
+	  (there's a policy that the name "ip" is for methods which supports
+	   both ipv4 and ipv6)
+
+Sun Jun  2 16:15:29 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* dln_find.c (dln_find_exe, dln_find_file): remove deprecated
+	  non-reentrant functions.
+
+Sun Jun  2 15:04:35 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/cgi/util.rb, lib/erb.rb: Use String#b [Feature #8394] by znz
+
+Sun Jun  2 14:10:21 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* lib/irb/lc/help-message: Apply english updates for irb --help #7510
+
+Sun Jun  2 12:03:58 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* range.c: Fix rdoc on Range#bsearch [Bug #8242] [ruby-core:54143]
+
+Sun Jun  2 02:08:37 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* enc/euc_jp.c: fix typo: the name of EUC-JIS-2004.
+
+Sat Jun  1 23:17:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* vm_eval.c (rb_mod_module_eval): mention in docs that arguments passed
+	  to the method are passed to the block
+
+Sat Jun  1 17:58:13 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* lib/set.rb (Set#freeze, taint, untaint): Save a "self" by
+	  utilizing super returning self, and add tests while at it.
+
+Sat Jun  1 17:24:47 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* compile.c (iseq_set_arguments): not a simple single argument if any
+	  keyword arguments exist.  [ruby-core:55203] [Bug #8463]
+
+	* vm_insnhelper.c (vm_yield_setup_block_args): split single parameter
+	  if any keyword arguments exist, and then extract keyword arguments.
+	  [ruby-core:55203] [Bug #8463]
+
+Sat Jun  1 11:16:22 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* error.c (rb_exc_new_cstr): rename from rb_exc_new2.
+
+	* error.c (rb_exc_new_str): rename from rb_exc_new3.
+
+Sat Jun  1 10:13:17 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* string.c (rb_str_new[2-5], rb_{tainted,usascii}_str_new2),
+	  (rb_str_buf_new2): remove old interfaces.
+
+Sat Jun  1 08:00:46 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/zlib/zlib.c (gzfile_read, gzfile_read_all, gzfile_getc),
+	  (gzreader_gets): check EOF.  [ruby-core:55220] [Bug #8467]
+
+Sat Jun  1 07:32:15 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c: Use BDIGIT type for hbase.
+
+Sat Jun  1 02:37:35 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/socket/option.c (sockopt_s_byte): constructor of the sockopt
+	  whose value's is byte.
+
+	* ext/socket/option.c (sockopt_byte): getter for above.
+
+	* ext/socket/option.c (inspect_byte): inspect for above.
+
+	* ext/socket/option.c (sockopt_s_ip_multicast_loop): constructor of
+	  the sockopt whose optname is IP_MULTICAST_LOOP.
+
+	* ext/socket/option.c (sockopt_ip_multicast_loop): getter for above.
+
+	* ext/socket/option.c (sockopt_s_ip_multicast_ttl): constructor of
+	  the sockopt whose optname is IP_MULTICAST_TTL.
+
+	* ext/socket/option.c (sockopt_ip_multicast_ttl): getter for above.
+
+	* ext/socket/option.c (sockopt_inspect): use above.
+
+Sat Jun 01 01:50:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* ext/bigdecimal/bigdecimal.c (BigDecimal_power): use rb_dbl2big
+	  to convert a double value to a Bignum.
+
+Sat Jun  1 00:19:50 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (calc_hbase): Make hbase the maximum power of base
+	  representable in BDIGIT.
+
+Fri May 31 23:56:13 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (calc_hbase): Extracted from rb_big2str0.
+
+Fri May 31 23:22:24 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c: Don't hard code SIZEOF_BDIGITS for log_base(hbase).
+	  (big2str_orig): hbase_numdigits argument added.
+	  (big2str_karatsuba): Ditto.
+	  (rb_big2str0): Calculate hbase_numdigits.
+
+Fri May 31 17:57:21 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* process.c: Improve Process::exec documentation
+
+Fri May 31 17:26:42 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_eval.c (rb_funcallv): add better names of rb_funcall2.
+
+	* vm_eval.c (rb_funcallv_public): ditto for rb_funcall3.
+
+Fri May 31 17:04:45 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* array.c (rb_ary_new_capa): add better names of rb_ary_new2.
+
+	* array.c (rb_ary_new_from_args): ditto for rb_ary_new3.
+
+	* array.c (rb_ary_new_from_values): ditto for rb_ary_new4.
+
+Fri May 31 16:35:44 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in (HAVE_ATTRIBUTE_FUNCTION_ALIAS): define to tell if
+	  alias attribute is available.
+
+Fri May 31 16:03:23 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* object.c, proc.c: s/call_seq/call-seq in rdoc. [Fix GH-322]
+
+Fri May 31 15:56:36 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* ext/openssl/ossl_ssl.c: Add missing paren in rdoc [Fix GH-321]
+
+Fri May 31 11:58:24 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_method.c (set_visibility): extract from rb_mod_public(),
+	  rb_mod_protected() and rb_mod_private().
+
+Thu May 30 19:47:42 2013  Yusuke Endoh  <mame@tsg.ne.jp>
+
+	* vm_insnhelper.c (vm_callee_setup_keyword_arg,
+	  vm_callee_setup_arg_complex): consider a hash argument for keyword
+	  only when the number of arguments is more than the expected
+	  mandatory parameters.  [ruby-core:53199] [ruby-trunk - Bug #8040]
+
+	* test/ruby/test_keyword.rb: update a test for above.
+
+Thu May 30 17:55:04 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* process.c: RDoc on Process.spawn
+
+Thu May 30 00:08:14 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (gc_profile_enable): rest_sweep() to finish last GC.
+	  Profiling record is allocated at first of marking phase.
+	  Enable at lazy sweeping may cause an error (SEGV).
+
+Wed May 29 10:33:27 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* hash.c: fix WB bug.
+	  (1) Hash's key also needs WB.
+	  (2) callback parameter *key and *value of st_update() is not a
+	      storage of st_table itself (only local variable). So that
+	      OBJ_WRITE() is not suitable, especially for `!existing'.
+	      OBJ_WRITTEN() is used instead of OBJ_WRITE().
+
+Tue May 28 12:31:21 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* ext/objspace/object_tracing.c: fix a bug reported at
+	  "[ruby-core:55182] [ruby-trunk - Bug #8456][Open] Sugfault in Ruby Head"
+	  Care about the case TracePoint#path #=> `nil'.
+
+	* ext/objspace/object_tracing.c: add two new methods:
+	  * ObjectSpace.allocation_class_path(o)
+	  * ObjectSpace.allocation_method_id(o)
+	  They are not useful for Object.new because they are always
+	  "Class" and :new.
+	  To trace more useful information, we need to maintain call-tree
+	  using call/return hooks, which is implemented by
+	  ll-prof <http://sunagae.net/wiki/doku.php?id=software:llprof>
+
+	* test/objspace/test_objspace.rb: add a test.
+
+Tue May 28 11:30:02 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* ext/extmk.rb (extmake): leave makefiles untouched if the content is
+	  not changed, to get rid of unnecessary re-linking.
+
+Tue May 28 03:11:02 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* ext/objspace/gc_hook.c, ext/objspace/objspace.c: add new methods to
+	  hook GC invocation.
+	  * ObjectSpace.after_gc_start_hook=(proc)
+	  * ObjectSpace.after_gc_end_hook=(proc)
+
+	  Note that hooks are not kicked immediately. Procs are kicked
+	  at postponed_job.
+
+	  This feature is a sample of new internal event and
+	  rb_postponed_job API.
+
+Tue May 28 02:56:15 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (gc_stat): remove wrong rest_sweep().
+
+Tue May 28 02:44:23 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (garbage_collect_body): fix GC_ENABLE_LAZY_SWEEP condition.
+
+	* gc.c (GC_NOTIFY): move debug print location and use stderr instead
+	  of stdout.
+
+Tue May 28 02:07:21 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_trace.c (rb_postponed_job_register_one): fix iteration bug.
+
+	* ext/-test-/postponed_job/postponed_job.c,
+	  test/-ext-/postponed_job/test_postponed_job.rb: add a test.
+
+Tue May 28 00:34:23 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h, gc.c: add new internal event
+	  RUBY_INTERNAL_EVENT_GC_END. This event invokes at the end of
+	  after_sweep().
+	  Time chart with lazy sweep is:
+	    (1) Kick RUBY_INTERNAL_EVENT_GC_START
+	    (2) [gc_marks()]
+	    (3) [lazy_sweep()]
+	    (4) [... run Ruby program (mutator) with lazy_sweep() ...]
+	    (5) [after_sweep()]
+	    (6) Kick RUBY_INTERNAL_EVENT_GC_END
+	    (7) [... run Ruby program (mutator), and go to (1) ...]
+	  Time chart without lazy sweep (GC.start, etc) is:
+	    (1) Kick RUBY_INTERNAL_EVENT_GC_START
+	    (2) [gc_marks()]
+	    (3) [gc_sweep()]
+	    (4) [after_sweep()]
+	    (5) Kick RUBY_INTERNAL_EVENT_GC_END
+	    (6) [... run Ruby program (mutator), and go to (1) ...]
+
+	* ext/-test-/tracepoint/tracepoint.c,
+	  test/-ext-/tracepoint/test_tracepoint.rb: modify a test.
+
+Tue May 28 00:18:57 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_trace.c (rb_postponed_job_flush): remove a wrong comment.
+
+Mon May 27 22:09:33 2013  Tanaka Akira  <akr@fsij.org>
+
+	* include/ruby/ruby.h (RHASH_SIZE): Add a cast to suppress a
+	  warning, comparison between signed and unsigned integer
+	  expressions [-Wsign-compare], on ILP32.
+
+Mon May 27 19:25:47 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h: rename RUBY_INTERNAL_EVENT_FREE to
+	  RUBY_INTERNAL_EVENT_FREEOBJ.
+
+	* ext/-test-/tracepoint/tracepoint.c,
+	  ext/objspace/object_tracing.c,
+	  gc.c, vm_trace.c: catch up this change.
+
+Mon May 27 18:57:28 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* ext/objspace/objspace.c: support ObjectSpace.trace_object_allocations.
+	  Read the following test to know HOWTO.
+	  This feature is a sample of RUBY_INTERNAL_EVENT.
+
+	* test/objspace/test_objspace.rb: add a test.
+
+	* ext/objspace/object_tracing.c: ditto.
+
+	* gc.c (rb_gc_count): add. This function returns GC count.
+
+	* internal.h: add decl. of rb_gc_count(). Same as `GC.count'.
+
+Mon May 27 17:33:28 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* tool/rbinstall.rb (install_recursive): add maxdepth option.
+
+	* tool/rbinstall.rb (bin-comm): limit depth of bindir and reject empty
+	  files.  [ruby-core:55101] [Bug #8432]
+
+Mon May 27 16:16:18 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* vm_trace.c (rb_postponed_job_flush, rb_postponed_job_register): use
+	  ruby_xmalloc/xfree. It is safe during GC.
+
+Mon May 27 09:24:03 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* test/-ext-/postponed_job/test_postponed_job.rb: fix typo and class name.
+
+Mon May 27 09:05:17 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/ruby.h, gc.c, vm_trace.c: add internal events.
+	  * RUBY_INTERNAL_EVENT_NEWOBJ: object created.
+	  * RUBY_INTERNAL_EVENT_FREE: object freed.
+	  * RUBY_INTERNAL_EVENT_GC_START: GC started.
+	  And rename `RUBY_EVENT_SWITCH' to `RUBY_INTERNAL_EVENT_SWITCH'.
+
+	  Internal events can not invoke any Ruby program because the tracing
+	  timing may be critical (under huge restriction).
+	  These events can be hooked only by C-extensions.
+	  We recommend to use rb_postponed_job_register() API to call Ruby
+	  program safely.
+
+	  This change is mostly written by Aman Gupta (tmm1).
+	  https://bugs.ruby-lang.org/issues/8107#note-12
+	  [Feature #8107]
+
+	* include/ruby/debug.h, vm_trace.c: added two new APIs.
+	  * rb_tracearg_event_flag() returns rb_event_flag_t of this event.
+	  * rb_tracearg_object() returns created/freed object.
+
+	* ext/-test-/tracepoint/extconf.rb,
+	  ext/-test-/tracepoint/tracepoint.c,
+	  test/-ext-/tracepoint/test_tracepoint.rb: add a test.
+
+Mon May 27 08:38:21 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* ext/-test-/postponed_job/postponed_job.c: fix `init' function name.
+
+Mon May 27 06:22:41 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* include/ruby/debug.h, vm_trace.c: add rb_postponed_job API.
+	  Postponed jobs are registered with this API. Registered jobs
+	  are invoked at `ruby-running-safe-point' as soon as possible.
+	  This timing is completely same as finalizer timing.
+
+	  There are two APIs:
+	  * rb_postponed_job_register(flags, func, data): register a
+	    postponed job with data. flags are reserved.
+	  * rb_postponed_job_register_one(flags, func, data): same as
+	    `rb_postponed_job_register', but only one `func' job is
+	    registered (skip if `func' is already registered).
+
+	  This change is mostly written by Aman Gupta (tmm1).
+	  https://bugs.ruby-lang.org/issues/8107#note-15
+	  [Feature #8107]
+
+	* gc.c: use postponed job API for finalizer.
+
+	* common.mk: add dependency from vm_trace.c to debug.h.
+
+	* ext/-test-/postponed_job/extconf.rb, postponed_job.c,
+	  test/-ext-/postponed_job/test_postponed_job.rb: add a test.
+
+	* thread.c: implement postponed API.
+
+	* vm_core.h: ditto.
+
+Mon May 27 02:26:02 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (gc_stat): collect promote_operation_count and
+	  types (RGENGC_PROFILE >= 2).
+
+Mon May 27 01:40:58 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (gc_stat): collect shade_operation_count,
+	  remembered_sunny_object_count and remembered_shady_object_count
+	  for each types when RGENGC_PROFILE >= 2.
+	  They are informative for optimization.
+
+Mon May 27 01:15:22 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* hash.c (rb_hash_tbl_raw), internal.h: added.
+	  Returns st_table without shading hash.
+
+	* array.c: use rb_hash_tbl_raw() for read-only purpose.
+
+	* compile.c (iseq_compile_each): ditto.
+
+	* gc.c (count_objects): ditto.
+
+	* insns.def: ditto.
+
+	* process.c: ditto.
+
+	* thread.c (clear_coverage): ditto.
+
+	* vm_insnhelper.c: ditto.
+
+Mon May 27 00:31:09 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* tool/make-snapshot: use ENV["AUTOCONF"] instead of directly using
+	  literal "autoconf".
+
+Sun May 26 21:31:46 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* hash.c, include/ruby/ruby.h: support WB protected hash.
+	  * constify RHash::ifnone and make new macro RHASH_SET_IFNONE().
+	  * insert write barrier for st_update().
+
+	* include/ruby/intern.h: declare rb_hash_set_ifnone(hash, ifnone).
+
+	* marshal.c (r_object0): use RHASH_SET_IFNONE().
+
+	* ext/openssl/ossl_x509name.c (Init_ossl_x509name): ditto.
+
+Sat May 25 23:22:38 2013  Kazuki Tsujimoto  <kazuki@callcc.net>
+
+	* test/fiddle/test_c_struct_entry.rb,
+	  test/fiddle/test_c_union_entity.rb,
+	  test/fiddle/test_cparser.rb, test/fiddle/test_func.rb,
+	  test/fiddle/test_handle.rb, test/fiddle/test_import.rb,
+	  test/fiddle/test_pointer.rb: don't run test if the system
+	  don't support fiddle.
+
+Sat May 25 21:29:34 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/pty/pty.c (get_device_once): FreeBSD 10-current and 9-stable
+	  added O_CLOEXEC support to posix_openpt, so assume FreeBSD 9.2 or
+	  later supports it.
+	  http://www.freebsd.org/cgi/query-pr.cgi?pr=162374
+
+Sat May 25 18:46:23 2013  Yusuke Endoh  <mame@tsg.ne.jp>
+
+	* proc.c (rb_method_entry_min_max_arity): fix missing break in switch.
+	  This was introduced in r38236, which is not intentional apparently.
+	  This has caused no actual harm because VM_METHOD_TYPE_OPTIMIZED is
+	  not used except for OPTIMIZED_METHOD_TYPE_SEND, but may do in
+	  future.  Coverity Scan found this inadequacy.
+
+Sat May 25 18:08:06 2013  Yusuke Endoh  <mame@tsg.ne.jp>
+
+	* dir.c (bracket): fix copy-paste error.  When the first and last
+	  characters of fnmatch range have different length, fnmatch may
+	  have wrongly matched a path that does not really match.
+	  Coverity Scan found this bug.
+
+Sat May 25 17:06:25 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (after_gc_sweep): reduce full GC timing.
+
+Sat May 25 11:28:49 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* variable.c (set_const_visibility): return without clearing method
+	  cache if no arguments.
+
+	* vm_method.c (set_method_visibility): ditto.
+
+Sat May 25 11:27:32 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* vm_method.c (set_method_visibility): quote unprintable method name.
+
+Sat May 25 11:24:24 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* eval.c (rb_frame_callee): returns the called name of the current
+	  frame, not the previous frame.
+
+	* eval.c (prev_frame_callee, prev_frame_func): rename and make static,
+	  as these are used by rb_f_method_name() and rb_f_callee_name() only.
+
+	* variable.c (set_const_visibility): use the called name.
+
+Sat May 25 08:58:23 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* string.c (rb_str_quote_unprintable): check if argument is a string.
+
 Fri May 24 19:32:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
 
 	* variable.c (set_const_visibility): use rb_frame_this_func() instead
@@ -8,7 +627,7 @@ Fri May 24 19:32:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
 Fri May 24 18:53:10 2013  Koichi Sasada  <ko1@atdot.net>
 
 	* gc.c: do major/full GC when:
-	  * number of oldgen object is biggger than twice of
+	  * number of oldgen object is bigger than twice of
 	    number of oldgen object at last full GC.
 	  * number of remembered shady object is bigger than twice of
 	    number of remembered shady object at last full GC.
@@ -1127,7 +1746,7 @@ Sat May  4 04:13:27 2013  KOSAKI Motohiro  <kosaki.motohiro@gmail.com>
 
 Fri May  3 19:32:13 2013  Takeyuki FUJIOKA  <xibbar@ruby-lang.org>
 
-	* lib/cgi/util.rb: All class methods moduleized.
+	* lib/cgi/util.rb: All class methods modulized.
 	  We can use these methods like a function when "include CGI::Util".
 	  [Feature #8354]
 

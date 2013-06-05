@@ -1323,7 +1323,7 @@ false_xor(VALUE obj, VALUE obj2)
 }
 
 /*
- * call_seq:
+ * call-seq:
  *   nil.nil?               -> true
  *
  * Only the object <i>nil</i> responds <code>true</code> to <code>nil?</code>.
@@ -1336,7 +1336,7 @@ rb_true(VALUE obj)
 }
 
 /*
- * call_seq:
+ * call-seq:
  *   nil.nil?               -> true
  *   <anything_else>.nil?   -> false
  *
@@ -2897,7 +2897,7 @@ rb_Hash(VALUE val)
  *  <i>arg</i> is <tt>nil</tt> or <tt>[]</tt>.
  *
  *     Hash([])          #=> {}
- *     Hash(nil)         #=> nil
+ *     Hash(nil)         #=> {}
  *     Hash(key: :value) #=> {:key => :value}
  *     Hash([1, 2, 3])   #=> TypeError
  */

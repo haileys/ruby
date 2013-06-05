@@ -250,15 +250,18 @@ rb_ary_new() ::
   Creates an array with no elements.
 
 rb_ary_new2(long len) ::
+rb_ary_new_capa(long len) ::
 
   Creates an array with no elements, allocating internal buffer
   for len elements.
 
 rb_ary_new3(long n, ...) ::
+rb_ary_new_from_args(long n, ...) ::
 
   Creates an n-element array from the arguments.
 
 rb_ary_new4(long n, VALUE *elts) ::
+rb_ary_new_from_values(long n, VALUE *elts) ::
 
   Creates an n-element array from a C array.
 
@@ -272,7 +275,7 @@ types are given.
 
 rb_ary_aref(argc, VALUE *argv, VALUE ary) ::
 
-  Equivaelent to Array#[].
+  Equivalent to Array#[].
 
 rb_ary_entry(VALUE ary, long offset) ::
 
@@ -1239,10 +1242,18 @@ rb_scan_args(int argc, VALUE *argv, const char *fmt, ...) ::
 VALUE rb_funcall(VALUE recv, ID mid, int narg, ...) ::
 
   Invokes a method.  To retrieve mid from a method name, use rb_intern().
+  Able to call even private/protected methods.
 
 VALUE rb_funcall2(VALUE recv, ID mid, int argc, VALUE *argv) ::
+VALUE rb_funcallv(VALUE recv, ID mid, int argc, VALUE *argv) ::
 
-  Invokes a method, passing arguments by an array of values.
+  Invokes a method, passing arguments as an array of values.
+  Able to call even private/protected methods.
+
+VALUE rb_funcallv_public(VALUE recv, ID mid, int argc, VALUE *argv) ::
+
+  Invokes a method, passing arguments as an array of values.
+  Able to call only public methods.
 
 VALUE rb_eval_string(const char *str) ::
 

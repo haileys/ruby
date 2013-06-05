@@ -1620,7 +1620,7 @@ r_object0(struct load_arg *arg, int *ivp, VALUE extmod)
 #if SIZEOF_BDIGITS == SIZEOF_SHORT
             rb_big_resize((VALUE)big, len);
 #else
-            rb_big_resize((VALUE)big, (len + 1) * 2 / sizeof(BDIGIT));
+            rb_big_resize((VALUE)big, (len * 2 + sizeof(BDIGIT) - 1) / sizeof(BDIGIT));
 #endif
             digits = RBIGNUM_DIGITS(big);
 	    MEMCPY(digits, RSTRING_PTR(data), char, len * 2);
@@ -1638,7 +1638,7 @@ r_object0(struct load_arg *arg, int *ivp, VALUE extmod)
 		int i;
 
 		for (i=0; i<SIZEOF_BDIGITS; i++) {
-		    num |= (int)p[i] << shift;
+		    num |= (BDIGIT)p[i] << shift;
 		    shift += 8;
 		}
 #else
@@ -1725,7 +1725,7 @@ r_object0(struct load_arg *arg, int *ivp, VALUE extmod)
 	    }
 	    arg->readable += 2;
 	    if (type == TYPE_HASH_DEF) {
-		RHASH_IFNONE(v) = r_object(arg);
+		RHASH_SET_IFNONE(v, r_object(arg));
 	    }
             v = r_leave(v, arg);
 	}
@@ -2146,7 +2146,9 @@ Init_marshal(void)
     rb_define_module_function(rb_mMarshal, "load", marshal_load, -1);
     rb_define_module_function(rb_mMarshal, "restore", marshal_load, -1);
 
+    /* major version */
     rb_define_const(rb_mMarshal, "MAJOR_VERSION", INT2FIX(MARSHAL_MAJOR));
+    /* minor version */
     rb_define_const(rb_mMarshal, "MINOR_VERSION", INT2FIX(MARSHAL_MINOR));
 
     compat_allocator_tbl = st_init_numtable();

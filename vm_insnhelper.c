@@ -1089,18 +1089,18 @@ extract_keywords(VALUE *orighash)
 	*orighash = 0;
 	return hash;
     }
-    st_foreach(RHASH_TBL(hash), separate_symbol, (st_data_t)&parthash);
+    st_foreach(rb_hash_tbl_raw(hash), separate_symbol, (st_data_t)&parthash);
     *orighash = parthash[1];
     return parthash[0];
 }
 
 static inline int
-vm_callee_setup_keyword_arg(const rb_iseq_t *iseq, int argc, VALUE *orig_argv, VALUE *kwd)
+vm_callee_setup_keyword_arg(const rb_iseq_t *iseq, int argc, int m, VALUE *orig_argv, VALUE *kwd)
 {
     VALUE keyword_hash, orig_hash;
     int i, j;
 
-    if (argc > 0 &&
+    if (argc > m &&
 	!NIL_P(orig_hash = rb_check_hash_type(orig_argv[argc-1])) &&
 	(keyword_hash = extract_keywords(&orig_hash)) != 0) {
 	if (!orig_hash) {
@@ -1114,7 +1114,7 @@ vm_callee_setup_keyword_arg(const rb_iseq_t *iseq, int argc, VALUE *orig_argv, V
 	    VALUE missing = Qnil;
 	    for (; i < iseq->arg_keyword_required; i++) {
 		VALUE keyword = ID2SYM(iseq->arg_keyword_table[i]);
-		if (st_lookup(RHASH_TBL(keyword_hash), (st_data_t)keyword, 0))
+		if (st_lookup(rb_hash_tbl_raw(keyword_hash), (st_data_t)keyword, 0))
 		    continue;
 		if (NIL_P(missing)) missing = rb_ary_tmp_new(1);
 		rb_ary_push(missing, keyword);
@@ -1125,9 +1125,9 @@ vm_callee_setup_keyword_arg(const rb_iseq_t *iseq, int argc, VALUE *orig_argv, V
 	}
 	if (iseq->arg_keyword_check) {
 	    for (j = i; i < iseq->arg_keywords; i++) {
-		if (st_lookup(RHASH_TBL(keyword_hash), ID2SYM(iseq->arg_keyword_table[i]), 0)) j++;
+		if (st_lookup(rb_hash_tbl_raw(keyword_hash), ID2SYM(iseq->arg_keyword_table[i]), 0)) j++;
 	    }
-	    if (RHASH_TBL(keyword_hash)->num_entries > (unsigned int) j) {
+	    if (RHASH_SIZE(keyword_hash) > (unsigned int)j) {
 		unknown_keyword_error(iseq, keyword_hash);
 	    }
 	}
@@ -1165,7 +1165,7 @@ vm_callee_setup_arg_complex(rb_thread_t *th, rb_call_info_t *ci, const rb_iseq_t
 
     /* keyword argument */
     if (iseq->arg_keyword != -1) {
-	argc = vm_callee_setup_keyword_arg(iseq, argc, orig_argv, &keyword_hash);
+	argc = vm_callee_setup_keyword_arg(iseq, argc, m, orig_argv, &keyword_hash);
     }
 
     /* mandatory */
@@ -2191,11 +2191,6 @@ vm_yield_setup_block_args(rb_thread_t *th, const rb_iseq_t * iseq,
 
     th->mark_stack_len = argc;
 
-    /* keyword argument */
-    if (iseq->arg_keyword != -1) {
-	argc = vm_callee_setup_keyword_arg(iseq, argc, argv, &keyword_hash);
-    }
-
     /*
      * yield [1, 2]
      *  => {|a|} => a = [1, 2]
@@ -2203,7 +2198,10 @@ vm_yield_setup_block_args(rb_thread_t *th, const rb_iseq_t * iseq,
      */
     arg0 = argv[0];
     if (!(iseq->arg_simple & 0x02) &&                           /* exclude {|a|} */
-	((m + iseq->arg_post_len) > 0 || iseq->arg_opts > 2) &&        /* this process is meaningful */
+	((m + iseq->arg_post_len) > 0 ||			/* positional arguments exist */
+	 iseq->arg_opts > 2 ||					/* multiple optional arguments exist */
+	 iseq->arg_keyword != -1 ||				/* any keyword arguments */
+	 0) &&
 	argc == 1 && !NIL_P(ary = rb_check_array_type(arg0))) { /* rhs is only an array */
 	th->mark_stack_len = argc = RARRAY_LENINT(ary);
 
@@ -2212,7 +2210,18 @@ vm_yield_setup_block_args(rb_thread_t *th, const rb_iseq_t * iseq,
 	MEMCPY(argv, RARRAY_PTR(ary), VALUE, argc);
     }
     else {
+	/* vm_push_frame current argv is at the top of sp because vm_invoke_block
+	 * set sp at the first element of argv.
+	 * Therefore when rb_check_array_type(arg0) called to_ary and called to_ary
+	 * or method_missing run vm_push_frame, it initializes local variables.
+	 * see also https://bugs.ruby-lang.org/issues/8484
+	 */
 	argv[0] = arg0;
+    }
+
+    /* keyword argument */
+    if (iseq->arg_keyword != -1) {
+	argc = vm_callee_setup_keyword_arg(iseq, argc, m, argv, &keyword_hash);
     }
 
     for (i=argc; i<m; i++) {

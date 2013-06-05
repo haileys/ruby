@@ -1277,7 +1277,8 @@ iseq_set_arguments(rb_iseq_t *iseq, LINK_ANCHOR *optargs, NODE *node_args)
 	}
 
 	if (iseq->type == ISEQ_TYPE_BLOCK) {
-	    if (iseq->arg_opts == 0 && iseq->arg_post_len == 0 && iseq->arg_rest == -1) {
+	    if (iseq->arg_opts == 0 && iseq->arg_post_len == 0 &&
+		iseq->arg_rest == -1 && iseq->arg_keyword == -1) {
 		if (iseq->argc == 1 && last_comma == 0) {
 		    /* {|a|} */
 		    iseq->arg_simple |= 0x02;
@@ -3245,7 +3246,7 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	INIT_ANCHOR(body_seq);
 	INIT_ANCHOR(cond_seq);
 
-	RHASH_TBL(literals)->type = &cdhash_type;
+	rb_hash_tbl_raw(literals)->type = &cdhash_type;
 
 	if (node->nd_head == 0) {
 	    COMPILE_(ret, "when", node->nd_body, poped);

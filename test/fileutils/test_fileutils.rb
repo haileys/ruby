@@ -758,6 +758,11 @@ class TestFileUtils
     assert_directory 'tmp/tmp'
     assert_equal 0700, (File.stat('tmp/tmp').mode & 0777) if have_file_perm?
     Dir.rmdir 'tmp/tmp'
+
+    # EISDIR on OS X, FreeBSD; EEXIST on Linux; Errno::EACCES on Windows
+    assert_raise(Errno::EISDIR, Errno::EEXIST, Errno::EACCES) {
+      mkdir '/'
+    }
   end
 
   def test_mkdir_file_perm
@@ -831,6 +836,8 @@ class TestFileUtils
     # (rm(1) try to chdir to parent directory, it fails to remove directory.)
     Dir.rmdir 'tmp/tmp'
     Dir.rmdir 'tmp'
+
+    mkdir_p '/'
   end
 
   def test_mkdir_p_file_perm
@@ -1215,6 +1222,14 @@ class TestFileUtils
 
   def test_rmdir
     check_singleton :rmdir
+
+    begin
+      Dir.rmdir '/'
+    rescue => e
+      assert_raise(e.class) {
+        rmdir '/'
+      }
+    end
   end
 
   def test_rmtree

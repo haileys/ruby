@@ -17,6 +17,7 @@
 #include "ruby/io.h"
 #include "ruby/thread.h"
 #include "ruby/util.h"
+#include "ruby/debug.h"
 #include "eval_intern.h"
 #include "vm_core.h"
 #include "internal.h"
@@ -141,7 +142,7 @@ static ruby_gc_params_t initial_params = {
 #endif
 
 #ifndef GC_PROFILE_MORE_DETAIL
-#define GC_PROFILE_MORE_DETAIL 0
+#define GC_PROFILE_MORE_DETAIL 1
 #endif
 #ifndef GC_ENABLE_LAZY_SWEEP
 #define GC_ENABLE_LAZY_SWEEP 1
@@ -326,10 +327,15 @@ typedef struct rb_objspace {
 	size_t generated_sunny_object_count;
 	size_t generated_shady_object_count;
 	size_t shade_operation_count;
+	size_t promote_operation_count;
 	size_t remembered_sunny_object_count;
 	size_t remembered_shady_object_count;
 #if RGENGC_PROFILE >= 2
 	size_t generated_shady_object_count_types[RUBY_T_MASK];
+	size_t shade_operation_count_types[RUBY_T_MASK];
+	size_t promote_operation_count_types[RUBY_T_MASK];
+	size_t remembered_sunny_object_count_types[RUBY_T_MASK];
+	size_t remembered_shady_object_count_types[RUBY_T_MASK];
 #endif
 #endif /* RGENGC_PROFILE */
 #endif /* USE_RGENGC */
@@ -342,6 +348,7 @@ typedef struct rb_objspace {
     size_t count;
     size_t total_allocated_object_num;
     size_t total_freed_object_num;
+    rb_event_flag_t hook_events; /* this place may be affinity with memory cache */
     int gc_stress;
 
     struct mark_func_data_struct {
@@ -487,7 +494,20 @@ static size_t rgengc_rememberset_mark(rb_objspace_t *objspace);
 #define RVALUE_SHADY(x)       (!RVALUE_SUNNY(x))
 #define RVALUE_PROMOTED(x)    FL_TEST2((x), FL_OLDGEN)
 
-#define RVALUE_PROMOTE(x)     FL_SET2((x), FL_OLDGEN)
+static inline void
+RVALUE_PROMOTE(VALUE obj)
+{
+    FL_SET2(obj, FL_OLDGEN);
+#if RGENGC_PROFILE >= 1
+    {
+	rb_objspace_t *objspace = &rb_objspace;
+	objspace->profile.promote_operation_count++;
+#if RGENGC_PROFILE >= 2
+	objspace->profile.promote_operation_count_types[BUILTIN_TYPE(obj)]++;
+#endif
+    }
+#endif
+}
 #define RVALUE_DEMOTE(x)      FL_UNSET2((x), FL_OLDGEN)
 #endif
 
@@ -807,6 +827,27 @@ heaps_increment(rb_objspace_t *objspace)
     return FALSE;
 }
 
+void
+rb_objspace_set_event_hook(const rb_event_flag_t event)
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    objspace->hook_events = event & RUBY_INTERNAL_EVENT_OBJSPACE_MASK;
+}
+
+static void
+gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE data)
+{
+    rb_thread_t *th = GET_THREAD();
+    EXEC_EVENT_HOOK(th, event, th->cfp->self, 0, 0, data);
+}
+
+#define gc_event_hook(objspace, event, data) do { \
+    if (UNLIKELY((objspace)->hook_events & (event))) { \
+	gc_event_hook_body((objspace), (event), (data)); \
+    } \
+} while (0)
+
+
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 {
@@ -851,7 +892,6 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     RANY(obj)->file = rb_sourcefile();
     RANY(obj)->line = rb_sourceline();
 #endif
-    objspace->total_allocated_object_num++;
 
 #if RGENGC_PROFILE
     if (flags & FL_WB_PROTECTED) objspace->profile.generated_sunny_object_count++;
@@ -869,6 +909,9 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     if (RVALUE_PROMOTED(obj)) rb_bug("newobj: %p (%s) is promoted.\n", (void *)obj, obj_type_name(obj));
     if (rgengc_remembered(objspace, (VALUE)obj)) rb_bug("newobj: %p (%s) is remembered.\n", (void *)obj, obj_type_name(obj));
 #endif
+
+    objspace->total_allocated_object_num++;
+    gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
 
     return obj;
 }
@@ -1092,6 +1135,8 @@ make_io_deferred(RVALUE *p)
 static int
 obj_free(rb_objspace_t *objspace, VALUE obj)
 {
+    gc_event_hook(objspace, RUBY_INTERNAL_EVENT_FREEOBJ, obj);
+
     switch (BUILTIN_TYPE(obj)) {
       case T_NIL:
       case T_FIXNUM:
@@ -1662,13 +1707,26 @@ finalize_deferred(rb_objspace_t *objspace)
     }
 }
 
-void
-rb_gc_finalize_deferred(void)
+static void
+gc_finalize_deferred(void *dmy)
 {
     rb_objspace_t *objspace = &rb_objspace;
     if (ATOMIC_EXCHANGE(finalizing, 1)) return;
     finalize_deferred(objspace);
     ATOMIC_SET(finalizing, 0);
+}
+
+/* TODO: to keep compatibility, maybe unused. */
+void
+rb_gc_finalize_deferred(void)
+{
+    gc_finalize_deferred(0);
+}
+
+static void
+gc_finalize_deferred_register()
+{
+    rb_postponed_job_register_one(0, gc_finalize_deferred, 0);
 }
 
 struct force_finalize_list {
@@ -2015,7 +2073,7 @@ count_objects(int argc, VALUE *argv, VALUE os)
         hash = rb_hash_new();
     }
     else if (!RHASH_EMPTY_P(hash)) {
-        st_foreach(RHASH_TBL(hash), set_zero, hash);
+        st_foreach(RHASH_TBL_RAW(hash), set_zero, hash);
     }
     rb_hash_aset(hash, ID2SYM(rb_intern("TOTAL")), SIZET2NUM(total));
     rb_hash_aset(hash, ID2SYM(rb_intern("FREE")), SIZET2NUM(freed));
@@ -2197,7 +2255,7 @@ slot_sweep_body(rb_objspace_t *objspace, struct heaps_slot *sweep_slot, const in
     if (deferred_final_list && !finalizing) {
         rb_thread_t *th = GET_THREAD();
         if (th) {
-            RUBY_VM_SET_FINALIZER_INTERRUPT(th);
+	    gc_finalize_deferred_register();
         }
     }
 
@@ -2254,6 +2312,9 @@ ready_to_gc(rb_objspace_t *objspace)
     return TRUE;
 }
 
+#if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 4
+__attribute__((optimize("O0")))
+#endif
 static void
 before_gc_sweep(rb_objspace_t *objspace)
 {
@@ -2288,13 +2349,13 @@ after_gc_sweep(rb_objspace_t *objspace)
 		  objspace->heap.free_num, objspace->heap.free_min);
 
     if (objspace->heap.free_num < objspace->heap.free_min) {
-	if (objspace->rgengc.remembered_shady_object_count + objspace->rgengc.oldgen_object_count > (heaps_used * HEAP_OBJ_LIMIT) / 2) {
+	set_heaps_increment(objspace);
+	heaps_increment(objspace);
+
+	if (objspace->rgengc.remembered_shady_object_count + objspace->rgengc.oldgen_object_count > (heaps_length * HEAP_OBJ_LIMIT) / 2) {
 	    /* if [oldgen]+[remembered shady] > [all object count]/2, then do major GC */
 	    objspace->rgengc.need_major_gc = TRUE;
 	}
-
-	set_heaps_increment(objspace);
-	heaps_increment(objspace);
     }
 
     inc = ATOMIC_SIZE_EXCHANGE(malloc_increase, 0);
@@ -2306,6 +2367,8 @@ after_gc_sweep(rb_objspace_t *objspace)
     }
 
     free_unused_heaps(objspace);
+
+    gc_event_hook(objspace, RUBY_INTERNAL_EVENT_GC_END, 0 /* TODO: pass minor/immediate flag? */);
 }
 
 static int
@@ -3024,7 +3087,7 @@ gc_mark_children(rb_objspace_t *objspace, VALUE ptr)
 
 	/* minor/major common */
 	if (RVALUE_SUNNY(obj)) {
-	    RVALUE_PROMOTE(obj); /* Sunny object can be promoted to OLDGEN object */
+	    RVALUE_PROMOTE((VALUE)obj); /* Sunny object can be promoted to OLDGEN object */
 	    rgengc_report(3, objspace, "gc_mark_children: promote %p (%s).\n", (void *)obj, obj_type_name((VALUE)obj));
 	    objspace->rgengc.parent_object_is_promoted = TRUE;
 	    objspace->rgengc.oldgen_object_count++;
@@ -3535,8 +3598,18 @@ rgengc_remember(rb_objspace_t *objspace, VALUE obj)
 
     if (RGENGC_PROFILE) {
 	if (!rgengc_remembered(objspace, obj)) {
-	    if (RVALUE_SUNNY(obj)) objspace->profile.remembered_sunny_object_count++;
-	    else                   objspace->profile.remembered_shady_object_count++;
+	    if (RVALUE_SUNNY(obj)) {
+		objspace->profile.remembered_sunny_object_count++;
+#if RGENGC_PROFILE >= 2
+		objspace->profile.remembered_sunny_object_count_types[BUILTIN_TYPE(obj)]++;
+#endif
+	    }
+	    else {
+		objspace->profile.remembered_shady_object_count++;
+#if RGENGC_PROFILE >= 2
+		objspace->profile.remembered_shady_object_count_types[BUILTIN_TYPE(obj)]++;
+#endif
+	    }
 	}
     }
 
@@ -3653,6 +3726,9 @@ rb_gc_giveup_promoted_writebarrier(VALUE obj)
 
 #if RGENGC_PROFILE
     objspace->profile.shade_operation_count++;
+#if RGENGC_PROFILE >= 2
+    objspace->profile.shade_operation_count_types[BUILTIN_TYPE(obj)]++;
+#endif /* RGENGC_PROFILE >= 2 */
 #endif
 }
 
@@ -3768,13 +3844,17 @@ garbage_collect_body(rb_objspace_t *objspace, int full_mark, int immediate_sweep
 	}
     }
 
-    if (GC_ENABLE_LAZY_SWEEP || objspace->flags.dont_lazy_sweep) {
+    if (!GC_ENABLE_LAZY_SWEEP || objspace->flags.dont_lazy_sweep) {
 	immediate_sweep = TRUE;
     }
 
     if (full_mark) {
 	objspace->rgengc.oldgen_object_count = 0;
     }
+
+    if (GC_NOTIFY) fprintf(stderr, "start garbage_collect(%d, %d, %d)\n", full_mark, immediate_sweep, reason);
+
+    gc_event_hook(objspace, RUBY_INTERNAL_EVENT_GC_START, 0 /* TODO: pass minor/immediate flag? */);
 
     gc_prof_timer_start(objspace, reason | (minor_gc ? GPR_FLAG_MINOR : 0));
     {
@@ -3785,15 +3865,13 @@ garbage_collect_body(rb_objspace_t *objspace, int full_mark, int immediate_sweep
     }
     gc_prof_timer_stop(objspace);
 
-    if (GC_NOTIFY) printf("end garbage_collect()\n");
+    if (GC_NOTIFY) fprintf(stderr, "end garbage_collect()\n");
     return TRUE;
 }
 
 static int
 garbage_collect(rb_objspace_t *objspace, int full_mark, int immediate_sweep, int reason)
 {
-    if (GC_NOTIFY) printf("start garbage_collect(%d, %d, %d)\n", full_mark, immediate_sweep, reason);
-
     if (!heaps) {
 	during_gc = 0;
 	return FALSE;
@@ -3895,6 +3973,26 @@ rb_during_gc(void)
     return during_gc;
 }
 
+#if RGENGC_PROFILE >= 2
+static void
+gc_count_add_each_types(VALUE hash, const char *name, const size_t *types)
+{
+    VALUE result = rb_hash_new();
+    int i;
+    for (i=0; i<T_MASK; i++) {
+	const char *type = type_name(i, 0);
+	rb_hash_aset(result, ID2SYM(rb_intern(type)), SIZET2NUM(types[i]));
+    }
+    rb_hash_aset(hash, ID2SYM(rb_intern(name)), result);
+}
+#endif
+
+size_t
+rb_gc_count(void)
+{
+    return rb_objspace.count;
+}
+
 /*
  *  call-seq:
  *     GC.count -> Integer
@@ -3908,7 +4006,7 @@ rb_during_gc(void)
 static VALUE
 gc_count(VALUE self)
 {
-    return UINT2NUM(rb_objspace.count);
+    return SIZET2NUM(rb_gc_count());
 }
 
 /*
@@ -3951,7 +4049,7 @@ gc_stat(int argc, VALUE *argv, VALUE self)
     static VALUE sym_minor_gc_count, sym_major_gc_count;
 #if RGENGC_PROFILE
     static VALUE sym_generated_sunny_object_count, sym_generated_shady_object_count;
-    static VALUE sym_shade_operation_count;
+    static VALUE sym_shade_operation_count, sym_promote_operation_count;
     static VALUE sym_remembered_sunny_object_count, sym_remembered_shady_object_count;
 #endif /* RGENGC_PROFILE */
 #endif /* USE_RGENGC */
@@ -3974,6 +4072,7 @@ gc_stat(int argc, VALUE *argv, VALUE self)
 	S(generated_sunny_object_count);
 	S(generated_shady_object_count);
 	S(shade_operation_count);
+	S(promote_operation_count);
 	S(remembered_sunny_object_count);
 	S(remembered_shady_object_count);
 #endif /* USE_RGENGC */
@@ -3990,8 +4089,6 @@ gc_stat(int argc, VALUE *argv, VALUE self)
     if (hash == Qnil) {
         hash = rb_hash_new();
     }
-
-    rest_sweep(objspace);
 
     rb_hash_aset(hash, sym_count, SIZET2NUM(objspace->count));
     /* implementation dependent counters */
@@ -4010,17 +4107,16 @@ gc_stat(int argc, VALUE *argv, VALUE self)
     rb_hash_aset(hash, sym_generated_sunny_object_count, SIZET2NUM(objspace->profile.generated_sunny_object_count));
     rb_hash_aset(hash, sym_generated_shady_object_count, SIZET2NUM(objspace->profile.generated_shady_object_count));
     rb_hash_aset(hash, sym_shade_operation_count, SIZET2NUM(objspace->profile.shade_operation_count));
+    rb_hash_aset(hash, sym_promote_operation_count, SIZET2NUM(objspace->profile.promote_operation_count));
     rb_hash_aset(hash, sym_remembered_sunny_object_count, SIZET2NUM(objspace->profile.remembered_sunny_object_count));
     rb_hash_aset(hash, sym_remembered_shady_object_count, SIZET2NUM(objspace->profile.remembered_shady_object_count));
 #if RGENGC_PROFILE >= 2
     {
-	VALUE types = rb_hash_new();
-	int i;
-	for (i=0; i<T_MASK; i++) {
-	    const char *type = type_name(i, 0);
-	    rb_hash_aset(types, ID2SYM(rb_intern(type)), SIZET2NUM(objspace->profile.generated_shady_object_count_types[i]));
-	}
-	rb_hash_aset(hash, ID2SYM(rb_intern("generated_shady_object_count_types")), types);
+	gc_count_add_each_types(hash, "generated_shady_object_count_types", objspace->profile.generated_shady_object_count_types);
+	gc_count_add_each_types(hash, "shade_operation_count_types", objspace->profile.shade_operation_count_types);
+	gc_count_add_each_types(hash, "promote_operation_count_types", objspace->profile.promote_operation_count_types);
+	gc_count_add_each_types(hash, "remembered_sunny_object_count_types", objspace->profile.remembered_sunny_object_count_types);
+	gc_count_add_each_types(hash, "remembered_shady_object_count_types", objspace->profile.remembered_shady_object_count_types);
     }
 #endif
 #endif /* RGENGC_PROFILE */
@@ -5197,7 +5293,7 @@ static VALUE
 gc_profile_enable(void)
 {
     rb_objspace_t *objspace = &rb_objspace;
-
+    rest_sweep(objspace);
     objspace->profile.run = TRUE;
     return Qnil;
 }
