@@ -265,10 +265,6 @@ static vm_state_version_t ruby_global_method_state_version = 1;
 #define GET_METHOD_STATE_VERSION() (ruby_global_method_state_version)
 #define INC_METHOD_STATE_VERSION() (++ruby_global_method_state_version)
 
-static vm_state_version_t ruby_global_const_state_version = 1;
-#define GET_CONST_STATE_VERSION() (ruby_global_const_state_version)
-#define INC_CONST_STATE_VERSION() (++ruby_global_const_state_version)
-
 static sa_table *ruby_const_name_state_versions;
 
 vm_state_version_t *

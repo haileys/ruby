@@ -1433,8 +1433,16 @@ iseq_set_sequence(rb_iseq_t *iseq, LINK_ANCHOR *anchor)
     /* make instruction sequence */
     generated_iseq = ALLOC_N(VALUE, pos);
     line_info_table = ALLOC_N(struct iseq_line_info_entry, k);
+
     iseq->ic_entries = ALLOC_N(struct iseq_inline_cache_entry, iseq->ic_size);
     MEMZERO(iseq->ic_entries, struct iseq_inline_cache_entry, iseq->ic_size);
+
+    iseq->getcrefconst_ic_entries = ALLOC_N(struct iseq_getcrefconst_inline_cache_entry, iseq->getcrefconst_ic_size);
+    MEMZERO(iseq->getcrefconst_ic_entries, struct iseq_getcrefconst_inline_cache_entry, iseq->getcrefconst_ic_size);
+
+    iseq->getclassconst_ic_entries = ALLOC_N(struct iseq_getclassconst_inline_cache_entry, iseq->getclassconst_ic_size);
+    MEMZERO(iseq->getclassconst_ic_entries, struct iseq_getclassconst_inline_cache_entry, iseq->getclassconst_ic_size);
+
     iseq->callinfo_entries = ALLOC_N(rb_call_info_t, iseq->callinfo_size);
     /* MEMZERO(iseq->callinfo_entries, rb_call_info_t, iseq->callinfo_size); */
 
@@ -1535,6 +1543,30 @@ iseq_set_sequence(rb_iseq_t *iseq, LINK_ANCHOR *anchor)
 			    IC ic = &iseq->ic_entries[ic_index];
 			    if (UNLIKELY(ic_index >= iseq->ic_size)) {
 				rb_bug("iseq_set_sequence: ic_index overflow: index: %d, size: %d", ic_index, iseq->ic_size);
+			    }
+			    generated_iseq[pos + 1 + j] = (VALUE)ic;
+			    break;
+			}
+		      case TS_GETCREFCONST_IC: /* inline cache - getcrefconst */
+			{
+			    ID const_name = SYM2ID(operands[j - 1]);
+			    int index = FIX2INT(operands[j]);
+			    GETCREFCONST_IC ic = &iseq->getcrefconst_ic_entries[index];
+			    ic->name_seq_ptr = rb_state_version_for_const_name(const_name);
+			    if (UNLIKELY(index >= iseq->getcrefconst_ic_size)) {
+				rb_bug("iseq_set_sequence: getcrefconst_ic_index overflow: index: %d, size: %d", index, iseq->getcrefconst_ic_size);
+			    }
+			    generated_iseq[pos + 1 + j] = (VALUE)ic;
+			    break;
+			}
+		      case TS_GETCLASSCONST_IC: /* inline cache - getclassconst */
+			{
+			    ID const_name = SYM2ID(operands[j - 1]);
+			    int index = FIX2INT(operands[j]);
+			    GETCLASSCONST_IC ic = &iseq->getclassconst_ic_entries[index];
+			    ic->name_seq_ptr = rb_state_version_for_const_name(const_name);
+			    if (UNLIKELY(index >= iseq->getclassconst_ic_size)) {
+				rb_bug("iseq_set_sequence: getclassconst_ic_index overflow: index: %d, size: %d", index, iseq->getclassconst_ic_size);
 			    }
 			    generated_iseq[pos + 1 + j] = (VALUE)ic;
 			    break;
@@ -2728,22 +2760,27 @@ static int
 compile_colon2(rb_iseq_t *iseq, NODE * node,
 	       LINK_ANCHOR *pref, LINK_ANCHOR *body)
 {
-    int ic_index = iseq->ic_size++;
     switch (nd_type(node)) {
-      case NODE_CONST:
+      case NODE_CONST: {
+	int getcrefconst_ic_index = iseq->getcrefconst_ic_size++;
 	debugi("compile_colon2 - colon", node->nd_vid);
-	ADD_INSN2(body, nd_line(node), getcrefconstant, ID2SYM(node->nd_vid), INT2FIX(ic_index));
+	ADD_INSN2(body, nd_line(node), getcrefconstant, ID2SYM(node->nd_vid), INT2FIX(getcrefconst_ic_index));
 	break;
-      case NODE_COLON3:
+      }
+      case NODE_COLON3: {
+	int getclassconst_ic_index = iseq->getclassconst_ic_size++;
 	debugi("compile_colon2 - colon3", node->nd_mid);
 	ADD_INSN1(body, nd_line(node), putobject, rb_cObject);
-	ADD_INSN2(body, nd_line(node), getclassconstant, ID2SYM(node->nd_mid), INT2FIX(ic_index));
+	ADD_INSN2(body, nd_line(node), getclassconstant, ID2SYM(node->nd_mid), INT2FIX(getclassconst_ic_index));
 	break;
-      case NODE_COLON2:
+      }
+      case NODE_COLON2: {
+	int getclassconst_ic_index = iseq->getclassconst_ic_size++;
 	compile_colon2(iseq, node->nd_head, pref, body);
 	debugi("compile_colon2 - colon2", node->nd_mid);
-	ADD_INSN2(body, nd_line(node), getclassconstant, ID2SYM(node->nd_mid), INT2FIX(ic_index));
+	ADD_INSN2(body, nd_line(node), getclassconstant, ID2SYM(node->nd_mid), INT2FIX(getclassconst_ic_index));
 	break;
+      }
       default:
 	COMPILE(pref, "const colon2 prefix", node);
 	break;
@@ -4214,7 +4251,7 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	    ADD_INSNL(ret, line, branchunless, lassign); /* cref */
 	}
 	ADD_INSN(ret, line, dup); /* cref cref */
-	ADD_INSN2(ret, line, getclassconstant, ID2SYM(mid), INT2FIX(iseq->ic_size++)); /* cref obj */
+	ADD_INSN2(ret, line, getclassconstant, ID2SYM(mid), INT2FIX(iseq->getclassconst_ic_size++)); /* cref obj */
 
 	if (node->nd_aid == 0 || node->nd_aid == 1) {
 	    lfin = NEW_LABEL(line);
@@ -4670,7 +4707,7 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
       case NODE_CONST:{
 	debugi("nd_vid", node->nd_vid);
 
-	ADD_INSN2(ret, line, getcrefconstant, ID2SYM(node->nd_vid), INT2FIX(iseq->ic_size++));
+	ADD_INSN2(ret, line, getcrefconstant, ID2SYM(node->nd_vid), INT2FIX(iseq->getcrefconst_ic_size++));
 
 	if (poped) {
 	    ADD_INSN(ret, line, pop);
@@ -5025,12 +5062,12 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	break;
       }
       case NODE_COLON3:{
-	int ic_index = iseq->ic_size++;
+	int getclassconst_ic_index = iseq->getclassconst_ic_size++;
 
 	debugi("colon3#nd_mid", node->nd_mid);
 
 	ADD_INSN1(ret, line, putobject, rb_cObject);
-	ADD_INSN2(ret, line, getclassconstant, ID2SYM(node->nd_mid), INT2FIX(ic_index));
+	ADD_INSN2(ret, line, getclassconstant, ID2SYM(node->nd_mid), INT2FIX(getclassconst_ic_index));
 
 	if (poped) {
 	    ADD_INSN(ret, line, pop);

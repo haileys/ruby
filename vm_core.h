@@ -140,6 +140,19 @@ struct iseq_inline_cache_entry {
     } ic_value;
 };
 
+struct iseq_getcrefconst_inline_cache_entry {
+    vm_state_version_t name_seq;
+    vm_state_version_t *name_seq_ptr;
+    VALUE value;
+};
+
+struct iseq_getclassconst_inline_cache_entry {
+    vm_state_version_t klass;
+    vm_state_version_t name_seq;
+    vm_state_version_t *name_seq_ptr;
+    VALUE value;
+};
+
 /* to avoid warning */
 struct rb_thread_struct;
 struct rb_control_frame_struct;
@@ -233,6 +246,12 @@ struct rb_iseq_struct {
 
     struct iseq_inline_cache_entry *ic_entries;
     int ic_size;
+
+    struct iseq_getcrefconst_inline_cache_entry *getcrefconst_ic_entries;
+    int getcrefconst_ic_size;
+
+    struct iseq_getclassconst_inline_cache_entry *getclassconst_ic_entries;
+    int getclassconst_ic_size;
 
     rb_call_info_t *callinfo_entries;
     int callinfo_size;
@@ -748,6 +767,8 @@ enum vm_special_object_type {
 
 /* inline cache */
 typedef struct iseq_inline_cache_entry *IC;
+typedef struct iseq_getcrefconst_inline_cache_entry *GETCREFCONST_IC;
+typedef struct iseq_getclassconst_inline_cache_entry *GETCLASSCONST_IC;
 typedef rb_call_info_t *CALL_INFO;
 
 void rb_vm_change_state(void);

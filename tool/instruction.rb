@@ -947,6 +947,10 @@ class RubyVM
         "TS_GENTRY"
       when /^IC/
         "TS_IC"
+      when /^GETCREFCONST_IC/
+        "TS_GETCREFCONST_IC"
+      when /^GETCLASSCONST_IC/
+        "TS_GETCLASSCONST_IC"
       when /^CALL_INFO/
         "TS_CALLINFO"
       when /^\.\.\./
@@ -963,18 +967,20 @@ class RubyVM
     end
 
     TYPE_CHARS = {
-      'TS_OFFSET'    => 'O',
-      'TS_NUM'       => 'N',
-      'TS_LINDEX'    => 'L',
-      'TS_VALUE'     => 'V',
-      'TS_ID'        => 'I',
-      'TS_GENTRY'    => 'G',
-      'TS_IC'        => 'K',
-      'TS_CALLINFO'  => 'C',
-      'TS_CDHASH'    => 'H',
-      'TS_ISEQ'      => 'S',
-      'TS_VARIABLE'  => '.',
-      'TS_FUNCPTR'   => 'F',
+      'TS_OFFSET'           => 'O',
+      'TS_NUM'              => 'N',
+      'TS_LINDEX'           => 'L',
+      'TS_VALUE'            => 'V',
+      'TS_ID'               => 'I',
+      'TS_GENTRY'           => 'G',
+      'TS_IC'               => 'K',
+      'TS_GETCREFCONST_IC'  => 'J',
+      'TS_GETCLASSCONST_IC' => 'M',
+      'TS_CALLINFO'         => 'C',
+      'TS_CDHASH'           => 'H',
+      'TS_ISEQ'             => 'S',
+      'TS_VARIABLE'         => '.',
+      'TS_FUNCPTR'          => 'F',
     }
 
     # insns_info.inc

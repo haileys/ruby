@@ -817,10 +817,6 @@ rb_include_module(VALUE klass, VALUE module)
     changed = include_modules_at(klass, RCLASS_ORIGIN(klass), module);
     if (changed < 0)
 	rb_raise(rb_eArgError, "cyclic include detected");
-    if (changed) {
-	rb_clear_method_cache_by_class(klass);
-	rb_clear_constant_cache_by_class_without_name(klass);
-    }
 }
 
 static int
@@ -831,11 +827,31 @@ add_refined_method_entry_i(st_data_t key, st_data_t value, st_data_t data)
 }
 
 static int
+invalidate_names_for_module_inclusion_i(st_data_t key, st_data_t value, st_data_t data)
+{
+    ID name = (ID)key;
+    rb_clear_constant_cache_by_name(name);
+    return ST_CONTINUE;
+}
+
+static void
+invalidate_constant_names_for_module_inclusion(VALUE mod)
+{
+    for (; mod && mod != Qundef; mod = RCLASS_SUPER(mod)) {
+	if (RCLASS_CONST_TBL(mod)) {
+	    st_foreach(RCLASS_CONST_TBL(mod), invalidate_names_for_module_inclusion_i, 0);
+	}
+    }
+}
+
+static int
 include_modules_at(const VALUE klass, VALUE c, VALUE module)
 {
     VALUE p, iclass;
     int changed = 0;
     const st_table *const klass_m_tbl = RCLASS_M_TBL(RCLASS_ORIGIN(klass));
+
+    invalidate_constant_names_for_module_inclusion(module);
 
     while (module) {
 	int superclass_seen = FALSE;
@@ -888,7 +904,6 @@ include_modules_at(const VALUE klass, VALUE c, VALUE module)
 
     if (changed) {
 	rb_clear_method_cache_by_class(klass);
-	rb_clear_constant_cache_by_class_without_name(klass);
     }
 
     return changed;
@@ -949,8 +964,6 @@ rb_prepend_module(VALUE klass, VALUE module)
     if (changed < 0)
 	rb_raise(rb_eArgError, "cyclic prepend detected");
     if (changed) {
-	rb_clear_method_cache_by_class(klass);
-	rb_clear_constant_cache_by_class_without_name(klass);
 	rb_vm_check_redefinition_by_prepend(klass);
     }
 }
