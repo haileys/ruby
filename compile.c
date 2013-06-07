@@ -4783,6 +4783,32 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	}
 	break;
       }
+      case NODE_FSTR:{
+	if (!poped) {
+	    OBJ_FREEZE(node->nd_lit);
+	    ADD_INSN1(ret, line, putobject, node->nd_lit);
+	}
+	break;
+      }
+      case NODE_DFSTR:{
+        LABEL *lend = NEW_LABEL(line);
+	int ic_index = iseq->ic_size++;
+
+	ADD_INSN2(ret, line, onceinlinecache, lend, INT2FIX(ic_index));
+	ADD_INSN(ret, line, pop);
+
+	compile_dstr(iseq, ret, node);
+
+	ADD_INSN(ret, line, freeze);
+
+	ADD_INSN1(ret, line, setinlinecache, INT2FIX(ic_index));
+	ADD_LABEL(ret, lend);
+
+	if (poped) {
+	    ADD_INSN(ret, line, pop);
+	}
+	break;
+      }
       case NODE_XSTR:{
 	OBJ_FREEZE(node->nd_lit);
 	ADD_CALL_RECEIVER(ret, line);

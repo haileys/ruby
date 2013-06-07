@@ -555,6 +555,20 @@ newrange
     val = rb_range_new(low, high, (int)flag);
 }
 
+/**
+  @c freeze
+  @e freezes object on top of the stack
+  @j
+ */
+DEFINE_INSN
+freeze
+()
+(VALUE in_val)
+(VALUE out_val)
+{
+    out_val = rb_obj_freeze(in_val);
+}
+
 /**********************************************************/
 /* deal with stack operation                              */
 /**********************************************************/

@@ -756,7 +756,7 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token <node> tNTH_REF tBACK_REF
 %token <num>  tREGEXP_END
 
-%type <node> singleton strings string string1 xstring regexp
+%type <node> singleton strings string string1 fstring xstring regexp
 %type <node> string_contents xstring_contents regexp_contents string_content
 %type <node> words symbols symbol_list qwords qsymbols word_list qword_list qsym_list word
 %type <node> literal numeric dsym cpath
@@ -818,7 +818,7 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token tDSTAR		"**arg"
 %token tAMPER		"&"
 %token tLAMBDA		"->"
-%token tSYMBEG tSTRING_BEG tXSTRING_BEG tREGEXP_BEG tWORDS_BEG tQWORDS_BEG tSYMBOLS_BEG tQSYMBOLS_BEG
+%token tSYMBEG tSTRING_BEG tFSTRING_BEG tXSTRING_BEG tREGEXP_BEG tWORDS_BEG tQWORDS_BEG tSYMBOLS_BEG tQSYMBOLS_BEG
 %token tSTRING_DBEG tSTRING_DEND tSTRING_DVAR tSTRING_END tLAMBEG
 
 /*
@@ -2564,6 +2564,7 @@ mrhs		: args ',' arg_value
 
 primary		: literal
 		| strings
+		| fstring
 		| xstring
 		| regexp
 		| words
@@ -3846,6 +3847,31 @@ string1		: tSTRING_BEG string_contents tSTRING_END
 			$$ = $2;
 		    /*%
 			$$ = dispatch1(string_literal, $2);
+		    %*/
+		    }
+		;
+
+fstring		: tFSTRING_BEG string_contents tSTRING_END
+		    {
+		    /*%%%*/
+			NODE *node = $2;
+			if (!node) {
+			    node = NEW_STR(STR_NEW0());
+			}
+			switch (nd_type(node)) {
+			  case NODE_STR:
+			    nd_set_type(node, NODE_FSTR);
+			    break;
+			  case NODE_DSTR:
+			    nd_set_type(node, NODE_DFSTR);
+			    break;
+			  default:
+			    node = NEW_NODE(NODE_DFSTR, Qnil, 1, NEW_LIST(node));
+			    break;
+			}
+			$$ = node;
+		    /*%
+			$$ = dispatch1(fstring_literal, $2);
 		    %*/
 		    }
 		;
@@ -7792,6 +7818,14 @@ parser_yylex(struct parser_params *parser)
 	      case 'q':
 		lex_strterm = NEW_STRTERM(str_squote, term, paren);
 		return tSTRING_BEG;
+
+	      case 'F':
+	        lex_strterm = NEW_STRTERM(str_dquote, term, paren);
+		return tFSTRING_BEG;
+
+	      case 'f':
+		lex_strterm = NEW_STRTERM(str_squote, term, paren);
+		return tFSTRING_BEG;
 
 	      case 'W':
 		lex_strterm = NEW_STRTERM(str_dword, term, paren);
