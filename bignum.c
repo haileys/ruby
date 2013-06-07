@@ -50,6 +50,8 @@ static VALUE big_three = Qnil;
 		     (BDIGITS(x)[0] == 0 && \
 		      (RBIGNUM_LEN(x) == 1 || bigzero_p(x))))
 
+static int nlz(BDIGIT x);
+
 #define BIGNUM_DEBUG 0
 #if BIGNUM_DEBUG
 #define ON_DEBUG(x) do { x; } while (0)
@@ -447,6 +449,477 @@ rb_big_unpack(unsigned long *buf, long num_longs)
         }
         return bignorm(big);
     }
+}
+
+/* number of bytes of abs(val). additionaly number of leading zeros can be returned. */
+size_t
+rb_absint_size(VALUE val, int *number_of_leading_zero_bits)
+{
+    BDIGIT *dp;
+    BDIGIT *de;
+    BDIGIT fixbuf[(sizeof(long) + SIZEOF_BDIGITS - 1) / SIZEOF_BDIGITS];
+    int i;
+    int num_leading_zeros;
+
+    val = rb_to_int(val);
+
+    if (FIXNUM_P(val)) {
+        long v = FIX2LONG(val);
+        if (v < 0) {
+            v = -v;
+        }
+#if SIZEOF_BDIGITS == SIZEOF_LONG
+        fixbuf[0] = v;
+#else
+        for (i = 0; i < (int)(sizeof(fixbuf)/sizeof(*fixbuf)); i++) {
+            fixbuf[i] = v & ((1L << (SIZEOF_BDIGITS * CHAR_BIT)) - 1);
+            v >>= SIZEOF_BDIGITS * CHAR_BIT;
+        }
+#endif
+        dp = fixbuf;
+        de = fixbuf + sizeof(fixbuf)/sizeof(*fixbuf);
+    }
+    else {
+        dp = BDIGITS(val);
+        de = dp + RBIGNUM_LEN(val);
+    }
+    while (dp < de && de[-1] == 0)
+        de--;
+    if (dp == de) {
+        if (number_of_leading_zero_bits)
+            *number_of_leading_zero_bits = 0;
+        return 0;
+    }
+    num_leading_zeros = nlz(de[-1]);
+    if (number_of_leading_zero_bits)
+        *number_of_leading_zero_bits = num_leading_zeros % CHAR_BIT;
+    return (de - dp) * SIZEOF_BDIGITS - num_leading_zeros / CHAR_BIT;
+}
+
+size_t
+rb_absint_size_in_word(VALUE val, size_t word_numbits_arg, size_t *number_of_leading_zero_bits)
+{
+    size_t numbytes;
+    size_t numwords;
+    int zerobits_in_byte;
+    VALUE val_numbits, word_numbits;
+    VALUE div_mod, div, mod;
+
+    numbytes = rb_absint_size(val, &zerobits_in_byte);
+
+    /*
+     * val_numbits = numbytes * CHAR_BIT - zerobits_in_byte
+     * div, mod = val_numbits.divmod(word_numbits)
+     * numwords = mod == 0 ? div : div + 1
+     * number_of_leading_zero_bits_in_word = mod == 0 ? 0 : word_numbits - mod
+     */
+    val_numbits = SIZET2NUM(numbytes);
+    val_numbits = rb_funcall(val_numbits, '*', 1, LONG2FIX(CHAR_BIT));
+    if (zerobits_in_byte)
+        val_numbits = rb_funcall(val_numbits, '-', 1, LONG2FIX(zerobits_in_byte));
+    word_numbits = SIZET2NUM(word_numbits_arg);
+    div_mod = rb_funcall(val_numbits, rb_intern("divmod"), 1, word_numbits);
+    div = RARRAY_AREF(div_mod, 0);
+    mod = RARRAY_AREF(div_mod, 1);
+    if (mod == LONG2FIX(0)) {
+        numwords = NUM2SIZET(div);
+        if (number_of_leading_zero_bits)
+            *number_of_leading_zero_bits = 0;
+    }
+    else {
+        numwords = NUM2SIZET(rb_funcall(div, '+', 1, LONG2FIX(1)));
+        if (number_of_leading_zero_bits)
+            *number_of_leading_zero_bits = word_numbits_arg - NUM2SIZET(mod);
+    }
+    return numwords;
+}
+
+static inline void
+int_export_fill_dd(BDIGIT **dpp, BDIGIT **dep, BDIGIT_DBL *ddp, int *numbits_in_dd_p)
+{
+    if (*dpp < *dep && SIZEOF_BDIGITS * CHAR_BIT <= (int)sizeof(*ddp) * CHAR_BIT - *numbits_in_dd_p) {
+        *ddp |= (BDIGIT_DBL)(*(*dpp)++) << *numbits_in_dd_p;
+        *numbits_in_dd_p += SIZEOF_BDIGITS * CHAR_BIT;
+    }
+    else if (*dpp == *dep) {
+        /* higher bits are infinity zeros */
+        *numbits_in_dd_p = (int)sizeof(*ddp) * CHAR_BIT;
+    }
+}
+
+static inline BDIGIT_DBL
+int_export_take_lowbits(int n, BDIGIT_DBL *ddp, int *numbits_in_dd_p)
+{
+    BDIGIT_DBL ret;
+    ret = (*ddp) & (((BDIGIT_DBL)1 << n) - 1);
+    *ddp >>= n;
+    *numbits_in_dd_p -= n;
+    return ret;
+}
+
+/*
+ * Export an integer into a buffer.
+ *
+ * [val] Fixnum, Bignum or another object which has to_int.
+ * [signp] signedness is returned in *signp if it is not NULL.
+ *   0 for zero.
+ *   -1 for negative without overflow.  1 for positive without overflow.
+ *   -2 for negative overflow.  2 for positive overflow.
+ * [wordcount_allocated] the number of words allocated is returned in *wordcount_allocated if it is not NULL.
+ *   It is not modified if words is not NULL.
+ * [words] buffer to export abs(val).  allocated by xmalloc if it is NULL.
+ * [wordcount] the size of given buffer as number of words (only meaningful when words is not NULL).
+ * [wordorder] order of words: 1 for most significant word first.  -1 for least significant word first.
+ * [wordsize] the size of word as number of bytes.
+ * [endian] order of bytes in a word: 1 for most significant byte first.  -1 for least significant byte first.  0 for native endian.
+ * [nails] number of padding bits in a word.  Most significant nails bits of each word are filled by zero.
+ *
+ * This function returns words or the allocated buffer if words is NULL.
+ *
+ */
+void *
+rb_int_export(VALUE val, int *signp, size_t *wordcount_allocated, void *words, size_t wordcount, int wordorder, size_t wordsize, int endian, size_t nails)
+{
+    int sign;
+    BDIGIT *dp;
+    BDIGIT *de;
+    BDIGIT fixbuf[(sizeof(long) + SIZEOF_BDIGITS - 1) / SIZEOF_BDIGITS];
+    int i;
+    unsigned char *buf, *bufend;
+
+    val = rb_to_int(val);
+
+    if (wordorder != 1 && wordorder != -1)
+        rb_raise(rb_eArgError, "unexpected wordorder: %d", wordorder);
+    if (endian != 1 && endian != -1 && endian != 0)
+        rb_raise(rb_eArgError, "unexpected endian: %d", endian);
+    if (wordsize == 0)
+        rb_raise(rb_eArgError, "invalid wordsize: %"PRI_SIZE_PREFIX"u", wordsize);
+    if (SSIZE_MAX < wordsize)
+        rb_raise(rb_eArgError, "too big wordsize: %"PRI_SIZE_PREFIX"u", wordsize);
+    if (words && SIZE_MAX / wordsize < wordcount)
+        rb_raise(rb_eArgError, "too big count * wordsize: %"PRI_SIZE_PREFIX"u * %"PRI_SIZE_PREFIX"u", wordcount, wordsize);
+    if (wordsize <= nails / CHAR_BIT)
+        rb_raise(rb_eArgError, "too big nails: %"PRI_SIZE_PREFIX"u", nails);
+
+    if (endian == 0) {
+#ifdef WORDS_BIGENDIAN
+        endian = 1;
+#else
+        endian = -1;
+#endif
+    }
+
+    if (FIXNUM_P(val)) {
+        long v = FIX2LONG(val);
+        if (v < 0) {
+            sign = -1;
+            v = -v;
+        }
+        else {
+            sign = 1;
+        }
+#if SIZEOF_BDIGITS == SIZEOF_LONG
+        fixbuf[0] = v;
+#else
+        for (i = 0; i < (int)(sizeof(fixbuf)/sizeof(*fixbuf)); i++) {
+            fixbuf[i] = v & ((1L << (SIZEOF_BDIGITS * CHAR_BIT)) - 1);
+            v >>= SIZEOF_BDIGITS * CHAR_BIT;
+        }
+#endif
+        dp = fixbuf;
+        de = fixbuf + sizeof(fixbuf)/sizeof(*fixbuf);
+    }
+    else {
+        sign = RBIGNUM_POSITIVE_P(val) ? 1 : -1;
+        dp = BDIGITS(val);
+        de = dp + RBIGNUM_LEN(val);
+    }
+    while (dp < de && de[-1] == 0)
+        de--;
+    if (dp == de) {
+        sign = 0;
+    }
+
+    if (words) {
+        buf = words;
+        bufend = buf + wordcount * wordsize;
+    }
+    else {
+        /*
+         * val_numbits = (de - dp) * SIZEOF_BDIGITS * CHAR_BIT - nlz(de[-1])
+         * word_numbits = wordsize * CHAR_BIT - nails
+         * wordcount = (val_numbits + word_numbits - 1) / word_numbits
+         */
+        VALUE val_numbits, word_numbits, wordcountv;
+        val_numbits = SIZET2NUM((de - dp) * SIZEOF_BDIGITS);
+        val_numbits = rb_funcall(val_numbits, '*', 1, LONG2FIX(CHAR_BIT));
+        if (dp != de)
+            val_numbits = rb_funcall(val_numbits, '-', 1, LONG2FIX(nlz(de[-1])));
+        word_numbits = SIZET2NUM(wordsize);
+        word_numbits = rb_funcall(word_numbits, '*', 1, LONG2FIX(CHAR_BIT));
+        if (nails != 0)
+            word_numbits = rb_funcall(word_numbits, '-', 1, SIZET2NUM(nails));
+        wordcountv = rb_funcall(val_numbits, '+', 1, word_numbits);
+        wordcountv = rb_funcall(wordcountv, '-', 1, LONG2FIX(1));
+        wordcountv = rb_funcall(wordcountv, rb_intern("div"), 1, word_numbits);
+        wordcount = NUM2SIZET(wordcountv);
+        buf = xmalloc(wordcount * wordsize);
+        bufend = buf + wordcount * wordsize;
+    }
+
+    if (buf == bufend) {
+        sign *= 2; /* overflow if non-zero*/
+    }
+    else if (dp == de) {
+        memset(buf, '\0', bufend - buf);
+    }
+    else if (dp < de && buf < bufend) {
+        int word_num_partialbits;
+        size_t word_num_fullbytes;
+        size_t word_num_nailbytes;
+
+        ssize_t word_step;
+        size_t byte_start;
+        int byte_step;
+
+        unsigned char *bytep, *wordp, *last_wordp;
+        size_t index_in_word;
+        BDIGIT_DBL dd;
+        int numbits_in_dd;
+
+        word_num_partialbits = CHAR_BIT - (int)(nails % CHAR_BIT);
+        if (word_num_partialbits == CHAR_BIT)
+            word_num_partialbits = 0;
+        word_num_fullbytes = wordsize - (nails / CHAR_BIT);
+        if (word_num_partialbits != 0) {
+            word_num_fullbytes--;
+            word_num_nailbytes = wordsize - word_num_fullbytes - 1;
+        }
+        else {
+            word_num_nailbytes = wordsize - word_num_fullbytes;
+        }
+
+        if (wordorder == 1) {
+            word_step = -(ssize_t)wordsize;
+            wordp = buf + wordsize*(wordcount-1);
+            last_wordp = buf;
+        }
+        else {
+            word_step = wordsize;
+            wordp = buf;
+            last_wordp = buf + wordsize*(wordcount-1);
+        }
+
+        if (endian == 1) {
+            byte_step = -1;
+            byte_start = wordsize-1;
+        }
+        else {
+            byte_step = 1;
+            byte_start = 0;
+        }
+
+        dd = 0;
+        numbits_in_dd = 0;
+
+#define FILL_DD \
+    int_export_fill_dd(&dp, &de, &dd, &numbits_in_dd)
+#define TAKE_LOWBITS(n) \
+    int_export_take_lowbits(n, &dd, &numbits_in_dd)
+
+        while (1) {
+            index_in_word = 0;
+            bytep = wordp + byte_start;
+            while (index_in_word < word_num_fullbytes) {
+                FILL_DD;
+                *bytep = TAKE_LOWBITS(CHAR_BIT);
+                bytep += byte_step;
+                index_in_word++;
+            }
+            if (word_num_partialbits) {
+                FILL_DD;
+                *bytep = TAKE_LOWBITS(word_num_partialbits);
+                bytep += byte_step;
+                index_in_word++;
+            }
+            while (wordsize - word_num_nailbytes <= index_in_word && index_in_word < wordsize) {
+                *bytep = 0;
+                bytep += byte_step;
+                index_in_word++;
+            }
+
+            if (wordp == last_wordp)
+                break;
+
+            wordp += word_step;
+        }
+        if (dp != de || dd)
+            sign *= 2; /* overflow */
+    }
+
+    if (signp)
+        *signp = sign;
+
+    if (!words && wordcount_allocated)
+        *wordcount_allocated = wordcount;
+
+    return buf;
+#undef FILL_DD
+#undef TAKE_LOWBITS
+}
+
+static inline void
+int_import_push_bits(int data, int numbits, BDIGIT_DBL *ddp, int *numbits_in_dd_p, BDIGIT **dpp)
+{
+    (*ddp) |= ((BDIGIT_DBL)data) << (*numbits_in_dd_p);
+    *numbits_in_dd_p += numbits;
+    while (SIZEOF_BDIGITS*CHAR_BIT <= *numbits_in_dd_p) {
+        *(*dpp)++ = (*ddp) & (((BDIGIT_DBL)1 << (SIZEOF_BDIGITS*CHAR_BIT))-1);
+        *ddp >>= SIZEOF_BDIGITS*CHAR_BIT;
+        *numbits_in_dd_p -= SIZEOF_BDIGITS*CHAR_BIT;
+    }
+}
+
+/*
+ * Import an integer into a buffer.
+ *
+ * [sign] signedness of the value.
+ *   -1 for non-positive.  0 or 1 for non-negative.
+ * [words] buffer to import.
+ * [wordcount] the size of given buffer as number of words.
+ * [wordorder] order of words: 1 for most significant word first.  -1 for least significant word first.
+ * [wordsize] the size of word as number of bytes.
+ * [endian] order of bytes in a word: 1 for most significant byte first.  -1 for least significant byte first.  0 for native endian.
+ * [nails] number of padding bits in a word.  Most significant nails bits of each word are filled by zero.
+ *
+ * This function returns the imported integer as Fixnum or Bignum.
+ */
+VALUE
+rb_int_import(int sign, const void *words, size_t wordcount, int wordorder, size_t wordsize, int endian, size_t nails)
+{
+    VALUE num_bits, num_bdigits;
+    VALUE result;
+    const unsigned char *buf = words;
+
+    BDIGIT *dp;
+    BDIGIT *de;
+
+    int word_num_partialbits;
+    size_t word_num_fullbytes;
+
+    ssize_t word_step;
+    size_t byte_start;
+    int byte_step;
+
+    const unsigned char *bytep, *wordp, *last_wordp;
+    size_t index_in_word;
+    BDIGIT_DBL dd;
+    int numbits_in_dd;
+
+    if (sign != 1 && sign != 0 && sign != -1)
+        rb_raise(rb_eArgError, "unexpected sign: %d", sign);
+    if (wordorder != 1 && wordorder != -1)
+        rb_raise(rb_eArgError, "unexpected wordorder: %d", wordorder);
+    if (endian != 1 && endian != -1 && endian != 0)
+        rb_raise(rb_eArgError, "unexpected endian: %d", endian);
+    if (wordsize == 0)
+        rb_raise(rb_eArgError, "invalid wordsize: %"PRI_SIZE_PREFIX"u", wordsize);
+    if (SSIZE_MAX < wordsize)
+        rb_raise(rb_eArgError, "too big wordsize: %"PRI_SIZE_PREFIX"u", wordsize);
+    if (SIZE_MAX / wordsize < wordcount)
+        rb_raise(rb_eArgError, "too big wordcount * wordsize: %"PRI_SIZE_PREFIX"u * %"PRI_SIZE_PREFIX"u", wordcount, wordsize);
+    if (wordsize <= nails / CHAR_BIT)
+        rb_raise(rb_eArgError, "too big nails: %"PRI_SIZE_PREFIX"u", nails);
+
+    if (endian == 0) {
+#ifdef WORDS_BIGENDIAN
+        endian = 1;
+#else
+        endian = -1;
+#endif
+    }
+
+    /*
+     * num_bits = (wordsize * CHAR_BIT - nails) * count
+     * num_bdigits = (num_bits + SIZEOF_BDIGITS*CHAR_BIT - 1) / (SIZEOF_BDIGITS*CHAR_BIT)
+     */
+    num_bits = SIZET2NUM(wordsize);
+    num_bits = rb_funcall(num_bits, '*', 1, LONG2FIX(CHAR_BIT));
+    num_bits = rb_funcall(num_bits, '-', 1, SIZET2NUM(nails));
+    num_bits = rb_funcall(num_bits, '*', 1, SIZET2NUM(wordcount));
+
+    if (num_bits == LONG2FIX(0))
+        return LONG2FIX(0);
+
+    num_bdigits = rb_funcall(num_bits, '+', 1, LONG2FIX(SIZEOF_BDIGITS*CHAR_BIT-1));
+    num_bdigits = rb_funcall(num_bdigits, '/', 1, LONG2FIX(SIZEOF_BDIGITS*CHAR_BIT));
+
+    result = bignew(NUM2LONG(num_bdigits), 0 <= sign);
+
+    dp = BDIGITS(result);
+    de = dp + RBIGNUM_LEN(result);
+
+    word_num_partialbits = CHAR_BIT - (int)(nails % CHAR_BIT);
+    if (word_num_partialbits == CHAR_BIT)
+        word_num_partialbits = 0;
+    word_num_fullbytes = wordsize - (nails / CHAR_BIT);
+    if (word_num_partialbits != 0) {
+        word_num_fullbytes--;
+    }
+
+    if (wordorder == 1) {
+        word_step = -(ssize_t)wordsize;
+        wordp = buf + wordsize*(wordcount-1);
+        last_wordp = buf;
+    }
+    else {
+        word_step = wordsize;
+        wordp = buf;
+        last_wordp = buf + wordsize*(wordcount-1);
+    }
+
+    if (endian == 1) {
+        byte_step = -1;
+        byte_start = wordsize-1;
+    }
+    else {
+        byte_step = 1;
+        byte_start = 0;
+    }
+
+    dd = 0;
+    numbits_in_dd = 0;
+
+#define PUSH_BITS(data, numbits) \
+    int_import_push_bits(data, numbits, &dd, &numbits_in_dd, &dp)
+
+    while (1) {
+        index_in_word = 0;
+        bytep = wordp + byte_start;
+        while (index_in_word < word_num_fullbytes) {
+            PUSH_BITS(*bytep, CHAR_BIT);
+            bytep += byte_step;
+            index_in_word++;
+        }
+        if (word_num_partialbits) {
+            PUSH_BITS(*bytep & ((1 << word_num_partialbits) - 1), word_num_partialbits);
+            bytep += byte_step;
+            index_in_word++;
+        }
+
+        if (wordp == last_wordp)
+            break;
+
+        wordp += word_step;
+    }
+    if (dd)
+        *dp++ = (BDIGIT)dd;
+    while (dp < de)
+        *dp++ = 0;
+
+    return bignorm(result);
+#undef PUSH_BITS
 }
 
 #define QUAD_SIZE 8
@@ -3050,27 +3523,6 @@ rb_big_divmod(VALUE x, VALUE y)
     return rb_assoc_new(bignorm(div), bignorm(mod));
 }
 
-static int
-bdigbitsize(BDIGIT x)
-{
-    int size = 1;
-    int nb = BITSPERDIG / 2;
-    BDIGIT bits = (~0 << nb);
-
-    if (!x) return 0;
-    while (x > 1) {
-	if (x & bits) {
-	    size += nb;
-	    x >>= nb;
-	}
-	x &= ~bits;
-	nb /= 2;
-	bits >>= nb;
-    }
-
-    return size;
-}
-
 static VALUE
 big_shift(VALUE x, long n)
 {
@@ -3090,9 +3542,8 @@ big_fdiv(VALUE x, VALUE y)
     int i;
 
     bigtrunc(x);
-    l = RBIGNUM_LEN(x) - 1;
-    ex = l * BITSPERDIG;
-    ex += bdigbitsize(BDIGITS(x)[l]);
+    l = RBIGNUM_LEN(x);
+    ex = l * BITSPERDIG - nlz(BDIGITS(x)[l-1]);
     ex -= 2 * DBL_BIGDIG * BITSPERDIG;
     if (ex) x = big_shift(x, ex);
 
@@ -3101,9 +3552,8 @@ big_fdiv(VALUE x, VALUE y)
 	y = rb_int2big(FIX2LONG(y));
       case T_BIGNUM:
 	bigtrunc(y);
-	l = RBIGNUM_LEN(y) - 1;
-	ey = l * BITSPERDIG;
-	ey += bdigbitsize(BDIGITS(y)[l]);
+	l = RBIGNUM_LEN(y);
+	ey = l * BITSPERDIG - nlz(BDIGITS(y)[l-1]);
 	ey -= DBL_BIGDIG * BITSPERDIG;
 	if (ey) y = big_shift(y, ey);
 	break;

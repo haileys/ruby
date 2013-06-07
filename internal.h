@@ -134,6 +134,8 @@ VALUE rb_big_fdiv(VALUE x, VALUE y);
 VALUE rb_big_uminus(VALUE x);
 VALUE rb_integer_float_cmp(VALUE x, VALUE y);
 VALUE rb_integer_float_eq(VALUE x, VALUE y);
+size_t rb_absint_size(VALUE val, int *number_of_leading_zero_bits);
+size_t rb_absint_size_in_word(VALUE val, size_t word_numbits, size_t *number_of_leading_zero_bits);
 
 /* class.c */
 void rb_class_foreach_subclass(VALUE klass, void(*f)(VALUE));
@@ -464,6 +466,10 @@ const char *rb_objspace_data_type_name(VALUE obj);
 
 /* Temporary.  This API will be removed (renamed). */
 VALUE rb_thread_io_blocking_region(rb_blocking_function_t *func, void *data1, int fd);
+
+/* bignum.c */
+void *rb_int_export(VALUE val, int *signp, size_t *wordcount_allocated, void *words, size_t wordcount, int wordorder, size_t wordsize, int endian, size_t nails);
+VALUE rb_int_import(int sign, const void *words, size_t wordcount, int wordorder, size_t wordsize, int endian, size_t nails);
 
 /* io.c */
 void rb_maygvl_fd_fix_cloexec(int fd);

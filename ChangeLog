@@ -1,3 +1,192 @@
+Fri Jun  7 13:25:27 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/json/fbuffer/fbuffer.h (fbuffer_append_str): change the place of
+	  RB_GC_GUARD. it should be after the object is used.
+
+Fri Jun  7 13:22:43 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* gc.c (before_gc_sweep): noinline can also avoid the segv instead of
+	  -O0 of r41084. this way is expected less slow.
+
+Fri Jun  7 11:45:42 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* rational.c (numeric_quo): move num_quo in numeric.c to numeric_quo
+	  in rational.c to refer canonicalization state for mathn support.
+	  [ruby-core:41575] [Bug #5736]
+
+	* numeric.c (num_quo): ditto.
+
+	* test/test_mathn.rb: add a test for the change at r41109.
+
+Fri Jun  7 11:41:42 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in: revert r41106.  size_t may not be unsigned
+
+	* bignum.c (rb_absint_size_in_word, rb_int_export, rb_int_import): use
+	  NUM2SIZET() and SIZET2NUM() already defined in ruby/ruby.h.
+
+Fri Jun  7 11:28:37 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* gc.c: use oldgen bitmap as initial mark bitmap when major gc.
+	  so can skip oldgen bitmap check around mark & sweep.
+	* gc.c (slot_sweep_body): change scan algorithm for performance:
+	  from object's pointer base to bitmap one.
+
+Fri Jun  7 11:25:56 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* gc.c: introduce oldgen bitmap for preparing performance tuning.
+
+Fri Jun  7 11:20:57 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* gc.c (MARKED_IN_BITMAP, MARK_IN_BITMAP, CLEAR_IN_BITMAP): bring
+	  bitmap macros in one place, and introduce BITMAP_BIT.
+
+Fri Jun  7 11:18:35 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* array.c (ary_new): change order of allocation in order
+	  to remove FL_OLDGEN operation.
+
+Fri Jun  7 11:16:28 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* tool/rdocbench.rb: add gc total time information.
+
+Fri Jun  7 10:12:01 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c: remove "Sunny" terminology.
+	  "Sunny" doesn't mean antonym of "Shady" (questionable, doubtful, etc).
+	  Instead of "Sunny", use "non-shady" or "normal".
+
+Fri Jun  7 09:29:33 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* bignum.c (rb_int_import): explicitly casting BDIGIT_DBL to BDIGIT
+	  to prevent warning.
+
+Fri Jun  7 07:29:33 2013  Tanaka Akira  <akr@fsij.org>
+
+	* internal.h (rb_int_export): countp argument is split into
+	  wordcount_allocated and wordcount.
+
+	* bignum.c (rb_int_export): Follow the above change.
+
+	* pack.c (pack_pack): Ditto.
+
+Fri Jun  7 07:17:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* NEWS: describe a compatibility issue of Numeric#quo
+	  introduced at r41109.
+
+Fri Jun  7 07:15:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* NEWS: fix style.
+
+Fri Jun  7 06:48:17 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* numeric.c: remove unused ID id_to_r introduced in r41109.
+
+Fri Jun  7 06:15:31 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_int_import): New function.
+	  (int_import_push_bits): Ditto.
+
+	* internal.h (rb_int_import): Declared.
+
+	* pack.c (pack_unpack): Use rb_int_import for BER compressed integer.
+
+Thu Jun  6 22:24:00 2013  Kenta Murata  <mrkn@mrkn.jp>
+
+	* numeric.c (num_quo): Use to_r method to convert the receiver to
+	  rational.  [ruby-core:41575] [Bug #5736]
+
+	* test/ruby/test_numeric.rb: add a test for the above change.
+
+Thu Jun  6 20:40:17 2013  Tanaka Akira  <akr@fsij.org>
+
+	* configure.in: Invoke RUBY_REPLACE_TYPE for size_t.
+	  Don't invoke RUBY_CHECK_PRINTF_PREFIX for size_t to avoid conflict
+	  with RUBY_REPLACE_TYPE.
+
+	* internal.h (rb_absint_size): Declared.
+	  (rb_absint_size_in_word): Ditto.
+	  (rb_int_export): Ditto.
+
+	* bignum.c (rb_absint_size): New function.
+	  (rb_absint_size_in_word): Ditto.
+	  (int_export_fill_dd): Ditto.
+	  (int_export_take_lowbits): Ditto.
+	  (rb_int_export): Ditto.
+
+	* pack.c (pack_pack): Use rb_int_export for BER compressed integer.
+
+Thu Jun  6 19:31:33 2013  Tadayoshi Funaba  <tadf@dotrb.org>
+
+	* ext/date/date_core.c: fixed coding error [ruby-core:55337].
+	  reported by Riley Lynch.
+
+Thu Jun  6 14:16:37 2013  Narihiro Nakamura  <authornari@gmail.com>
+
+	* ext/objspace/object_tracing.c: rename allocation_info to
+	  lookup_allocation_info. At times I confused "struct
+	  allocation_info" with "function allocation_info".
+
+Thu Jun  6 13:57:06 2013  Narihiro Nakamura  <authornari@gmail.com>
+
+	* ext/objspace/object_tracing.c: allocation_info function isn't
+	  called by any other file.
+
+Thu Jun  6 09:41:00 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* numeric.c (num_quo): should return a Float for a Float argument.
+	  [ruby-dev:44710] [Bug #5515]
+
+	* test/ruby/test_fixnum.rb: Add an assertion for the above change.
+
+	* test/ruby/test_bignum.rb: ditto.
+
+Thu Jun  6 00:59:44 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* gc.c (gc_mark): get rid of pushing useless objects.
+	* gc.c (rgengc_rememberset_mark): bypass gc_mark() in order to push
+	  sunny old object at minor gc.
+	* gc.c (gc_mark_children): move sunny old check to gc_mark().
+	* gc.c (rgengc_check_shady): remove DEMOTE that already unnecessary.
+	* gc.c (rb_gc_writebarrier): ditto.
+
+	  change sunny old check point in order to save mark stack and
+	  remove unnatural rest_sweep & demote.
+
+Thu Jun  6 00:52:42 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* gc.c (rgengc_rememberset_mark): change scan algorithm for performance:
+	  from object's pointer base to bitmap one.
+
+Thu Jun  6 00:30:04 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* win32/win32.c (NET_LUID): define it on MinGW32.
+	  mingw-w64 has NET_LUID but mingw32 (mingw.org) still doesn't have
+	  NET_LUID. reported by taco on IRC
+
+Thu Jun  6 00:05:08 2013  Akinori MUSHA  <knu@iDaemons.org>
+
+	* string.c (String#b): Allow code range scan to happen later so
+	  ascii_only? on a result string returns the correct value.
+	  [ruby-core:55315] [Bug #8496]
+
+Wed Jun  5 22:40:42 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* lib/net/imap.rb (capability_response): should ignore trailing
+	  spaces.  Thanks, Peter Kovacs.  [ruby-core:55024] [Bug #8415]
+
+	* test/net/imap/test_imap_response_parser.rb: related test.
+
+Wed Jun  5 21:17:08 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (big_fdiv): Use nlz() instead of bdigbitsize().
+	  (bdigbitsize): Removed.
+
+Wed Jun  5 20:32:00 2013  Kenta Murata  <mrkn@cookpad.com>
+
+	* include/ruby/ruby.h: fix alignment in comment.
+
 Wed Jun  5 20:05:29 2013  Tanaka Akira  <akr@fsij.org>
 
 	* random.c (int_pair_to_real_inclusive): Add a cast to BDIGIT.

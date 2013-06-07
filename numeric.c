@@ -371,20 +371,6 @@ num_uminus(VALUE num)
 
 /*
  *  call-seq:
- *     num.quo(numeric)  ->  real
- *
- *  Returns most exact division (rational for integers, float for floats).
- */
-
-static VALUE
-num_quo(VALUE x, VALUE y)
-{
-    return rb_funcall(rb_rational_raw1(x), '/', 1, y);
-}
-
-
-/*
- *  call-seq:
  *     num.fdiv(numeric)  ->  float
  *
  *  Returns float division.
@@ -3786,7 +3772,6 @@ Init_Numeric(void)
     rb_define_method(rb_cNumeric, "-@", num_uminus, 0);
     rb_define_method(rb_cNumeric, "<=>", num_cmp, 1);
     rb_define_method(rb_cNumeric, "eql?", num_eql, 1);
-    rb_define_method(rb_cNumeric, "quo", num_quo, 1);
     rb_define_method(rb_cNumeric, "fdiv", num_fdiv, 1);
     rb_define_method(rb_cNumeric, "div", num_div, 1);
     rb_define_method(rb_cNumeric, "divmod", num_divmod, 1);

@@ -241,6 +241,7 @@ struct heaps_header {
     uintptr_t *mark_bits;
 #if USE_RGENGC
     uintptr_t *rememberset_bits;
+    uintptr_t *oldgen_bits;
 #endif
     RVALUE *start;
     RVALUE *end;
@@ -324,17 +325,17 @@ typedef struct rb_objspace {
 	size_t minor_gc_count;
 	size_t major_gc_count;
 #ifdef RGENGC_PROFILE
-	size_t generated_sunny_object_count;
+	size_t generated_normal_object_count;
 	size_t generated_shady_object_count;
 	size_t shade_operation_count;
 	size_t promote_operation_count;
-	size_t remembered_sunny_object_count;
+	size_t remembered_normal_object_count;
 	size_t remembered_shady_object_count;
 #if RGENGC_PROFILE >= 2
 	size_t generated_shady_object_count_types[RUBY_T_MASK];
 	size_t shade_operation_count_types[RUBY_T_MASK];
 	size_t promote_operation_count_types[RUBY_T_MASK];
-	size_t remembered_sunny_object_count_types[RUBY_T_MASK];
+	size_t remembered_normal_object_count_types[RUBY_T_MASK];
 	size_t remembered_shady_object_count_types[RUBY_T_MASK];
 #endif
 #endif /* RGENGC_PROFILE */
@@ -422,10 +423,16 @@ int *ruby_initial_gc_stress_ptr = &rb_objspace.gc_stress;
 #define GET_HEAP_SLOT(x) (GET_HEAP_HEADER(x)->base)
 #define GET_HEAP_MARK_BITS(x) (GET_HEAP_HEADER(x)->mark_bits)
 #define GET_HEAP_REMEMBERSET_BITS(x) (GET_HEAP_HEADER(x)->rememberset_bits)
+#define GET_HEAP_OLDGEN_BITS(x) (GET_HEAP_HEADER(x)->oldgen_bits)
 #define NUM_IN_SLOT(p) (((uintptr_t)(p) & HEAP_ALIGN_MASK)/sizeof(RVALUE))
 #define BITMAP_INDEX(p) (NUM_IN_SLOT(p) / (sizeof(uintptr_t) * CHAR_BIT))
 #define BITMAP_OFFSET(p) (NUM_IN_SLOT(p) & ((sizeof(uintptr_t) * CHAR_BIT)-1))
-#define MARKED_IN_BITMAP(bits, p) (bits[BITMAP_INDEX(p)] & ((uintptr_t)1 << BITMAP_OFFSET(p)))
+#define BITMAP_BIT(p) ((uintptr_t)1 << BITMAP_OFFSET(p))
+/* Marking */
+#define MARKED_IN_BITMAP(bits, p) (bits[BITMAP_INDEX(p)] & BITMAP_BIT(p))
+#define MARK_IN_BITMAP(bits, p) (bits[BITMAP_INDEX(p)] = bits[BITMAP_INDEX(p)] | BITMAP_BIT(p))
+#define CLEAR_IN_BITMAP(bits, p) (bits[BITMAP_INDEX(p)] = bits[BITMAP_INDEX(p)] & ~BITMAP_BIT(p))
+
 
 #ifndef HEAP_ALIGN_LOG
 /* default tiny heap size: 16KB */
@@ -483,20 +490,21 @@ static const char *obj_type_name(VALUE obj);
 #if USE_RGENGC
 static int rgengc_remembered(rb_objspace_t *objspace, VALUE obj);
 static void rgengc_remember(rb_objspace_t *objspace, VALUE obj);
-static void rgengc_rememberset_clear(rb_objspace_t *objspace);
+static void rgengc_mark_and_rememberset_clear(rb_objspace_t *objspace);
 static size_t rgengc_rememberset_mark(rb_objspace_t *objspace);
 
 #define FL_TEST2(x,f)         ((RGENGC_CHECK_MODE && SPECIAL_CONST_P(x)) ? (rb_bug("FL_TEST2: SPECIAL_CONST"), 0) : FL_TEST_RAW((x),(f)))
 #define FL_SET2(x,f)          do {if (RGENGC_CHECK_MODE && SPECIAL_CONST_P(x)) rb_bug("FL_SET2: SPECIAL_CONST");   RBASIC(x)->flags |= (f);} while (0)
 #define FL_UNSET2(x,f)        do {if (RGENGC_CHECK_MODE && SPECIAL_CONST_P(x)) rb_bug("FL_UNSET2: SPECIAL_CONST"); RBASIC(x)->flags &= ~(f);} while (0)
 
-#define RVALUE_SUNNY(x)       FL_TEST2((x), FL_WB_PROTECTED)
-#define RVALUE_SHADY(x)       (!RVALUE_SUNNY(x))
+#define RVALUE_SHADY(x)       (!FL_TEST2((x), FL_WB_PROTECTED))
 #define RVALUE_PROMOTED(x)    FL_TEST2((x), FL_OLDGEN)
+#define RVALUE_PROMOTED_FROM_BITMAP(x) MARKED_IN_BITMAP(GET_HEAP_OLDGEN_BITS(x),x)
 
 static inline void
 RVALUE_PROMOTE(VALUE obj)
 {
+    MARK_IN_BITMAP(GET_HEAP_OLDGEN_BITS(obj), obj);
     FL_SET2(obj, FL_OLDGEN);
 #if RGENGC_PROFILE >= 1
     {
@@ -508,7 +516,11 @@ RVALUE_PROMOTE(VALUE obj)
     }
 #endif
 }
-#define RVALUE_DEMOTE(x)      FL_UNSET2((x), FL_OLDGEN)
+#define RVALUE_DEMOTE(x)      do{					\
+	FL_UNSET2((x), FL_OLDGEN);					\
+	CLEAR_IN_BITMAP(GET_HEAP_OLDGEN_BITS(obj), obj);		\
+    }while(0)
+
 #endif
 
 static void
@@ -584,6 +596,7 @@ rb_objspace_free(rb_objspace_t *objspace)
             free(objspace->heap.sorted[i]->mark_bits);
 #if USE_RGENGC
 	    free(objspace->heap.sorted[i]->rememberset_bits);
+	    free(objspace->heap.sorted[i]->oldgen_bits);
 #endif
 	    aligned_free(objspace->heap.sorted[i]);
 	}
@@ -625,7 +638,7 @@ allocate_sorted_heaps(rb_objspace_t *objspace, size_t next_heaps_length)
 	rb_memerror();
     }
 
-    for (i = 0; i < add * (USE_RGENGC ? 2 : 1) /* mark bits and rememberset bits */; i++) {
+    for (i = 0; i < add * (USE_RGENGC ? 3 : 1) /* mark bits and rememberset bits and oldgen bits */; i++) {
 	bits = (struct heaps_free_bitmap *)malloc(HEAP_BITMAP_LIMIT * sizeof(uintptr_t));
         if (bits == 0) {
             during_gc = 0;
@@ -729,6 +742,7 @@ assign_heap_slot(rb_objspace_t *objspace)
     objspace->heap.sorted[hi]->mark_bits = alloc_bitmap(objspace);
 #if USE_RGENGC
     objspace->heap.sorted[hi]->rememberset_bits = alloc_bitmap(objspace);
+    objspace->heap.sorted[hi]->oldgen_bits = alloc_bitmap(objspace);
 #endif
     pend = p + objs;
     if (lomem == 0 || lomem > p) lomem = p;
@@ -894,7 +908,7 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 #endif
 
 #if RGENGC_PROFILE
-    if (flags & FL_WB_PROTECTED) objspace->profile.generated_sunny_object_count++;
+    if (flags & FL_WB_PROTECTED) objspace->profile.generated_normal_object_count++;
     else {
 	objspace->profile.generated_shady_object_count++;
 #if RGENGC_PROFILE >= 2
@@ -1091,6 +1105,7 @@ free_unused_heaps(rb_objspace_t *objspace)
 	    free_bitmap(objspace, h->mark_bits);
 #if USE_RGENGC
 	    free_bitmap(objspace, h->rememberset_bits);
+	    free_bitmap(objspace, h->oldgen_bits);
 #endif
 	    if (!last) {
                 last = objspace->heap.sorted[i];
@@ -1150,6 +1165,11 @@ obj_free(rb_objspace_t *objspace, VALUE obj)
 	rb_free_generic_ivar((VALUE)obj);
 	FL_UNSET(obj, FL_EXIVAR);
     }
+
+#if USE_RGENGC
+    if (MARKED_IN_BITMAP(GET_HEAP_OLDGEN_BITS(obj),obj))
+	CLEAR_IN_BITMAP(GET_HEAP_OLDGEN_BITS(obj),obj);
+#endif
 
     switch (BUILTIN_TYPE(obj)) {
       case T_OBJECT:
@@ -2132,11 +2152,19 @@ lazy_sweep_enable(void)
     return Qnil;
 }
 
+#if !USE_RGENGC
 static void
 gc_clear_slot_bits(struct heaps_slot *slot)
 {
     memset(slot->header->mark_bits, 0, HEAP_BITMAP_LIMIT * sizeof(uintptr_t));
 }
+#else
+static void
+gc_setup_mark_bits(struct heaps_slot *slot)
+{
+    memcpy(slot->header->mark_bits, slot->header->oldgen_bits, HEAP_BITMAP_LIMIT * sizeof(uintptr_t));
+}
+#endif
 
 static size_t
 objspace_live_num(rb_objspace_t *objspace)
@@ -2144,91 +2172,74 @@ objspace_live_num(rb_objspace_t *objspace)
     return objspace->total_allocated_object_num - objspace->total_freed_object_num;
 }
 
-static inline int
-living_object_p(rb_objspace_t *objspace, VALUE p, uintptr_t *bits, const int during_minor_gc)
-{
-#if USE_RGENGC
-    int reason = 0;
-
-    if (during_minor_gc) {
-	if (MARKED_IN_BITMAP(bits, p)) {
-	    reason = 1;
-	}
-	else if (RVALUE_PROMOTED(p)) {
-	    reason = 2;
-	}
-    }
-    else {
-	if (MARKED_IN_BITMAP(bits, p)) {
-	    reason = 1;
-	}
-    }
-
-    if (RGENGC_DEBUG && reason > 0) {
-	rgengc_report(5, objspace, "living_object_p: %p (%s) is living (%s).\n",
-		      (void *)p, obj_type_name(p), reason == 1 ? "marked" : "promoted");
-    }
-
-    if (RGENGC_CHECK_MODE && reason == 0 && rgengc_remembered(objspace, p)) {
-	rb_bug("living_object_p: %p (%s) is remembered, but not marked.\n", (void *)p, obj_type_name(p));
-    }
-
-    return reason != 0;
-#else /* USE_RGENGC */
-    return MARKED_IN_BITMAP(bits, p) != 0;
-#endif
-}
-
 static inline void
 slot_sweep_body(rb_objspace_t *objspace, struct heaps_slot *sweep_slot, const int during_minor_gc)
 {
+    int i;
     size_t empty_num = 0, freed_num = 0, final_num = 0;
-    RVALUE *p, *pend;
+    RVALUE *p, *pend,*offset;
     RVALUE *final = deferred_final_list;
     int deferred;
-    uintptr_t *bits;
+    uintptr_t *bits, bitset;
 
     rgengc_report(3, objspace, "slot_sweep_body: start.\n");
 
     p = sweep_slot->header->start; pend = p + sweep_slot->header->limit;
+    offset = p - NUM_IN_SLOT(p);
     bits = GET_HEAP_MARK_BITS(p);
-    while (p < pend) {
-	if (!living_object_p(objspace, (VALUE)p, bits, during_minor_gc) && BUILTIN_TYPE(p) != T_ZOMBIE) {
-            if (p->as.basic.flags) {
-		rgengc_report(3, objspace, "slot_sweep_body: free %p (%s)\n", p, obj_type_name((VALUE)p));
 
+    /* create guard : fill 1 out-of-range */
+    bits[BITMAP_INDEX(p)] |= BITMAP_BIT(p)-1;
+    bits[BITMAP_INDEX(pend)] |= ~(BITMAP_BIT(pend) - 1);
+
+    for (i=0; i < HEAP_BITMAP_LIMIT; i++) {
+	bitset = ~bits[i];
+	if (bitset) {
+	    p = offset  + i * (sizeof(uintptr_t) *  CHAR_BIT);
+	    do {
+		if ((bitset & 1) && BUILTIN_TYPE(p) != T_ZOMBIE) {
+		    if (p->as.basic.flags) {
+			rgengc_report(3, objspace, "slot_sweep_body: free %p (%s)\n", p, obj_type_name((VALUE)p));
 #if USE_RGENGC && RGENGC_CHECK_MODE
-		if (objspace->rgengc.during_minor_gc && RVALUE_PROMOTED(p)) rb_bug("slot_sweep_body: %p (%s) is promoted.\n", p, obj_type_name((VALUE)p));
-		if (rgengc_remembered(objspace, (VALUE)p)) rb_bug("slot_sweep_body: %p (%s) is remembered.\n", p, obj_type_name((VALUE)p));
+			if (objspace->rgengc.during_minor_gc && RVALUE_PROMOTED(p)) rb_bug("slot_sweep_body: %p (%s) is promoted.\n", p, obj_type_name((VALUE)p));
+			if (rgengc_remembered(objspace, (VALUE)p)) rb_bug("slot_sweep_body: %p (%s) is remembered.\n", p, obj_type_name((VALUE)p));
+#endif
+			if ((deferred = obj_free(objspace, (VALUE)p)) ||
+			    (FL_TEST(p, FL_FINALIZE))) {
+			    if (!deferred) {
+				p->as.free.flags = T_ZOMBIE;
+
+				RDATA(p)->dfree = 0;
+			    }
+			    p->as.free.next = deferred_final_list;
+			    deferred_final_list = p;
+			    assert(BUILTIN_TYPE(p) == T_ZOMBIE);
+			    final_num++;
+			}
+			else {
+			    (void)VALGRIND_MAKE_MEM_UNDEFINED((void*)p, sizeof(RVALUE));
+			    p->as.free.flags = 0;
+			    p->as.free.next = sweep_slot->freelist;
+			    sweep_slot->freelist = p;
+			    rgengc_report(3, objspace, "slot_sweep_body: %p (%s) is added to freelist\n", p, obj_type_name((VALUE)p));
+			    freed_num++;
+			}
+		    }
+		    else {
+			empty_num++;
+		    }
+		}
+		p++;
+		bitset >>= 1;
+	    } while (bitset);
+	}
+    }
+#if USE_RGENGC
+    gc_setup_mark_bits(sweep_slot);
+#else
+    gc_clear_slot_bits(sweep_slot);
 #endif
 
-		if ((deferred = obj_free(objspace, (VALUE)p)) ||
-                    (FL_TEST(p, FL_FINALIZE))) {
-                    if (!deferred) {
-                        p->as.free.flags = T_ZOMBIE;
-                        RDATA(p)->dfree = 0;
-                    }
-                    p->as.free.next = deferred_final_list;
-                    deferred_final_list = p;
-                    assert(BUILTIN_TYPE(p) == T_ZOMBIE);
-                    final_num++;
-                }
-                else {
-                    (void)VALGRIND_MAKE_MEM_UNDEFINED((void*)p, sizeof(RVALUE));
-                    p->as.free.flags = 0;
-                    p->as.free.next = sweep_slot->freelist;
-                    sweep_slot->freelist = p;
-		    rgengc_report(3, objspace, "slot_sweep_body: %p (%s) is added to freelist\n", p, obj_type_name((VALUE)p));
-                    freed_num++;
-                }
-            }
-            else {
-                empty_num++;
-            }
-        }
-        p++;
-    }
-    gc_clear_slot_bits(sweep_slot);
     if (final_num + freed_num + empty_num == sweep_slot->header->limit &&
         objspace->heap.free_num > objspace->heap.do_heap_free) {
         RVALUE *pp;
@@ -2313,7 +2324,7 @@ ready_to_gc(rb_objspace_t *objspace)
 }
 
 #if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 4
-__attribute__((optimize("O0")))
+__attribute__((noinline))
 #endif
 static void
 before_gc_sweep(rb_objspace_t *objspace)
@@ -2597,11 +2608,6 @@ init_mark_stack(mark_stack_t *stack)
     stack->unused_cache_size = stack->cache_size;
 }
 
-
-/* Marking */
-
-#define MARK_IN_BITMAP(bits, p) (bits[BITMAP_INDEX(p)] = bits[BITMAP_INDEX(p)] | ((uintptr_t)1 << BITMAP_OFFSET(p)))
-#define CLEAR_IN_BITMAP(bits, p) (bits[BITMAP_INDEX(p)] = bits[BITMAP_INDEX(p)] & ~((uintptr_t)1 << BITMAP_OFFSET(p)))
 
 
 #ifdef __ia64
@@ -3010,8 +3016,6 @@ rgengc_check_shady(rb_objspace_t *objspace, VALUE obj)
 
     if (objspace->rgengc.parent_object_is_promoted &&
 	RVALUE_SHADY(obj) && !rgengc_remembered(objspace, obj)) {
-	RVALUE_DEMOTE(obj);
-
 	rgengc_remember(objspace, obj);
 	if (objspace->rgengc.during_minor_gc == FALSE) { /* major/full GC */
 	    objspace->rgengc.remembered_shady_object_count++;
@@ -3077,18 +3081,12 @@ gc_mark_children(rb_objspace_t *objspace, VALUE ptr)
 	    rb_bug("gc_mark_children: (1) %p (%s) is shady and promoted.\n", (void *)obj, obj_type_name((VALUE)obj));
 	}
 
-	if (objspace->rgengc.during_minor_gc) {
-	    /* only minor gc skip marking promoted objects */
-	    if (RVALUE_PROMOTED(obj)) {
-		rgengc_report(3, objspace, "gc_mark_children: %p (%s) was promoted.\n", obj, obj_type_name((VALUE)obj));
-		return; /* old gen */
-	    }
-	}
-
 	/* minor/major common */
-	if (RVALUE_SUNNY(obj)) {
-	    RVALUE_PROMOTE((VALUE)obj); /* Sunny object can be promoted to OLDGEN object */
-	    rgengc_report(3, objspace, "gc_mark_children: promote %p (%s).\n", (void *)obj, obj_type_name((VALUE)obj));
+	if (!RVALUE_SHADY(obj)) {
+	    if (!RVALUE_PROMOTED((VALUE)obj)) {
+		RVALUE_PROMOTE((VALUE)obj); /* non-shady object can be promoted to OLDGEN object */
+		rgengc_report(3, objspace, "gc_mark_children: promote %p (%s).\n", (void *)obj, obj_type_name((VALUE)obj));
+	    }
 	    objspace->rgengc.parent_object_is_promoted = TRUE;
 	    objspace->rgengc.oldgen_object_count++;
 	}
@@ -3406,7 +3404,7 @@ gc_marks_body(rb_objspace_t *objspace, rb_thread_t *th)
     }
     else {
 	objspace->profile.major_gc_count++;
-	rgengc_rememberset_clear(objspace);
+	rgengc_mark_and_rememberset_clear(objspace);
     }
 #endif
 
@@ -3464,22 +3462,24 @@ gc_marks_test(rb_objspace_t *objspace, rb_thread_t *th)
 {
 #if USE_RGENGC
     size_t i;
-    uintptr_t **prev_bitmaps = (uintptr_t **)malloc(sizeof(uintptr_t **) * heaps_used * 2);
-    uintptr_t *temp_bitmaps = (uintptr_t *)malloc((HEAP_BITMAP_LIMIT * sizeof(uintptr_t)) * heaps_used * 2);
+    uintptr_t **prev_bitmaps = (uintptr_t **)malloc(sizeof(uintptr_t **) * heaps_used * 3);
+    uintptr_t *temp_bitmaps = (uintptr_t *)malloc((HEAP_BITMAP_LIMIT * sizeof(uintptr_t)) * heaps_used * 3);
 
     rgengc_report(1, objspace, "gc_marks_test: test-full-gc\n");
 
     if (prev_bitmaps == 0 || temp_bitmaps == 0) {
 	rb_bug("gc_marks_test: not enough memory to test.\n");
     }
-    memset(temp_bitmaps, 0, (HEAP_BITMAP_LIMIT * sizeof(uintptr_t)) * heaps_used * 2);
+    memset(temp_bitmaps, 0, (HEAP_BITMAP_LIMIT * sizeof(uintptr_t)) * heaps_used * 3);
 
     /* swap with temporary bitmaps */
     for (i=0; i<heaps_used; i++) {
-	prev_bitmaps[2*i+0] = objspace->heap.sorted[i]->mark_bits;
-	prev_bitmaps[2*i+1] = objspace->heap.sorted[i]->rememberset_bits;
-	objspace->heap.sorted[i]->mark_bits        = &temp_bitmaps[(2*i+0)*HEAP_BITMAP_LIMIT];
-	objspace->heap.sorted[i]->rememberset_bits = &temp_bitmaps[(2*i+1)*HEAP_BITMAP_LIMIT];
+	prev_bitmaps[3*i+0] = objspace->heap.sorted[i]->mark_bits;
+	prev_bitmaps[3*i+1] = objspace->heap.sorted[i]->rememberset_bits;
+	prev_bitmaps[3*i+2] = objspace->heap.sorted[i]->oldgen_bits;
+	objspace->heap.sorted[i]->mark_bits        = &temp_bitmaps[(3*i+0)*HEAP_BITMAP_LIMIT];
+	objspace->heap.sorted[i]->rememberset_bits = &temp_bitmaps[(3*i+1)*HEAP_BITMAP_LIMIT];
+	objspace->heap.sorted[i]->oldgen_bits      = &temp_bitmaps[(3*i+2)*HEAP_BITMAP_LIMIT];
     }
 
     /* run major (full) gc with temporary mark/rememberset */
@@ -3490,8 +3490,9 @@ gc_marks_test(rb_objspace_t *objspace, rb_thread_t *th)
 
     /* check & restore */
     for (i=0; i<heaps_used; i++) {
-	uintptr_t *minor_mark_bits = prev_bitmaps[2*i+0];
-	uintptr_t *minor_rememberset_bits = prev_bitmaps[2*i+1];
+	uintptr_t *minor_mark_bits = prev_bitmaps[3*i+0];
+	uintptr_t *minor_rememberset_bits = prev_bitmaps[3*i+1];
+	uintptr_t *minor_oldgen_bits = prev_bitmaps[3*i+2];
 	uintptr_t *major_mark_bits = objspace->heap.sorted[i]->mark_bits;
 	/* uintptr_t *major_rememberset_bits = objspace->heap.sorted[i]->rememberset_bits; */
 	RVALUE *p = objspace->heap.sorted[i]->start;
@@ -3511,6 +3512,7 @@ gc_marks_test(rb_objspace_t *objspace, rb_thread_t *th)
 	}
 	objspace->heap.sorted[i]->mark_bits        = minor_mark_bits;
 	objspace->heap.sorted[i]->rememberset_bits = minor_rememberset_bits;
+	objspace->heap.sorted[i]->oldgen_bits      = minor_oldgen_bits;
     }
     free(prev_bitmaps);
     free(temp_bitmaps);
@@ -3530,7 +3532,6 @@ gc_marks(rb_objspace_t *objspace, int minor_gc)
 	/* setup marking */
 	prev_mark_func_data = objspace->mark_func_data;
 	objspace->mark_func_data = 0;
-
 	objspace->count++;
 
 	SET_STACK_END;
@@ -3593,15 +3594,15 @@ rgengc_remember(rb_objspace_t *objspace, VALUE obj)
     }
 
     rgengc_report(0, objspace, "rgengc_remember: %p (%s, %s) %s\n", (void *)obj, obj_type_name(obj),
-		  RVALUE_SUNNY(obj) ? "sunny" : "shady",
+		  RVALUE_SHADY(obj) ? "shady" : "non-shady",
 		  rgengc_remembersetbits_get(objspace, obj) ? "was already remembered" : "is remembered now");
 
     if (RGENGC_PROFILE) {
 	if (!rgengc_remembered(objspace, obj)) {
-	    if (RVALUE_SUNNY(obj)) {
-		objspace->profile.remembered_sunny_object_count++;
+	    if (!RVALUE_SHADY(obj)) {
+		objspace->profile.remembered_normal_object_count++;
 #if RGENGC_PROFILE >= 2
-		objspace->profile.remembered_sunny_object_count_types[BUILTIN_TYPE(obj)]++;
+		objspace->profile.remembered_normal_object_count_types[BUILTIN_TYPE(obj)]++;
 #endif
 	    }
 	    else {
@@ -3627,33 +3628,39 @@ rgengc_remembered(rb_objspace_t *objspace, VALUE obj)
 static size_t
 rgengc_rememberset_mark(rb_objspace_t *objspace)
 {
-    size_t i;
+    size_t i, j;
     size_t shady_object_count = 0;
-    RVALUE *p, *pend;
-    uintptr_t *bits;
+    RVALUE *p, *offset;
+    uintptr_t *bits, bitset;
 
     for (i=0; i<heaps_used; i++) {
-	if (0 /* TODO: optimization - skip it if there are no remembered objects */) {
-	    continue;
-	}
-
-	p = objspace->heap.sorted[i]->start; pend = p + objspace->heap.sorted[i]->limit;
+	p = objspace->heap.sorted[i]->start;
 	bits = GET_HEAP_REMEMBERSET_BITS(p);
 
-	while (p < pend) {
-	    if (MARKED_IN_BITMAP(bits, p)) {
-		gc_mark(objspace, (VALUE)p);
-		rgengc_report(2, objspace, "rgengc_rememberset_mark: mark %p (%s)\n", p, obj_type_name((VALUE)p));
+	offset = p - NUM_IN_SLOT(p);
 
-		if (RVALUE_SUNNY(p)) {
-		    rgengc_report(2, objspace, "rgengc_rememberset_mark: clear %p (%s)\n", p, obj_type_name((VALUE)p));
-		    CLEAR_IN_BITMAP(bits, p);
-		}
-		else {
-		    shady_object_count++;
-		}
+	for (j=0; j < HEAP_BITMAP_LIMIT; j++) {
+	    if (bits[j]) {
+		p = offset  + j * (sizeof(uintptr_t) *  CHAR_BIT);
+		bitset = bits[j];
+		do {
+		    if (bitset & 1) {
+			gc_mark_ptr(objspace, (VALUE)p);
+			push_mark_stack(&objspace->mark_stack, (VALUE) p);
+			rgengc_report(2, objspace, "rgengc_rememberset_mark: mark %p (%s)\n", p, obj_type_name((VALUE)p));
+
+			if (!RVALUE_SHADY(p)) {
+			    rgengc_report(2, objspace, "rgengc_rememberset_mark: clear %p (%s)\n", p, obj_type_name((VALUE)p));
+			    CLEAR_IN_BITMAP(bits, p);
+			}
+			else {
+			    shady_object_count++;
+			}
+		    }
+		    p++;
+		    bitset >>= 1;
+		} while (bitset);
 	    }
-	    p++;
 	}
     }
 
@@ -3663,13 +3670,13 @@ rgengc_rememberset_mark(rb_objspace_t *objspace)
 }
 
 static void
-rgengc_rememberset_clear(rb_objspace_t *objspace)
+rgengc_mark_and_rememberset_clear(rb_objspace_t *objspace)
 {
     size_t i;
 
     for (i=0; i<heaps_used; i++) {
-	uintptr_t *bits = objspace->heap.sorted[i]->rememberset_bits;
-	memset(bits, 0, HEAP_BITMAP_LIMIT * sizeof(uintptr_t));
+	memset(objspace->heap.sorted[i]->mark_bits,        0, HEAP_BITMAP_LIMIT * sizeof(uintptr_t));
+	memset(objspace->heap.sorted[i]->rememberset_bits, 0, HEAP_BITMAP_LIMIT * sizeof(uintptr_t));
     }
 }
 
@@ -3688,15 +3695,6 @@ rb_gc_writebarrier(VALUE a, VALUE b)
     if (!rgengc_remembered(objspace, a)) {
 	rgengc_report(2, objspace, "rb_gc_wb: %p (%s) -> %p (%s)\n",
 		      (void *)a, obj_type_name(a), (void *)b, obj_type_name(b));
-
-	/* need to sweep all slots before demote */
-	/* TODO: check delayed sweeping slot or not
-	 *       if delayed sweepling slot, then mark it
-	 *       else demote simple
-	 */
-	rest_sweep(objspace);
-
-	RVALUE_DEMOTE(a);
 	rgengc_remember(objspace, a);
     }
 }
@@ -3708,7 +3706,7 @@ rb_gc_giveup_promoted_writebarrier(VALUE obj)
 
     if (RGENGC_CHECK_MODE) {
 	if (!RVALUE_PROMOTED(obj)) rb_bug("rb_gc_giveup_promoted_writebarrier: called on non-promoted object");
-	if (RVALUE_SUNNY(obj)) rb_bug("rb_gc_giveup_promoted_writebarrier: called on sunny object");
+	if (!RVALUE_SHADY(obj)) rb_bug("rb_gc_giveup_promoted_writebarrier: called on non-shady object");
     }
 
     rgengc_report(2, objspace, "rb_gc_giveup_writebarrier: %p (%s)%s\n", (void *)obj, obj_type_name(obj),
@@ -4048,9 +4046,9 @@ gc_stat(int argc, VALUE *argv, VALUE self)
 #if USE_RGENGC
     static VALUE sym_minor_gc_count, sym_major_gc_count;
 #if RGENGC_PROFILE
-    static VALUE sym_generated_sunny_object_count, sym_generated_shady_object_count;
+    static VALUE sym_generated_normal_object_count, sym_generated_shady_object_count;
     static VALUE sym_shade_operation_count, sym_promote_operation_count;
-    static VALUE sym_remembered_sunny_object_count, sym_remembered_shady_object_count;
+    static VALUE sym_remembered_normal_object_count, sym_remembered_shady_object_count;
 #endif /* RGENGC_PROFILE */
 #endif /* USE_RGENGC */
 
@@ -4069,11 +4067,11 @@ gc_stat(int argc, VALUE *argv, VALUE self)
 	S(minor_gc_count);
 	S(major_gc_count);
 #if RGENGC_PROFILE
-	S(generated_sunny_object_count);
+	S(generated_normal_object_count);
 	S(generated_shady_object_count);
 	S(shade_operation_count);
 	S(promote_operation_count);
-	S(remembered_sunny_object_count);
+	S(remembered_normal_object_count);
 	S(remembered_shady_object_count);
 #endif /* USE_RGENGC */
 #endif /* RGENGC_PROFILE */
@@ -4104,18 +4102,18 @@ gc_stat(int argc, VALUE *argv, VALUE self)
     rb_hash_aset(hash, sym_minor_gc_count, SIZET2NUM(objspace->profile.minor_gc_count));
     rb_hash_aset(hash, sym_major_gc_count, SIZET2NUM(objspace->profile.major_gc_count));
 #if RGENGC_PROFILE
-    rb_hash_aset(hash, sym_generated_sunny_object_count, SIZET2NUM(objspace->profile.generated_sunny_object_count));
+    rb_hash_aset(hash, sym_generated_normal_object_count, SIZET2NUM(objspace->profile.generated_normal_object_count));
     rb_hash_aset(hash, sym_generated_shady_object_count, SIZET2NUM(objspace->profile.generated_shady_object_count));
     rb_hash_aset(hash, sym_shade_operation_count, SIZET2NUM(objspace->profile.shade_operation_count));
     rb_hash_aset(hash, sym_promote_operation_count, SIZET2NUM(objspace->profile.promote_operation_count));
-    rb_hash_aset(hash, sym_remembered_sunny_object_count, SIZET2NUM(objspace->profile.remembered_sunny_object_count));
+    rb_hash_aset(hash, sym_remembered_normal_object_count, SIZET2NUM(objspace->profile.remembered_normal_object_count));
     rb_hash_aset(hash, sym_remembered_shady_object_count, SIZET2NUM(objspace->profile.remembered_shady_object_count));
 #if RGENGC_PROFILE >= 2
     {
 	gc_count_add_each_types(hash, "generated_shady_object_count_types", objspace->profile.generated_shady_object_count_types);
 	gc_count_add_each_types(hash, "shade_operation_count_types", objspace->profile.shade_operation_count_types);
 	gc_count_add_each_types(hash, "promote_operation_count_types", objspace->profile.promote_operation_count_types);
-	gc_count_add_each_types(hash, "remembered_sunny_object_count_types", objspace->profile.remembered_sunny_object_count_types);
+	gc_count_add_each_types(hash, "remembered_normal_object_count_types", objspace->profile.remembered_normal_object_count_types);
 	gc_count_add_each_types(hash, "remembered_shady_object_count_types", objspace->profile.remembered_shady_object_count_types);
     }
 #endif

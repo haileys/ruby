@@ -1011,50 +1011,33 @@ pack_pack(VALUE ary, VALUE fmt)
 
 	  case 'w':		/* BER compressed integer  */
 	    while (len-- > 0) {
-		unsigned long ul;
 		VALUE buf = rb_str_new(0, 0);
-		char c, *bufs, *bufe;
+                size_t numbytes;
+                int sign;
+                char *cp;
 
 		from = NEXTFROM;
-		if (RB_TYPE_P(from, T_BIGNUM)) {
-		    VALUE big128 = rb_uint2big(128);
-		    while (RB_TYPE_P(from, T_BIGNUM)) {
-			from = rb_big_divmod(from, big128);
-			c = castchar(NUM2INT(RARRAY_AREF(from, 1)) | 0x80); /* mod */
-			rb_str_buf_cat(buf, &c, sizeof(char));
-			from = RARRAY_AREF(from, 0); /* div */
-		    }
-		}
+                from = rb_to_int(from);
+                numbytes = rb_absint_size_in_word(from, 7, NULL);
+                if (numbytes == 0)
+                    numbytes = 1;
+                buf = rb_str_new(NULL, numbytes);
 
-		{
-		    long l = NUM2LONG(from);
-		    if (l < 0) {
-			rb_raise(rb_eArgError, "can't compress negative numbers");
-		    }
-		    ul = l;
-		}
+                rb_int_export(from, &sign, NULL, RSTRING_PTR(buf), RSTRING_LEN(buf), 1, 1, 1, 1);
 
-		while (ul) {
-		    c = castchar((ul & 0x7f) | 0x80);
-		    rb_str_buf_cat(buf, &c, sizeof(char));
-		    ul >>=  7;
-		}
+                if (sign < 0)
+                    rb_raise(rb_eArgError, "can't compress negative numbers");
+                if (sign == 2)
+                    rb_bug("buffer size problem?");
 
-		if (RSTRING_LEN(buf)) {
-		    bufs = RSTRING_PTR(buf);
-		    bufe = bufs + RSTRING_LEN(buf) - 1;
-		    *bufs &= 0x7f; /* clear continue bit */
-		    while (bufs < bufe) { /* reverse */
-			c = *bufs;
-			*bufs++ = *bufe;
-			*bufe-- = c;
-		    }
-		    rb_str_buf_cat(res, RSTRING_PTR(buf), RSTRING_LEN(buf));
-		}
-		else {
-		    c = 0;
-		    rb_str_buf_cat(res, &c, sizeof(char));
-		}
+                cp = RSTRING_PTR(buf);
+                while (1 < numbytes) {
+                  *cp |= 0x80;
+                  cp++;
+                  numbytes--;
+                }
+
+                rb_str_buf_cat(res, RSTRING_PTR(buf), RSTRING_LEN(buf));
 	    }
 	    break;
 
@@ -2152,32 +2135,18 @@ pack_unpack(VALUE str, VALUE fmt)
 
 	  case 'w':
 	    {
-		unsigned long ul = 0;
-		unsigned long ulmask = 0xfeUL << ((sizeof(unsigned long) - 1) * 8);
-
-		while (len > 0 && s < send) {
-		    ul <<= 7;
-		    ul |= (*s & 0x7f);
-		    if (!(*s++ & 0x80)) {
-			UNPACK_PUSH(ULONG2NUM(ul));
-			len--;
-			ul = 0;
-		    }
-		    else if (ul & ulmask) {
-			VALUE big = rb_uint2big(ul);
-			VALUE big128 = rb_uint2big(128);
-			while (s < send) {
-			    big = rb_big_mul(big, big128);
-			    big = rb_big_plus(big, rb_uint2big(*s & 0x7f));
-			    if (!(*s++ & 0x80)) {
-				UNPACK_PUSH(big);
-				len--;
-				ul = 0;
-				break;
-			    }
-			}
-		    }
-		}
+                char *s0 = s;
+                while (len > 0 && s < send) {
+                    if (*s & 0x80) {
+                        s++;
+                    }
+                    else {
+                        s++;
+                        UNPACK_PUSH(rb_int_import(1, s0, s-s0, 1, 1, 1, 1));
+                        len--;
+                        s0 = s;
+                    }
+                }
 	    }
 	    break;
 
