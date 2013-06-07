@@ -269,6 +269,20 @@ static vm_state_version_t ruby_global_const_state_version = 1;
 #define GET_CONST_STATE_VERSION() (ruby_global_const_state_version)
 #define INC_CONST_STATE_VERSION() (++ruby_global_const_state_version)
 
+static sa_table *ruby_const_name_state_versions;
+
+vm_state_version_t *
+rb_state_version_for_const_name(ID name)
+{
+    vm_state_version_t *sv;
+    if (sa_lookup(ruby_const_name_state_versions, (sa_index_t)name, (st_data_t *)&sv)) {
+	return sv;
+    }
+    sv = xmalloc(sizeof(*sv));
+    sa_insert(ruby_const_name_state_versions, (sa_index_t)name, (st_data_t)sv);
+    return sv;
+}
+
 vm_state_version_t
 rb_next_seq()
 {

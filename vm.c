@@ -2538,6 +2538,8 @@ Init_BareVM(void)
     th->vm = vm;
     th_init(th, 0);
     ruby_thread_init_stack(th);
+
+    ruby_const_name_state_versions = sa_new_table();
 }
 
 /* top self */
