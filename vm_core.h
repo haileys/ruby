@@ -132,7 +132,6 @@ struct iseq_compile_data_ensure_node_stack;
 typedef struct rb_compile_option_struct rb_compile_option_t;
 
 struct iseq_inline_cache_entry {
-    vm_state_version_t ic_vmstat;
     vm_state_version_t ic_seq;
     union {
 	VALUE value;

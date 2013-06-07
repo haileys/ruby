@@ -1212,7 +1212,7 @@ onceinlinecache
 (VALUE val)
 {
   retry:
-    if (ic->ic_vmstat) {
+    if (ic->ic_seq) {
 	val = ic->ic_value.value;
 	JUMP(dst);
     }
@@ -1244,7 +1244,7 @@ setonceinlinecache
 	rb_iseq_add_mark_object(GET_ISEQ(), val);
     }
     ic->ic_value.value = val;
-    ic->ic_vmstat = 1;
+    ic->ic_seq = 1;
 }
 
 /**
