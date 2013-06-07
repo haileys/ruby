@@ -1943,7 +1943,7 @@ rb_const_remove(VALUE mod, ID id)
 		      rb_class_name(mod), QUOTE_ID(id));
     }
 
-    rb_clear_constant_cache_by_class(mod);
+    rb_clear_constant_cache_by_class(mod, id);
 
     val = ((rb_const_entry_t*)v)->value;
     if (val == Qundef) {
@@ -2153,7 +2153,7 @@ rb_const_set(VALUE klass, ID id, VALUE val)
 		load = autoload_data(klass, id);
 		/* for autoloading thread, keep the defined value to autoloading storage */
 		if (load && (ele = check_autoload_data(load)) && (ele->thread == rb_thread_current())) {
-		    rb_clear_constant_cache_by_class(klass);
+		    rb_clear_constant_cache_by_class(klass, id);
 		    ele->value = val;
 		    return;
 		}
@@ -2176,7 +2176,7 @@ rb_const_set(VALUE klass, ID id, VALUE val)
 	}
     }
 
-    rb_clear_constant_cache_by_class(klass);
+    rb_clear_constant_cache_by_class(klass, id);
 
     ce = ALLOC(rb_const_entry_t);
     ce->flag = visibility;
@@ -2223,24 +2223,19 @@ set_const_visibility(VALUE mod, int argc, VALUE *argv, rb_const_flag_t flag)
 	VALUE val = argv[i];
 	id = rb_check_id(&val);
 	if (!id) {
-	    if (i > 0) {
-		rb_clear_constant_cache_by_class(mod);
-	    }
 	    rb_name_error_str(val, "constant %"PRIsVALUE"::%"PRIsVALUE" not defined",
 			      rb_class_name(mod), QUOTE(val));
 	}
 	if (RCLASS_CONST_TBL(mod) &&
 	    st_lookup(RCLASS_CONST_TBL(mod), (st_data_t)id, &v)) {
 	    ((rb_const_entry_t*)v)->flag = flag;
+	    rb_clear_constant_cache_by_class(mod, id);
 	}
 	else {
-	    if (i > 0)
-		rb_clear_constant_cache_by_class(mod);
 	    rb_name_error(id, "constant %"PRIsVALUE"::%"PRIsVALUE" not defined",
 			  rb_class_name(mod), QUOTE_ID(id));
 	}
     }
-    rb_clear_constant_cache_by_class(mod);
 }
 
 /*

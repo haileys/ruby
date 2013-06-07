@@ -342,7 +342,8 @@ void rb_define_alloc_func(VALUE, rb_alloc_func_t);
 void rb_undef_alloc_func(VALUE);
 rb_alloc_func_t rb_get_alloc_func(VALUE);
 void rb_clear_method_cache_by_class(VALUE);
-void rb_clear_constant_cache_by_class(VALUE);
+void rb_clear_constant_cache_by_class(VALUE, ID);
+void rb_clear_constant_cache_by_class_without_name(VALUE); /* prefer to use the above function */
 void rb_alias(VALUE, ID, ID);
 void rb_attr(VALUE,ID,int,int,int);
 int rb_method_boundp(VALUE, ID, int);

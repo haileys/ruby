@@ -42,8 +42,21 @@ rb_clear_method_cache_by_class(VALUE klass)
     }
 }
 
+static void
+clear_constant_name_cache(ID name)
+{
+    ++*rb_state_version_for_const_name(name);
+}
+
 void
-rb_clear_constant_cache_by_class(VALUE klass)
+rb_clear_constant_cache_by_class(VALUE klass, ID name)
+{
+    rb_clear_constant_cache_by_class_without_name(klass);
+    clear_constant_name_cache(name);
+}
+
+void
+rb_clear_constant_cache_by_class_without_name(VALUE klass)
 {
     INC_CONST_STATE_VERSION();
 }

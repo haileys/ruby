@@ -246,7 +246,6 @@ setconstant
 {
     vm_check_if_namespace(cbase);
     rb_const_set(cbase, id, val);
-    rb_clear_constant_cache_by_class(cbase);
 }
 
 /**
