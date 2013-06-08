@@ -1,3 +1,225 @@
+Sun Jun  9 00:59:04 2013  Tanaka Akira  <akr@fsij.org>
+
+	* hash.c (rb_hash): Use rb_integer_pack to obtain least significant
+	  long integer.
+
+Sat Jun  8 23:56:00 2013  Tanaka Akira  <akr@fsij.org>
+
+	* numeric.c (rb_num_to_uint): Use rb_absint_size instead of
+	  RBIGNUM_LEN.
+
+Sat Jun  8 22:53:45 2013  Tanaka Akira  <akr@fsij.org>
+
+	* marshal.c (r_object0): Use rb_integer_unpack.
+
+Sat Jun  8 22:18:57 2013  Tanaka Akira  <akr@fsij.org>
+
+	* time.c (v2w): Use rb_absint_size instead of RBIGNUM_LEN.
+
+Sat Jun  8 21:47:33 2013  Tanaka Akira  <akr@fsij.org>
+
+	* time.c (v2w_bignum): Simplified using rb_integer_pack.
+	  (rb_big_abs_find_maxbit): Removed.
+
+Sat Jun  8 21:03:40 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_absint_singlebit_p): New function.
+
+	* internal.h (rb_absint_singlebit_p): Declared.
+
+	* time.c (v2w_bignum): Use rb_absint_singlebit_p instead of
+	  rb_big_abs_find_minbit.
+	  (rb_big_abs_find_minbit): Removed.
+
+Sat Jun  8 20:24:23 2013  Tanaka Akira  <akr@fsij.org>
+
+	* time.c (rb_big_abs_find_maxbit): Use rb_absint_size.
+	  (bdigit_find_maxbit): Removed.
+
+Sat Jun  8 19:47:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* class.c (include_modules_at): invalidate method cache if included
+	  module contains constants
+
+	* test/ruby/test_module.rb: add test
+
+Sat Jun  8 19:31:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* random.c (limited_big_rand): declare rnd, lim and mask as uint32_t
+	  to avoid 64 bit to 32 bit shorten warnings.
+
+Sat Jun  8 19:23:53 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* win32/Makefile.sub: r41163 changed win32/win32.c and configure.in
+	  but it didn't treat about mswin32/mswin64, so fix it.
+	  NOTE: this needs a review by usa whether additional condition is
+	  required or not.
+
+Sat Jun  8 19:06:26 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c: Unused RBignum internal accessing macros removed.
+
+Sat Jun  8 19:04:15 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (limited_big_rand): The argument, limit, is changed to
+	  VALUE.  Use rb_integer_pack and rb_integer_unpack.
+
+Sat Jun  8 17:15:18 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (make_seed_value): Fix the length given for
+	  rb_integer_unpack.
+
+Sat Jun  8 16:38:02 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_unpack): Don't use rb_funcall if possible.
+
+	* random.c: Use uint32_t for elements of seed.
+	  (make_seed_value): Use rb_integer_unpack.
+
+Sat Jun  8 15:58:18 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (rand_init): Add a cast to fix clang compile error:
+	  random.c:410:32: error: implicit conversion loses integer precision:
+	  'size_t' (aka 'unsigned long') to 'int' [-Werror,-Wshorten-64-to-32]
+	  This cast doesn't cause a problem because len is not bigger than
+	  MT_MAX_STATE.
+
+Sat Jun  8 15:30:03 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (rand_init): Use rb_integer_pack.
+	  (roomof): Removed.
+
+Sat Jun  8 14:58:32 2013  Tanaka Akira  <akr@fsij.org>
+
+	* internal.h (INTEGER_PACK_FORCE_BIGNUM): New flag constant.
+
+	* bignum.c (rb_integer_unpack): Support INTEGER_PACK_FORCE_BIGNUM.
+
+	* random.c (int_pair_to_real_inclusive): Use
+	  INTEGER_PACK_FORCE_BIGNUM to use rb_big_mul instead of rb_funcall.
+
+Sat Jun  8 14:17:01 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* configure.in: check for NET_LUID.  header macro varies across
+	  compiler versions.
+
+	* win32/win32.c: use configured macro.
+
+Sat Jun  8 11:59:55 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (int_pair_to_real_inclusive): Use rb_funcall instead of
+	  rb_big_mul because rb_integer_unpack can return a Fixnum.
+
+Sat Jun  8 11:17:39 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (int_pair_to_real_inclusive): Use rb_integer_pack.
+
+Sat Jun  8 09:49:42 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (int_pair_to_real_inclusive): Use rb_integer_unpack.
+
+Sat Jun  8 08:12:22 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (random_load): Use rb_integer_pack.
+
+Sat Jun  8 06:15:46 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (numberof): Removed.
+
+Sat Jun  8 06:00:47 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c: include internal.h.
+	  (mt_state): Use rb_integer_unpack.
+
+Sat Jun  8 00:55:51 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (integer_pack_loop_setup): word_num_nailbytes_ret argument
+	  removed.
+	  (rb_integer_pack): Follow the above change.
+	  (rb_integer_unpack): Follow the above change.
+
+Sat Jun  8 00:37:32 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (validate_integer_pack_format): Renamed from
+	  validate_integer_format.
+	  (integer_pack_loop_setup): Renamed from integer_format_loop_setup.
+	  (integer_pack_fill_dd): Renamed from int_export_fill_dd.
+	  (integer_pack_take_lowbits): Renamed from int_export_take_lowbits.
+	  (integer_unpack_push_bits): Renamed from int_import_push_bits.
+
+Fri Jun  7 23:58:06 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_pack): Arguments changed.  Use flags to
+	  specify word order and byte order.
+	  (rb_integer_unpack): Ditto.
+	  (validate_integer_format): Follow the above change.
+	  (integer_format_loop_setup): Ditto.
+
+	* pack.c: Ditto.
+
+	* internal.h: Ditto.
+	  (INTEGER_PACK_MSWORD_FIRST): Defined.
+	  (INTEGER_PACK_LSWORD_FIRST): Ditto.
+	  (INTEGER_PACK_MSBYTE_FIRST): Ditto.
+	  (INTEGER_PACK_LSBYTE_FIRST): Ditto.
+	  (INTEGER_PACK_NATIVE_BYTE_ORDER): Ditto.
+	  (INTEGER_PACK_LITTLE_ENDIAN): Ditto.
+	  (INTEGER_PACK_BIG_ENDIAN): Ditto.
+
+Fri Jun  7 22:10:50 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* lib/rubygems/specification.rb (Gem::Specification#to_yaml):
+	  use Gem::NoAliasYAMLTree.create instead of Gem::NoAliasYAMLTree.new
+	  to suppress deprecated warnings.
+
+Fri Jun  7 21:39:39 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_pack): Renamed from rb_int_export.
+	  (rb_integer_unpack): Renamed from rb_int_import.
+
+	* internal.h, pack.c: Follow the above change.
+
+Fri Jun  7 21:05:26 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (integer_format_loop_setup): Extracted from rb_int_export
+	  and rb_int_import.
+
+Fri Jun  7 19:48:38 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (validate_integer_format): Extracted from rb_int_export and
+	  rb_int_import.
+
+Fri Jun  7 19:23:15 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_absint_size): Use numberof.
+	  (rb_int_export): Ditto.
+
+Fri Jun  7 18:58:56 2013  Tanaka Akira  <akr@fsij.org>
+
+	* internal.h (numberof): Gathered from various files.
+
+	* array.c, math.c, thread_pthread.c, iseq.c, enum.c, string.c, io.c,
+	  load.c, compile.c, struct.c, eval.c, gc.c, parse.y, process.c,
+	  error.c, ruby.c: Remove the definitions of numberof.
+
+Fri Jun  7 18:24:39 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_absint_size): Declare a variable, i, just before used
+	  to suppress a warning.
+	  (rb_int_export): Ditto.
+
+Fri Jun  7 17:41:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* bignum.c (rb_absint_size): explicit cast to BDIGIT to avoid implicit
+	  64 bit to 32 bit shortening warning
+	* bignum.c (rb_int_export): ditto
+	* bignum.c (int_import_push_bits): ditto
+
+Fri Jun  7 17:31:00 2013  Charlie Somerville  <charliesome@ruby-lang.org>
+
+	* internal.h (RCLASS_SUPER): use descriptive variable name
+	* internal.h (RCLASS_SET_SUPER): ditto
+
 Fri Jun  7 13:25:27 2013  NARUSE, Yui  <naruse@ruby-lang.org>
 
 	* ext/json/fbuffer/fbuffer.h (fbuffer_append_str): change the place of

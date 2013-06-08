@@ -19,6 +19,8 @@ extern "C" {
 #endif
 #endif
 
+#define numberof(array) ((int)(sizeof(array) / sizeof((array)[0])))
+
 #define GCC_VERSION_SINCE(major, minor, patchlevel) \
   (defined(__GNUC__) && !defined(__INTEL_COMPILER) && \
    ((__GNUC__ > (major)) ||  \
@@ -50,6 +52,24 @@ extern "C" {
 #define MUL_OVERFLOW_FIXNUM_P(a, b) MUL_OVERFLOW_SIGNED_INTEGER_P(a, b, FIXNUM_MIN, FIXNUM_MAX)
 #define MUL_OVERFLOW_LONG_P(a, b) MUL_OVERFLOW_SIGNED_INTEGER_P(a, b, LONG_MIN, LONG_MAX)
 #define MUL_OVERFLOW_INT_P(a, b) MUL_OVERFLOW_SIGNED_INTEGER_P(a, b, INT_MIN, INT_MAX)
+
+/* "MS" in MSWORD and MSBYTE means "most significant" */
+/* "LS" in LSWORD and LSBYTE means "least significant" */
+/* For rb_integer_pack and rb_integer_unpack: */
+#define INTEGER_PACK_MSWORD_FIRST       0x01
+#define INTEGER_PACK_LSWORD_FIRST       0x02
+#define INTEGER_PACK_MSBYTE_FIRST       0x10
+#define INTEGER_PACK_LSBYTE_FIRST       0x20
+#define INTEGER_PACK_NATIVE_BYTE_ORDER  0x40
+/* For rb_integer_unpack: */
+#define INTEGER_PACK_FORCE_BIGNUM       0x100
+/* Combinations: */
+#define INTEGER_PACK_LITTLE_ENDIAN \
+    (INTEGER_PACK_LSWORD_FIRST | \
+     INTEGER_PACK_LSBYTE_FIRST)
+#define INTEGER_PACK_BIG_ENDIAN \
+    (INTEGER_PACK_MSWORD_FIRST | \
+     INTEGER_PACK_MSBYTE_FIRST)
 
 struct rb_deprecated_classext_struct {
     char conflict[sizeof(VALUE) * 3];
@@ -107,18 +127,18 @@ void rb_class_subclass_add(VALUE, VALUE);
 
 #undef RCLASS_SUPER
 static inline VALUE
-RCLASS_SUPER(VALUE c)
+RCLASS_SUPER(VALUE klass)
 {
-    return RCLASS_EXT(c)->super;
+    return RCLASS_EXT(klass)->super;
 }
 
 static inline VALUE
 RCLASS_SET_SUPER(VALUE klass, VALUE super)
 {
-  rb_class_remove_from_super_subclasses(klass);
-  rb_class_subclass_add(super, klass);
-  OBJ_WRITE(klass, &RCLASS_EXT(klass)->super, super);
-  return super;
+    rb_class_remove_from_super_subclasses(klass);
+    rb_class_subclass_add(super, klass);
+    OBJ_WRITE(klass, &RCLASS_EXT(klass)->super, super);
+    return klass;
 }
 
 struct vtm; /* defined by timev.h */
@@ -136,6 +156,7 @@ VALUE rb_integer_float_cmp(VALUE x, VALUE y);
 VALUE rb_integer_float_eq(VALUE x, VALUE y);
 size_t rb_absint_size(VALUE val, int *number_of_leading_zero_bits);
 size_t rb_absint_size_in_word(VALUE val, size_t word_numbits, size_t *number_of_leading_zero_bits);
+int rb_absint_singlebit_p(VALUE val);
 
 /* class.c */
 void rb_class_foreach_subclass(VALUE klass, void(*f)(VALUE));
@@ -468,8 +489,8 @@ const char *rb_objspace_data_type_name(VALUE obj);
 VALUE rb_thread_io_blocking_region(rb_blocking_function_t *func, void *data1, int fd);
 
 /* bignum.c */
-void *rb_int_export(VALUE val, int *signp, size_t *wordcount_allocated, void *words, size_t wordcount, int wordorder, size_t wordsize, int endian, size_t nails);
-VALUE rb_int_import(int sign, const void *words, size_t wordcount, int wordorder, size_t wordsize, int endian, size_t nails);
+void *rb_integer_pack(VALUE val, int *signp, size_t *numwords_allocated, void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
+VALUE rb_integer_unpack(int sign, const void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
 
 /* io.c */
 void rb_maygvl_fd_fix_cloexec(int fd);
