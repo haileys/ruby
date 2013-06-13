@@ -1715,13 +1715,25 @@ SRC
     [idir, ldir]
   end
 
-  # :stopdoc:
-
-  # Handles meta information about installed libraries. Uses your platform's
-  # pkg-config program if it has one.
+  # Returns compile/link information about an installed library in a
+  # tuple of <code>[cflags, ldflags, libs]</code>, by using the
+  # command found first in the following commands:
   #
-  # The actual command name can be overridden by
-  # <code>--with-pkg-config</code> command line option.
+  # 1. If <code>--with-{pkg}-config={command}</code> is given via
+  #    command line option: <code>{command} {option}</code>
+  #
+  # 2. <code>{pkg}-config {option}</code>
+  #
+  # 3. <code>pkg-config {option} {pkg}</code>
+  #
+  # Where {option} is, for instance, <code>--cflags</code>.
+  #
+  # The values obtained are appended to +$CFLAGS+, +$LDFLAGS+ and
+  # +$libs+.
+  #
+  # If an <code>option</code> argument is given, the config command is
+  # invoked with the option and a stripped output string is returned
+  # without modifying any of the global values mentioned above.
   def pkg_config(pkg, option=nil)
     if pkgconfig = with_config("#{pkg}-config") and find_executable0(pkgconfig)
       # iff package specific config command is given
@@ -1754,6 +1766,8 @@ SRC
       nil
     end
   end
+
+  # :stopdoc:
 
   def with_destdir(dir)
     return dir unless $extmk

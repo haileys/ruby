@@ -600,7 +600,7 @@ rb_f_raise(int argc, VALUE *argv)
 static VALUE
 make_exception(int argc, VALUE *argv, int isstr)
 {
-    VALUE mesg;
+    VALUE mesg, exc;
     ID exception;
     int n;
 
@@ -609,10 +609,11 @@ make_exception(int argc, VALUE *argv, int isstr)
       case 0:
 	break;
       case 1:
-	if (NIL_P(argv[0]))
+	exc = argv[0];
+	if (NIL_P(exc))
 	    break;
 	if (isstr) {
-	    mesg = rb_check_string_type(argv[0]);
+	    mesg = rb_check_string_type(exc);
 	    if (!NIL_P(mesg)) {
 		mesg = rb_exc_new3(rb_eRuntimeError, mesg);
 		break;
@@ -623,11 +624,12 @@ make_exception(int argc, VALUE *argv, int isstr)
 
       case 2:
       case 3:
+	exc = argv[0];
 	n = 1;
       exception_call:
-	if (argv[0] == sysstack_error) return argv[0];
+	if (exc == sysstack_error) return exc;
 	CONST_ID(exception, "exception");
-	mesg = rb_check_funcall(argv[0], exception, n, argv+1);
+	mesg = rb_check_funcall(exc, exception, n, argv+1);
 	if (mesg == Qundef) {
 	    rb_raise(rb_eTypeError, "exception class/object expected");
 	}
@@ -1226,6 +1228,34 @@ rb_mod_refine(VALUE module, VALUE klass)
     return refinement;
 }
 
+/*
+ *  call-seq:
+ *     using(module)    -> self
+ *
+ *  Import class refinements from <i>module</i> into the current class or
+ *  module definition.
+ */
+
+static VALUE
+mod_using(VALUE self, VALUE module)
+{
+    NODE *cref = rb_vm_cref();
+    rb_control_frame_t *prev_cfp = previous_frame(GET_THREAD());
+
+    warn_refinements_once();
+    if (prev_frame_func()) {
+	rb_raise(rb_eRuntimeError,
+		 "Module#using is not permitted in methods");
+    }
+    if (prev_cfp && prev_cfp->self != self) {
+	rb_raise(rb_eRuntimeError, "Module#using is not called on self");
+    }
+    Check_Type(module, T_MODULE);
+    rb_using_module(cref, module);
+    rb_clear_cache();
+    return self;
+}
+
 void
 rb_obj_call_init(VALUE obj, int argc, VALUE *argv)
 {
@@ -1331,7 +1361,6 @@ top_include(int argc, VALUE *argv, VALUE self)
 {
     rb_thread_t *th = GET_THREAD();
 
-    rb_secure(4);
     if (th->top_wrapper) {
 	rb_warning("main.include in the wrapped load is effective only in wrapper module");
 	return rb_mod_include(argc, argv, th->top_wrapper);
@@ -1355,7 +1384,8 @@ top_using(VALUE self, VALUE module)
 
     warn_refinements_once();
     if (cref->nd_next || (prev_cfp && prev_cfp->me)) {
-	rb_raise(rb_eRuntimeError, "using is permitted only at toplevel");
+	rb_raise(rb_eRuntimeError,
+		 "main.using is permitted only at toplevel");
     }
     Check_Type(module, T_MODULE);
     rb_using_module(cref, module);
@@ -1559,6 +1589,7 @@ Init_eval(void)
     rb_define_private_method(rb_cModule, "prepend_features", rb_mod_prepend_features, 1);
     rb_define_private_method(rb_cModule, "prepend", rb_mod_prepend, -1);
     rb_define_private_method(rb_cModule, "refine", rb_mod_refine, 1);
+    rb_define_private_method(rb_cModule, "using", mod_using, 1);
     rb_undef_method(rb_cClass, "refine");
 
     rb_undef_method(rb_cClass, "module_function");

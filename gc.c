@@ -516,11 +516,13 @@ RVALUE_PROMOTE(VALUE obj)
     }
 #endif
 }
-#define RVALUE_DEMOTE(x)      do{					\
-	FL_UNSET2((x), FL_OLDGEN);					\
-	CLEAR_IN_BITMAP(GET_HEAP_OLDGEN_BITS(obj), obj);		\
-    }while(0)
 
+static inline void
+RVALUE_DEMOTE(VALUE obj)
+{
+    FL_UNSET2(obj, FL_OLDGEN);
+    CLEAR_IN_BITMAP(GET_HEAP_OLDGEN_BITS(obj), obj);
+}
 #endif
 
 static void
@@ -897,7 +899,7 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     /* OBJSETUP */
     RBASIC(obj)->flags = flags;
     RBASIC_SET_CLASS(obj, klass);
-    if (rb_safe_level() >= 3) FL_SET((obj), FL_TAINT | FL_UNTRUSTED);
+    if (rb_safe_level() >= 3) FL_SET((obj), FL_TAINT);
     RANY(obj)->as.values.v1 = v1;
     RANY(obj)->as.values.v2 = v2;
     RANY(obj)->as.values.v3 = v3;
@@ -1519,7 +1521,6 @@ os_each_obj(int argc, VALUE *argv, VALUE os)
 {
     VALUE of;
 
-    rb_secure(4);
     if (argc == 0) {
 	of = 0;
     }
@@ -1913,7 +1914,6 @@ id2ref(VALUE obj, VALUE objid)
     VALUE ptr;
     void *p0;
 
-    rb_secure(4);
     ptr = NUM2PTR(objid);
     p0 = (void *)ptr;
 
@@ -3586,11 +3586,6 @@ rgengc_remembersetbits_set(rb_objspace_t *objspace, VALUE obj)
 static void
 rgengc_remember(rb_objspace_t *objspace, VALUE obj)
 {
-    if (RGENGC_CHECK_MODE && RVALUE_PROMOTED(obj)) {
-	rb_bug("rgengc_remember: %p (%s) is promoted object",
-	       (void *)obj, obj_type_name(obj));
-    }
-
     rgengc_report(0, objspace, "rgengc_remember: %p (%s, %s) %s\n", (void *)obj, obj_type_name(obj),
 		  RVALUE_SHADY(obj) ? "shady" : "non-shady",
 		  rgengc_remembersetbits_get(objspace, obj) ? "was already remembered" : "is remembered now");
@@ -4649,7 +4644,7 @@ static void
 wmap_mark(void *ptr)
 {
     struct weakmap *w = ptr;
-    st_foreach(w->obj2wmap, wmap_mark_map, (st_data_t)&rb_objspace);
+    if (w->obj2wmap) st_foreach(w->obj2wmap, wmap_mark_map, (st_data_t)&rb_objspace);
     rb_gc_mark(w->final);
 }
 

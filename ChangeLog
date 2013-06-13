@@ -1,3 +1,403 @@
+Thu Jun 13 18:54:11 2013  NAKAMURA Usaku  <usa@ruby-lang.org>
+
+	* bignum.c (integer_unpack_num_bdigits_generic): reorder terms (but not
+	  changed the intention of the expression) because VC++ reports a
+	  warning for it.  reported by ko1 via IRC.
+
+Thu Jun 13 18:53:14 2013  Tanaka Akira  <akr@fsij.org>
+
+	* test/ruby/test_thread.rb (test_thread_local_security): Don't create
+	  an unused thread.
+
+Thu Jun 13 18:34:20 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (bigdivrem): Use nlz.
+
+Thu Jun 13 14:51:06 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* include/ruby/ruby.h (RUBY_SAFE_LEVEL_CHECK): check constant safe
+	  level at compile time.
+
+Thu Jun 13 14:39:08 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* test/-ext-/test_printf.rb, test/rss/test_parser.rb,
+	  test/ruby/test_array.rb, test/ruby/test_hash.rb,
+	  test/ruby/test_m17n.rb, test/ruby/test_marshal.rb,
+	  test/ruby/test_object.rb, test/ruby/test_string.rb: don't use
+	  untrusted?, untrust, and trust to avoid warnings in case $VERBOSE is
+	  true.
+
+Thu Jun 13 10:47:16 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* bootstraptest/test_autoload.rb, bootstraptest/test_method.rb:
+	  remove tests for $SAFE=4.
+
+	* lib/pp.rb: use taint instead of untrust to avoid warnings when
+	  $VERBOSE is set to true.
+
+Thu Jun 13 06:12:18 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (integer_unpack_num_bdigits_small): Fix a compile error on
+	  clang -Werror,-Wshorten-64-to-32
+	  Reported by Eric Hodel.  [ruby-core:55467] [Bug #8522]
+
+Thu Jun 13 05:32:13 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* ext/socket/extconf.rb:  Enable RFC 3542 IPV6 socket options for OS X
+	  10.7+.  [ruby-trunk - Bug #8517]
+
+Thu Jun 13 00:17:18 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_unpack_2comp): New function.
+	  (rb_integer_unpack_internal): Extracted from rb_integer_unpack and
+	  nlp_bits_ret argument added.
+	  (integer_unpack_num_bdigits_small): nlp_bits_ret argument added to
+	  return number of leading padding bits.
+	  (integer_unpack_num_bdigits_generic): Ditto.
+
+	* internal.h (rb_integer_unpack_2comp): Declared.
+
+	* pack.c (pack_unpack): Use rb_integer_unpack_2comp and
+	  rb_integer_unpack.
+
+Wed Jun 12 23:27:03 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* eval.c (mod_using): new method Module#using, which activates
+	  refinements of the specified module only in the current class or
+	  module definition.  [ruby-core:55273] [Feature #8481]
+
+	* test/ruby/test_refinement.rb: related test.
+
+Wed Jun 12 22:58:48 2013  Shugo Maeda  <shugo@ruby-lang.org>
+
+	* safe.c (rb_set_safe_level, safe_setter): raise an ArgumentError
+	  when $SAFE is set to 4.  $SAFE=4 is now obsolete.
+	  [ruby-core:55222] [Feature #8468]
+
+	* object.c (rb_obj_untrusted, rb_obj_untrust, rb_obj_trust):
+	  Kernel#untrusted?, untrust, and trust are now deprecated.
+	  Their behavior is same as tainted?, taint, and untaint,
+	  respectively.
+
+	* include/ruby/ruby.h (OBJ_UNTRUSTED, OBJ_UNTRUST): OBJ_UNTRUSTED()
+	  and OBJ_UNTRUST() are aliases of OBJ_TAINTED() and OBJ_TAINT(),
+	  respectively.
+
+	* array.c, class.c, debug.c, dir.c, encoding.c, error.c, eval.c,
+	  ext/curses/curses.c, ext/dbm/dbm.c, ext/dl/cfunc.c,
+	  ext/dl/cptr.c, ext/dl/dl.c, ext/etc/etc.c, ext/fiddle/fiddle.c,
+	  ext/fiddle/pointer.c, ext/gdbm/gdbm.c, ext/readline/readline.c,
+	  ext/sdbm/init.c, ext/socket/ancdata.c, ext/socket/basicsocket.c,
+	  ext/socket/socket.c, ext/socket/udpsocket.c,
+	  ext/stringio/stringio.c, ext/syslog/syslog.c, ext/tk/tcltklib.c,
+	  ext/win32ole/win32ole.c, file.c, gc.c, hash.c, io.c, iseq.c,
+	  load.c, marshal.c, object.c, proc.c, process.c, random.c, re.c,
+	  safe.c, string.c, thread.c, transcode.c, variable.c,
+	  vm_insnhelper.c, vm_method.c, vm_trace.c: remove code for
+	  $SAFE=4.
+
+	* test/dl/test_dl2.rb, test/erb/test_erb.rb,
+	  test/readline/test_readline.rb,
+	  test/readline/test_readline_history.rb, test/ruby/test_alias.rb,
+	  test/ruby/test_array.rb, test/ruby/test_dir.rb,
+	  test/ruby/test_encoding.rb, test/ruby/test_env.rb,
+	  test/ruby/test_eval.rb, test/ruby/test_exception.rb,
+	  test/ruby/test_file_exhaustive.rb, test/ruby/test_hash.rb,
+	  test/ruby/test_io.rb, test/ruby/test_method.rb,
+	  test/ruby/test_module.rb, test/ruby/test_object.rb,
+	  test/ruby/test_pack.rb, test/ruby/test_rand.rb,
+	  test/ruby/test_regexp.rb, test/ruby/test_settracefunc.rb,
+	  test/ruby/test_struct.rb, test/ruby/test_thread.rb,
+	  test/ruby/test_time.rb: remove tests for $SAFE=4.
+
+Wed Jun 12 22:18:23 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (integer_unpack_num_bdigits_generic): Rewritten without
+	  rb_funcall.
+	  (integer_unpack_num_bdigits_bytes): Removed.
+	  (rb_integer_unpack): integer_unpack_num_bdigits_bytes invocation
+	  removed.
+
+Wed Jun 12 20:18:03 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* lib/xmlrpc/client.rb (XMLRPC::Client#parse_set_cookies): Extract.
+
+Wed Jun 12 18:19:41 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (validate_integer_pack_format): supported_flags argument
+	  added and validate given flags.
+	  (rb_integer_pack_internal): Specify supported_flags.
+	  (rb_integer_unpack): Ditto.
+
+Wed Jun 12 16:41:38 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* array.c (rb_ary_sort_bang): remove duplicated assertions.
+	  ARY_HEAP_PTR() implies ary not to be embedded.  [ruby-dev:47419]
+	  [Bug #8518]
+
+Wed Jun 12 12:44:45 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* io.c (io_getc): fix 7bit coderange condition, check if ascii read
+	  data instead of read length. [ruby-core:55444] [Bug #8516]
+
+Wed Jun 12 12:35:13 2013  Tanaka Akira  <akr@fsij.org>
+
+	* pack.c (pack_pack): Use rb_integer_pack_2comp.
+
+Wed Jun 12 12:07:04 2013  Tanaka Akira  <akr@fsij.org>
+
+	* sprintf.c (rb_str_format): Fix a dynamic format string.
+
+Wed Jun 12 12:04:09 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* array.c (rb_ary_uniq_bang): must not be modified once frozen even in
+	  a callback method.
+
+Wed Jun 12 12:03:43 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* array.c (rb_ary_sort_bang): must not be modified once frozen even in
+	  a callback method.
+
+Wed Jun 12 12:00:15 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* array.c (FL_SET_EMBED): shared object is frozen even when get
+	  unshared.
+
+	* array.c (rb_ary_modify): ARY_SET_CAPA needs unshared array.
+
+Wed Jun 12 07:32:01 2013  Tanaka Akira  <akr@fsij.org>
+
+	* random.c (rand_int): Use rb_big_uminus.
+
+Wed Jun 12 07:12:54 2013  Eric Hodel  <drbrain@segment7.net>
+
+	* struct.c:  Improve documentation: replace "instance variable" with
+	  "member", recommend the use of a block to customize structs, note
+	  that member accessors are created, general cleanup.
+
+Wed Jun 12 06:35:01 2013  Tanaka Akira  <akr@fsij.org>
+
+	* internal.h (INTEGER_PACK_NEGATIVE): Defined.
+	  (rb_integer_unpack): sign argument removed.
+
+	* bignum.c (rb_integer_unpack): sign argument removed.
+	  Non-negative integers generated by default.
+	  INTEGER_PACK_NEGATIVE flag is used to generate non-positive integers.
+
+	* pack.c (pack_unpack): Follow the above change.
+
+	* random.c (int_pair_to_real_inclusive): Ditto.
+	  (make_seed_value): Ditto.
+	  (mt_state): Ditto.
+	  (limited_big_rand): Ditto.
+
+	* marshal.c (r_object0): Ditto.
+
+Wed Jun 12 00:07:46 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* test/xmlrpc/test_client.rb (XMLRPC::ClientTest#test_cookie_simple):
+	  Add a test for the extracted method.
+
+Tue Jun 11 23:56:24 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* test/xmlrpc/test_client.rb (XMLRPC::ClientTest::Fake::HTTP#started):
+	  Add a missing empty line.
+
+Tue Jun 11 23:37:19 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (validate_integer_pack_format): Don't require a word order
+	  flag if numwords is 1 or less.
+	  (absint_numwords_generic): Don't specify a word order for
+	  rb_integer_pack.
+
+	* hash.c (rb_hash): Ditto.
+
+	* time.c (v2w_bignum): Ditto.
+
+Tue Jun 11 23:01:57 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (validate_integer_pack_format): Refine error messages.
+
+Tue Jun 11 22:25:04 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (validate_integer_pack_format): numwords argument added.
+	  Move a varidation from rb_integer_pack_internal and rb_integer_unpack.
+	  (rb_integer_pack_internal): Follow above change.
+	  (rb_integer_unpack): Ditto.
+
+Tue Jun 11 20:52:43 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_pack_internal): Renamed from rb_integer_pack
+	  and overflow_2comp argument added.
+	  (rb_integer_pack): Just call rb_integer_pack_internal.
+	  (rb_integer_pack_2comp): New function.
+
+	* internal.h (rb_integer_pack_2comp): Declared.
+
+	* sprintf.c (rb_str_format): Use rb_integer_pack and
+	  rb_integer_pack_2comp to format binary/octal/hexadecimal integers.
+	  (ruby_digitmap): Declared.
+	  (remove_sign_bits): Removed.
+	  (BITSPERDIG): Ditto.
+	  (EXTENDSIGN): Ditto.
+
+Tue Jun 11 16:15:03 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* array.c (ary_shrink_capa): shrink the capacity so it fits just with
+	  the length.
+
+	* array.c (ary_make_shared): release never used elements from frozen
+	  array to be shared.  [ruby-dev:47416] [Bug #8510]
+
+Tue Jun 11 12:49:01 2013  Zachary Scott  <zachary@zacharyscott.net>
+
+	* doc/re.rdoc: Rename to doc/regexp.rdoc
+	* re.c: Update rdoc include for rename of file
+
+Tue Jun 11 07:13:13 2013  Masaya Tarui  <tarui@ruby-lang.org>
+
+	* eval_error.c (error_print): keep that errat is non-shady object.
+	  and guard errat from GC.
+
+Tue Jun 11 05:04:25 2013  Benoit Daloze  <eregontp@gmail.com>
+
+	* ext/racc/cparse/cparse.c: use rb_ary_entry() and
+	  rb_ary_subseq() instead of RARRAY_PTR.
+	  Based on a patch by Dirkjan Bussink. See Bug #8399.
+
+Mon Jun 10 23:51:51 2013  Kazuhiro NISHIYAMA  <zn@mbf.nifty.com>
+
+	* array.c (rb_ary_new_from_values): fix a typo. pointed out by
+	  nagachika.
+	  http://d.hatena.ne.jp/nagachika/20130610/ruby_trunk_changes_41199_41220
+
+Mon Jun 10 21:51:03 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* ext/socket/raddrinfo.c (nogvl_getaddrinfo): Fix indent.
+
+Mon Jun 10 21:49:43 2013  Kouhei Sutou  <kou@cozmixng.org>
+
+	* ext/socket/raddrinfo.c (nogvl_getaddrinfo): Add missing return
+	  value assignment.
+
+Mon Jun 10 20:58:11 2013  NARUSE, Yui  <naruse@ruby-lang.org>
+
+	* ext/socket/raddrinfo.c (nogvl_getaddrinfo): work around for Ubuntu
+	  13.04's getaddrinfo issue with mdns4. [ruby-list:49420]
+
+Mon Jun 10 19:34:39 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_pack): Returns sign instead of words.
+	  (absint_numwords_generic): Follow the above change.
+	  (big2str_base_powerof2): Follow the above change.
+
+	* internal.h: Ditto.
+
+	* hash.c (rb_hash): Ditto.
+
+	* pack.c (pack_pack): Ditto.
+
+	* random.c (int_pair_to_real_inclusive): Ditto.
+	  (rand_init): Ditto.
+	  (random_load): Ditto.
+	  (limited_big_rand): Ditto.
+
+	* time.c (v2w_bignum): Ditto.
+
+Mon Jun 10 17:20:01 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (rgengc_remember): permit promoted object.
+	  (rb_gc_writebarrier -> remember)
+
+Mon Jun 10 17:14:01 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (RVALUE_PROMOTE): fix parameter name (`x' to `obj')
+	  and make it inline function (like RVALUE_PROMOTE).
+
+Mon Jun 10 16:22:50 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* array.c (rb_ary_new_from_values): add assertion
+	  (ary should be young object).
+
+Mon Jun 10 16:05:59 2013  Koichi Sasada  <ko1@atdot.net>
+
+	* gc.c (wmap_mark): check allocation of `w->obj2wmap'.
+	  (no-allocation `w->obj2wmap' will be NULL pointer reference)
+
+Mon Jun 10 15:36:00 2013  Nobuyoshi Nakada  <nobu@ruby-lang.org>
+
+	* eval_error.c (error_print): use checking functions instead of
+	  catching exceptions.
+
+	* eval_error.c (error_print): restore errinfo for the case new
+	  exception raised while printing the message.  [ruby-core:55365]
+	  [Bug #8501]
+
+	* eval_error.c (error_print): reduce calling setjmp.
+
+Mon Jun 10 12:10:06 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (integer_unpack_num_bdigits_small: Extracted from
+	  rb_integer_unpack.
+	  (integer_unpack_num_bdigits_generic): Ditto.
+	  (integer_unpack_num_bdigits_bytes): New function.
+	  (rb_integer_unpack): Use above functions.
+	  Return a Bignum for INTEGER_PACK_FORCE_BIGNUM even when the result
+	  is zero.
+
+Mon Jun 10 05:38:23 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (absint_numwords_small): New function.
+	  (absint_numwords_generic): Use absint_numwords_small if possible.
+
+Mon Jun 10 01:07:57 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (absint_numwords_bytes): New function.
+	  (absint_numwords_generic): Extracted from rb_absint_numwords.
+	  (rb_absint_numwords): Use absint_numwords_bytes if possible.
+
+Sun Jun  9 21:33:15 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_absint_numwords): Return (size_t)-1 when overflow.
+	  Refine variable names.
+	  (rb_absint_size): Refine variable names.
+
+	* internal.h (rb_absint_size): Refine an argument name.
+	  (rb_absint_numwords): Ditto.
+
+Sun Jun  9 16:51:41 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_absint_numwords): Renamed from rb_absint_size_in_word.
+
+	* internal.h (rb_absint_numwords): Follow the above change.
+
+	* pack.c (pack_pack): Ditto.
+
+	* random.c (rand_init): Ditto.
+	  (limited_big_rand): Ditto.
+
+Sun Jun  9 14:41:05 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (rb_integer_pack): numwords_allocated argument removed.
+
+	* internal.h (rb_integer_pack): Follow the above change.
+
+	* hash.c (rb_hash): Ditto.
+
+	* time.c (v2w_bignum): Ditto.
+
+	* pack.c (pack_pack): Ditto.
+
+	* random.c (int_pair_to_real_inclusive): Ditto.
+	  (rand_init): Ditto.
+	  (random_load): Ditto.
+	  (limited_big_rand): Ditto.
+
+Sun Jun  9 09:34:44 2013  Tanaka Akira  <akr@fsij.org>
+
+	* bignum.c (big2str_base_powerof2): New function.
+	  (rb_big2str0): Use big2str_base_powerof2 if base is 2, 4, 8, 16 or 32.
+
 Sun Jun  9 00:59:04 2013  Tanaka Akira  <akr@fsij.org>
 
 	* hash.c (rb_hash): Use rb_integer_pack to obtain least significant

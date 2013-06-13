@@ -452,8 +452,25 @@ rb_big_unpack(unsigned long *buf, long num_longs)
 }
 
 /* number of bytes of abs(val). additionaly number of leading zeros can be returned. */
+
+/*
+ * Calculate the number of bytes to be required to represent
+ * the absolute value of the integer given as _val_.
+ *
+ * [val] an integer.
+ * [nlz_bits_ret] number of leading zero bits in the most significant byte is returned if not NULL.
+ *
+ * This function returns ((val_numbits * CHAR_BIT + CHAR_BIT - 1) / CHAR_BIT)
+ * where val_numbits is the number of bits of abs(val).
+ * This function should not overflow.
+ *
+ * If nlz_bits_ret is not NULL,
+ * (return_value * CHAR_BIT - val_numbits) is stored in *nlz_bits_ret.
+ * In this case, 0 <= *nlz_bits_ret < CHAR_BIT.
+ *
+ */
 size_t
-rb_absint_size(VALUE val, int *number_of_leading_zero_bits)
+rb_absint_size(VALUE val, int *nlz_bits_ret)
 {
     BDIGIT *dp;
     BDIGIT *de;
@@ -489,51 +506,181 @@ rb_absint_size(VALUE val, int *number_of_leading_zero_bits)
     while (dp < de && de[-1] == 0)
         de--;
     if (dp == de) {
-        if (number_of_leading_zero_bits)
-            *number_of_leading_zero_bits = 0;
+        if (nlz_bits_ret)
+            *nlz_bits_ret = 0;
         return 0;
     }
     num_leading_zeros = nlz(de[-1]);
-    if (number_of_leading_zero_bits)
-        *number_of_leading_zero_bits = num_leading_zeros % CHAR_BIT;
+    if (nlz_bits_ret)
+        *nlz_bits_ret = num_leading_zeros % CHAR_BIT;
     return (de - dp) * SIZEOF_BDIGITS - num_leading_zeros / CHAR_BIT;
 }
 
 size_t
-rb_absint_size_in_word(VALUE val, size_t word_numbits_arg, size_t *number_of_leading_zero_bits)
+absint_numwords_bytes(size_t numbytes, int nlz_bits_in_msbyte, size_t word_numbits, size_t *nlz_bits_ret)
 {
-    size_t numbytes;
+    /*
+     * word_numbytes = word_numbits / CHAR_BIT
+     * div, mod = val_numbits.divmod(word_numbits)
+     *
+     * q, r = numbytes.divmod(word_numbytes)
+     * s = q        if r * CHAR_BIT >= nlz_bits_in_msbyte
+     *   = q - 1    if otherwise
+     * t = r * CHAR_BIT - nlz_bits_in_msbyte                if r * CHAR_BIT >= nlz_bits_in_msbyte
+     *   = word_numbits + r * CHAR_BIT - nlz_bits_in_msbyte if otherwise
+     *
+     * div = (numbytes * CHAR_BIT - nlz_bits_in_msbyte) / word_numbits
+     *     = ((q * word_numbytes + r) * CHAR_BIT - nlz_bits_in_msbyte) / word_numbits
+     *     = (q * word_numbytes * CHAR_BIT + r * CHAR_BIT - nlz_bits_in_msbyte) / word_numbits
+     *     = q + (r * CHAR_BIT - nlz_bits_in_msbyte) / word_numbits if r * CHAR_BIT >= nlz_bits_in_msbyte
+     *       q - 1 + (word_numbits + r * CHAR_BIT - nlz_bits_in_msbyte) / word_numbits if r * CHAR_BIT < nlz_bits_in_msbyte
+     *     = s + t / word_numbits
+     * mod = (r * CHAR_BIT - nlz_bits_in_msbyte) % word_numbits if r * CHAR_BIT >= nlz_bits_in_msbyte
+     *       (word_numbits + r * CHAR_BIT - nlz_bits_in_msbyte) % word_numbits if r * CHAR_BIT < nlz_bits_in_msbyte
+     *     = t % word_numbits
+     *
+     * numwords = mod == 0 ? div : div + 1
+     * nlz_bits = mod == 0 ? 0 : word_numbits - mod
+     */
+    size_t word_numbytes = word_numbits / CHAR_BIT;
+    size_t q = numbytes / word_numbytes;
+    size_t r = numbytes % word_numbytes;
+    size_t s, t;
+    size_t div, mod;
     size_t numwords;
-    int zerobits_in_byte;
-    VALUE val_numbits, word_numbits;
-    VALUE div_mod, div, mod;
+    size_t nlz_bits;
+    if (r * CHAR_BIT >= (size_t)nlz_bits_in_msbyte) {
+        s = q;
+        t = r * CHAR_BIT - nlz_bits_in_msbyte;
+    }
+    else {
+        s = q - 1;
+        t = word_numbits - nlz_bits_in_msbyte + r * CHAR_BIT;
+    }
+    div = s + t / word_numbits;
+    mod = t % word_numbits;
+    numwords = mod == 0 ? div : div + 1;
+    nlz_bits = mod == 0 ? 0 : word_numbits - mod;
+    *nlz_bits_ret = nlz_bits;
+    return numwords;
+}
 
-    numbytes = rb_absint_size(val, &zerobits_in_byte);
+size_t
+absint_numwords_small(size_t numbytes, int nlz_bits_in_msbyte, size_t word_numbits, size_t *nlz_bits_ret)
+{
+    size_t val_numbits = numbytes * CHAR_BIT - nlz_bits_in_msbyte;
+    size_t div = val_numbits / word_numbits;
+    size_t mod = val_numbits % word_numbits;
+    size_t numwords;
+    size_t nlz_bits;
+    numwords = mod == 0 ? div : div + 1;
+    nlz_bits = mod == 0 ? 0 : word_numbits - mod;
+    *nlz_bits_ret = nlz_bits;
+    return numwords;
+}
+
+size_t
+absint_numwords_generic(size_t numbytes, int nlz_bits_in_msbyte, size_t word_numbits, size_t *nlz_bits_ret)
+{
+    VALUE val_numbits, word_numbits_v;
+    VALUE div_mod, div, mod;
+    int sign;
+    size_t numwords;
+    size_t nlz_bits;
 
     /*
-     * val_numbits = numbytes * CHAR_BIT - zerobits_in_byte
+     * val_numbits = numbytes * CHAR_BIT - nlz_bits_in_msbyte
      * div, mod = val_numbits.divmod(word_numbits)
      * numwords = mod == 0 ? div : div + 1
-     * number_of_leading_zero_bits_in_word = mod == 0 ? 0 : word_numbits - mod
+     * nlz_bits = mod == 0 ? 0 : word_numbits - mod
      */
+
     val_numbits = SIZET2NUM(numbytes);
     val_numbits = rb_funcall(val_numbits, '*', 1, LONG2FIX(CHAR_BIT));
-    if (zerobits_in_byte)
-        val_numbits = rb_funcall(val_numbits, '-', 1, LONG2FIX(zerobits_in_byte));
-    word_numbits = SIZET2NUM(word_numbits_arg);
-    div_mod = rb_funcall(val_numbits, rb_intern("divmod"), 1, word_numbits);
+    if (nlz_bits_in_msbyte)
+        val_numbits = rb_funcall(val_numbits, '-', 1, LONG2FIX(nlz_bits_in_msbyte));
+    word_numbits_v = SIZET2NUM(word_numbits);
+    div_mod = rb_funcall(val_numbits, rb_intern("divmod"), 1, word_numbits_v);
     div = RARRAY_AREF(div_mod, 0);
     mod = RARRAY_AREF(div_mod, 1);
     if (mod == LONG2FIX(0)) {
-        numwords = NUM2SIZET(div);
-        if (number_of_leading_zero_bits)
-            *number_of_leading_zero_bits = 0;
+        nlz_bits = 0;
     }
     else {
-        numwords = NUM2SIZET(rb_funcall(div, '+', 1, LONG2FIX(1)));
-        if (number_of_leading_zero_bits)
-            *number_of_leading_zero_bits = word_numbits_arg - NUM2SIZET(mod);
+        div = rb_funcall(div, '+', 1, LONG2FIX(1));
+        nlz_bits = word_numbits - NUM2SIZET(mod);
     }
+    sign = rb_integer_pack(div, &numwords, 1, sizeof(numwords), 0,
+        INTEGER_PACK_NATIVE_BYTE_ORDER);
+    if (sign == 2)
+        return (size_t)-1;
+    *nlz_bits_ret = nlz_bits;
+    return numwords;
+}
+
+/*
+ * Calculate the number of words to be required to represent
+ * the absolute value of the integer given as _val_.
+ *
+ * [val] an integer.
+ * [word_numbits] number of bits in a word.
+ * [nlz_bits_ret] number of leading zero bits in the most significant word is returned if not NULL.
+ *
+ * This function returns ((val_numbits * CHAR_BIT + word_numbits - 1) / word_numbits)
+ * where val_numbits is the number of bits of abs(val).
+ *
+ * This function can overflow.
+ * When overflow occur, (size_t)-1 is returned.
+ *
+ * If nlz_bits_ret is not NULL and overflow is not occur,
+ * (return_value * word_numbits - val_numbits) is stored in *nlz_bits_ret.
+ * In this case, 0 <= *nlz_bits_ret < word_numbits.
+ *
+ */
+size_t
+rb_absint_numwords(VALUE val, size_t word_numbits, size_t *nlz_bits_ret)
+{
+    size_t numbytes;
+    int nlz_bits_in_msbyte;
+    size_t numwords;
+    size_t nlz_bits;
+
+    if (word_numbits == 0)
+        return (size_t)-1;
+
+    numbytes = rb_absint_size(val, &nlz_bits_in_msbyte);
+
+    if (numbytes <= SIZE_MAX / CHAR_BIT) {
+        numwords = absint_numwords_small(numbytes, nlz_bits_in_msbyte, word_numbits, &nlz_bits);
+#ifdef DEBUG_INTEGER_PACK
+        {
+            size_t numwords0, nlz_bits0;
+            numwords0 = absint_numwords_generic(numbytes, nlz_bits_in_msbyte, word_numbits, &nlz_bits0);
+            assert(numwords0 == numwords);
+            assert(nlz_bits0 == nlz_bits);
+        }
+#endif
+    }
+    else if (word_numbits % CHAR_BIT == 0) {
+        numwords = absint_numwords_bytes(numbytes, nlz_bits_in_msbyte, word_numbits, &nlz_bits);
+#ifdef DEBUG_INTEGER_PACK
+        {
+            size_t numwords0, nlz_bits0;
+            numwords0 = absint_numwords_generic(numbytes, nlz_bits_in_msbyte, word_numbits, &nlz_bits0);
+            assert(numwords0 == numwords);
+            assert(nlz_bits0 == nlz_bits);
+        }
+#endif
+    }
+    else {
+        numwords = absint_numwords_generic(numbytes, nlz_bits_in_msbyte, word_numbits, &nlz_bits);
+    }
+    if (numwords == (size_t)-1)
+        return numwords;
+
+    if (nlz_bits_ret)
+        *nlz_bits_ret = nlz_bits;
+
     return numwords;
 }
 
@@ -592,14 +739,25 @@ rb_absint_singlebit_p(VALUE val)
      INTEGER_PACK_NATIVE_BYTE_ORDER)
 
 static void
-validate_integer_pack_format(size_t wordsize, size_t nails, int flags)
+validate_integer_pack_format(size_t numwords, size_t wordsize, size_t nails, int flags, int supported_flags)
 {
     int wordorder_bits = flags & INTEGER_PACK_WORDORDER_MASK;
     int byteorder_bits = flags & INTEGER_PACK_BYTEORDER_MASK;
-    if (wordorder_bits != INTEGER_PACK_MSWORD_FIRST &&
+
+    if (flags & ~supported_flags) {
+        rb_raise(rb_eArgError, "unsupported flags specified");
+    }
+    if (wordorder_bits == 0) {
+        if (1 < numwords)
+            rb_raise(rb_eArgError, "word order not specified");
+    }
+    else if (wordorder_bits != INTEGER_PACK_MSWORD_FIRST &&
         wordorder_bits != INTEGER_PACK_LSWORD_FIRST)
         rb_raise(rb_eArgError, "unexpected word order");
-    if (byteorder_bits != INTEGER_PACK_MSBYTE_FIRST &&
+    if (byteorder_bits == 0) {
+        rb_raise(rb_eArgError, "byte order not specified");
+    }
+    else if (byteorder_bits != INTEGER_PACK_MSBYTE_FIRST &&
         byteorder_bits != INTEGER_PACK_LSBYTE_FIRST &&
         byteorder_bits != INTEGER_PACK_NATIVE_BYTE_ORDER)
         rb_raise(rb_eArgError, "unexpected byte order");
@@ -609,6 +767,8 @@ validate_integer_pack_format(size_t wordsize, size_t nails, int flags)
         rb_raise(rb_eArgError, "too big wordsize: %"PRI_SIZE_PREFIX"u", wordsize);
     if (wordsize <= nails / CHAR_BIT)
         rb_raise(rb_eArgError, "too big nails: %"PRI_SIZE_PREFIX"u", nails);
+    if (SIZE_MAX / wordsize < numwords)
+        rb_raise(rb_eArgError, "too big numwords * wordsize: %"PRI_SIZE_PREFIX"u * %"PRI_SIZE_PREFIX"u", numwords, wordsize);
 }
 
 static void
@@ -699,40 +859,22 @@ integer_pack_take_lowbits(int n, BDIGIT_DBL *ddp, int *numbits_in_dd_p)
     return ret;
 }
 
-/*
- * Export an integer into a buffer.
- *
- * [val] Fixnum, Bignum or another object which has to_int.
- * [signp] signedness is returned in *signp if it is not NULL.
- *   0 for zero.
- *   -1 for negative without overflow.  1 for positive without overflow.
- *   -2 for negative overflow.  2 for positive overflow.
- * [numwords_allocated] the number of words allocated is returned in *numwords_allocated if it is not NULL.
- *   It is not modified if words is not NULL.
- * [words] buffer to export abs(val).  allocated by xmalloc if it is NULL.
- * [numwords] the size of given buffer as number of words (only meaningful when words is not NULL).
- * [wordsize] the size of word as number of bytes.
- * [nails] number of padding bits in a word.  Most significant nails bits of each word are filled by zero.
- * [flags] bitwise or of constants which name starts "INTEGER_PACK_".  It specifies word order and byte order.
- *
- * This function returns words or the allocated buffer if words is NULL.
- *
- */
-
-void *
-rb_integer_pack(VALUE val, int *signp, size_t *numwords_allocated, void *words, size_t numwords, size_t wordsize, size_t nails, int flags)
+static int
+rb_integer_pack_internal(VALUE val, void *words, size_t numwords, size_t wordsize, size_t nails, int flags, int overflow_2comp)
 {
     int sign;
-    BDIGIT *dp;
-    BDIGIT *de;
+    BDIGIT *ds, *dp, *de;
     BDIGIT fixbuf[(sizeof(long) + SIZEOF_BDIGITS - 1) / SIZEOF_BDIGITS];
     unsigned char *buf, *bufend;
 
     val = rb_to_int(val);
 
-    validate_integer_pack_format(wordsize, nails, flags);
-    if (words && SIZE_MAX / wordsize < numwords)
-        rb_raise(rb_eArgError, "too big count * wordsize: %"PRI_SIZE_PREFIX"u * %"PRI_SIZE_PREFIX"u", numwords, wordsize);
+    validate_integer_pack_format(numwords, wordsize, nails, flags,
+            INTEGER_PACK_MSWORD_FIRST|
+            INTEGER_PACK_LSWORD_FIRST|
+            INTEGER_PACK_MSBYTE_FIRST|
+            INTEGER_PACK_LSBYTE_FIRST|
+            INTEGER_PACK_NATIVE_BYTE_ORDER);
 
     if (FIXNUM_P(val)) {
         long v = FIX2LONG(val);
@@ -754,12 +896,12 @@ rb_integer_pack(VALUE val, int *signp, size_t *numwords_allocated, void *words, 
             }
         }
 #endif
-        dp = fixbuf;
+        ds = dp = fixbuf;
         de = fixbuf + numberof(fixbuf);
     }
     else {
         sign = RBIGNUM_POSITIVE_P(val) ? 1 : -1;
-        dp = BDIGITS(val);
+        ds = dp = BDIGITS(val);
         de = dp + RBIGNUM_LEN(val);
     }
     while (dp < de && de[-1] == 0)
@@ -768,35 +910,19 @@ rb_integer_pack(VALUE val, int *signp, size_t *numwords_allocated, void *words, 
         sign = 0;
     }
 
-    if (words) {
-        buf = words;
-        bufend = buf + numwords * wordsize;
-    }
-    else {
-        /*
-         * val_numbits = (de - dp) * SIZEOF_BDIGITS * CHAR_BIT - nlz(de[-1])
-         * word_numbits = wordsize * CHAR_BIT - nails
-         * numwords = (val_numbits + word_numbits - 1) / word_numbits
-         */
-        VALUE val_numbits, word_numbits, numwordsv;
-        val_numbits = SIZET2NUM((de - dp) * SIZEOF_BDIGITS);
-        val_numbits = rb_funcall(val_numbits, '*', 1, LONG2FIX(CHAR_BIT));
-        if (dp != de)
-            val_numbits = rb_funcall(val_numbits, '-', 1, LONG2FIX(nlz(de[-1])));
-        word_numbits = SIZET2NUM(wordsize);
-        word_numbits = rb_funcall(word_numbits, '*', 1, LONG2FIX(CHAR_BIT));
-        if (nails != 0)
-            word_numbits = rb_funcall(word_numbits, '-', 1, SIZET2NUM(nails));
-        numwordsv = rb_funcall(val_numbits, '+', 1, word_numbits);
-        numwordsv = rb_funcall(numwordsv, '-', 1, LONG2FIX(1));
-        numwordsv = rb_funcall(numwordsv, rb_intern("div"), 1, word_numbits);
-        numwords = NUM2SIZET(numwordsv);
-        buf = xmalloc(numwords * wordsize);
-        bufend = buf + numwords * wordsize;
-    }
+    buf = words;
+    bufend = buf + numwords * wordsize;
 
     if (buf == bufend) {
-        sign *= 2; /* overflow if non-zero*/
+        /* overflow if non-zero*/
+        if (!overflow_2comp || 0 <= sign)
+            sign *= 2;
+        else {
+            if (de - dp == 1 && dp[0] == 1)
+                sign = -1; /* val == -1 == -2**(numwords*(wordsize*CHAR_BIT-nails)) */
+            else
+                sign = -2; /* val < -1 == -2**(numwords*(wordsize*CHAR_BIT-nails)) */
+        }
     }
     else if (dp == de) {
         memset(buf, '\0', bufend - buf);
@@ -855,19 +981,216 @@ rb_integer_pack(VALUE val, int *signp, size_t *numwords_allocated, void *words, 
 
             wordp += word_step;
         }
-        if (dp != de || dd)
-            sign *= 2; /* overflow */
+        FILL_DD;
+        /* overflow tests */
+        if (dp != de || 1 < dd) {
+            /* 2**(numwords*(wordsize*CHAR_BIT-nails)+1) <= abs(val) */
+            sign *= 2;
+        }
+        else if (dd == 1) {
+            /* 2**(numwords*(wordsize*CHAR_BIT-nails)) <= abs(val) < 2**(numwords*(wordsize*CHAR_BIT-nails)+1) */
+            if (!overflow_2comp || 0 <= sign)
+                sign *= 2;
+            else { /* overflow_2comp && sign == -1 */
+                /* test lower bits are all zero. */
+                dp = ds;
+                while (dp < de && *dp == 0)
+                    dp++;
+                if (de - dp == 1 && /* only one non-zero word. */
+                    (*dp & (*dp-1)) == 0) /* *dp contains only one bit set. */
+                    sign = -1; /* val == -2**(numwords*(wordsize*CHAR_BIT-nails)) */
+                else
+                    sign = -2; /* val < -2**(numwords*(wordsize*CHAR_BIT-nails)) */
+            }
+        }
     }
 
-    if (signp)
-        *signp = sign;
-
-    if (!words && numwords_allocated)
-        *numwords_allocated = numwords;
-
-    return buf;
+    return sign;
 #undef FILL_DD
 #undef TAKE_LOWBITS
+}
+
+/*
+ * Export an integer into a buffer.
+ *
+ * This function fills the buffer specified by _words_ and _numwords_ as
+ * abs(val) in the format specified by _wordsize_, _nails_ and _flags_.
+ *
+ * [val] Fixnum, Bignum or another integer like object which has to_int method.
+ * [words] buffer to export abs(val).
+ * [numwords] the size of given buffer as number of words.
+ * [wordsize] the size of word as number of bytes.
+ * [nails] number of padding bits in a word.
+ *   Most significant nails bits of each word are filled by zero.
+ * [flags] bitwise or of constants which name starts "INTEGER_PACK_".
+ *   It specifies word order and byte order.
+ *
+ * This function returns the signedness and overflow condition as follows:
+ *   -2 : negative overflow.  val <= -2**(numwords*(wordsize*CHAR_BIT-nails))
+ *   -1 : negative without overflow.  -2**(numwords*(wordsize*CHAR_BIT-nails)) < val < 0
+ *   0 : zero.  val == 0
+ *   1 : positive without overflow.  0 < val < 2**(numwords*(wordsize*CHAR_BIT-nails))
+ *   2 : positive overflow.  2**(numwords*(wordsize*CHAR_BIT-nails)) <= val
+ *
+ * The least significant words of abs(val) are filled in the buffer when overflow occur.
+ */
+
+int
+rb_integer_pack(VALUE val, void *words, size_t numwords, size_t wordsize, size_t nails, int flags)
+{
+    return rb_integer_pack_internal(val, words, numwords, wordsize, nails, flags, 0);
+}
+
+/*
+ * Export an integer into a buffer in 2's comlement representation.
+ *
+ * This function is similar to rb_integer_pack_2comp but
+ * the number is filled as 2's comlement representation and
+ * return value is bit different (because overflow condition
+ * is differnt between absolute value and 2's comlement).
+ *
+ * This function returns the signedness and overflow condition as follows:
+ *   -2 : negative overflow.  val < -2**(numwords*(wordsize*CHAR_BIT-nails))
+ *   -1 : negative without overflow.  -2**(numwords*(wordsize*CHAR_BIT-nails)) <= val < 0
+ *   0 : zero.  val == 0
+ *   1 : positive without overflow.  0 < val < 2**(numwords*(wordsize*CHAR_BIT-nails))
+ *   2 : positive overflow.  2**(numwords*(wordsize*CHAR_BIT-nails)) <= val
+ *
+ * rb_integer_pack_2comp returns -1 for val == -2**(numwords*(wordsize*CHAR_BIT-nails)) but
+ * rb_integer_pack returns -2.
+ *
+ */
+
+int
+rb_integer_pack_2comp(VALUE val, void *words, size_t numwords, size_t wordsize, size_t nails, int flags)
+{
+    int sign;
+
+    sign = rb_integer_pack_internal(val, words, numwords, wordsize, nails, flags, 1);
+
+    if (sign < 0 && numwords != 0) {
+        unsigned char *buf;
+
+        int word_num_partialbits;
+        size_t word_num_fullbytes;
+
+        ssize_t word_step;
+        size_t byte_start;
+        int byte_step;
+
+        size_t word_start, word_last;
+        unsigned char *wordp, *last_wordp;
+
+        unsigned int partialbits_mask;
+        int carry;
+
+        integer_pack_loop_setup(numwords, wordsize, nails, flags,
+            &word_num_fullbytes, &word_num_partialbits,
+            &word_start, &word_step, &word_last, &byte_start, &byte_step);
+
+        partialbits_mask = (1 << word_num_partialbits) - 1;
+
+        buf = words;
+        wordp = buf + word_start;
+        last_wordp = buf + word_last;
+
+        carry = 1;
+        while (1) {
+            size_t index_in_word = 0;
+            unsigned char *bytep = wordp + byte_start;
+            while (index_in_word < word_num_fullbytes) {
+                carry += (unsigned char)~*bytep;
+                *bytep = (unsigned char)carry;
+                carry >>= CHAR_BIT;
+                bytep += byte_step;
+                index_in_word++;
+            }
+            if (word_num_partialbits) {
+                carry += (*bytep & partialbits_mask) ^ partialbits_mask;
+                *bytep = carry & partialbits_mask;
+                carry >>= word_num_partialbits;
+                bytep += byte_step;
+                index_in_word++;
+            }
+
+            if (wordp == last_wordp)
+                break;
+
+            wordp += word_step;
+        }
+    }
+
+    return sign;
+}
+
+static size_t
+integer_unpack_num_bdigits_small(size_t numwords, size_t wordsize, size_t nails, int *nlp_bits_ret)
+{
+    /* nlp_bits stands for number of leading padding bits */
+    size_t num_bits = (wordsize * CHAR_BIT - nails) * numwords;
+    size_t num_bdigits = (num_bits + BITSPERDIG - 1) / BITSPERDIG;
+    *nlp_bits_ret = (int)(num_bdigits * BITSPERDIG - num_bits);
+    return num_bdigits;
+}
+
+static size_t
+integer_unpack_num_bdigits_generic(size_t numwords, size_t wordsize, size_t nails, int *nlp_bits_ret)
+{
+    /* BITSPERDIG = SIZEOF_BDIGITS * CHAR_BIT */
+    /* num_bits = (wordsize * CHAR_BIT - nails) * numwords */
+    /* num_bdigits = (num_bits + BITSPERDIG - 1) / BITSPERDIG */
+
+    /* num_bits = CHAR_BIT * (wordsize * numwords) - nails * numwords = CHAR_BIT * num_bytes1 - nails * numwords */
+    size_t num_bytes1 = wordsize * numwords;
+
+    /* q1 * CHAR_BIT + r1 = numwords */
+    size_t q1 = numwords / CHAR_BIT;
+    size_t r1 = numwords % CHAR_BIT;
+
+    /* num_bits = CHAR_BIT * num_bytes1 - nails * (q1 * CHAR_BIT + r1) = CHAR_BIT * num_bytes2 - nails * r1 */
+    size_t num_bytes2 = num_bytes1 - nails * q1;
+
+    /* q2 * CHAR_BIT + r2 = nails */
+    size_t q2 = nails / CHAR_BIT;
+    size_t r2 = nails % CHAR_BIT;
+
+    /* num_bits = CHAR_BIT * num_bytes2 - (q2 * CHAR_BIT + r2) * r1 = CHAR_BIT * num_bytes3 - r1 * r2 */
+    size_t num_bytes3 = num_bytes2 - q2 * r1;
+
+    /* q3 * BITSPERDIG + r3 = num_bytes3 */
+    size_t q3 = num_bytes3 / BITSPERDIG;
+    size_t r3 = num_bytes3 % BITSPERDIG;
+
+    /* num_bits = CHAR_BIT * (q3 * BITSPERDIG + r3) - r1 * r2 = BITSPERDIG * num_digits1 + CHAR_BIT * r3 - r1 * r2 */
+    size_t num_digits1 = CHAR_BIT * q3;
+
+    /*
+     * if CHAR_BIT * r3 >= r1 * r2
+     *   CHAR_BIT * r3 - r1 * r2 = CHAR_BIT * BITSPERDIG - (CHAR_BIT * BITSPERDIG - (CHAR_BIT * r3 - r1 * r2))
+     *   q4 * BITSPERDIG + r4 = CHAR_BIT * BITSPERDIG - (CHAR_BIT * r3 - r1 * r2)
+     *   num_bits = BITSPERDIG * num_digits1 + CHAR_BIT * BITSPERDIG - (q4 * BITSPERDIG + r4) = BITSPERDIG * num_digits2 - r4
+     * else
+     *   q4 * BITSPERDIG + r4 = -(CHAR_BIT * r3 - r1 * r2)
+     *   num_bits = BITSPERDIG * num_digits1 - (q4 * BITSPERDIG + r4) = BITSPERDIG * num_digits2 - r4
+     * end
+     */
+
+    if (CHAR_BIT * r3 >= r1 * r2) {
+        size_t tmp1 = CHAR_BIT * BITSPERDIG - (CHAR_BIT * r3 - r1 * r2);
+        size_t q4 = tmp1 / BITSPERDIG;
+        int r4 = (int)(tmp1 % BITSPERDIG);
+        size_t num_digits2 = num_digits1 + CHAR_BIT - q4;
+        *nlp_bits_ret = r4;
+        return num_digits2;
+    }
+    else {
+        size_t tmp1 = r1 * r2 - CHAR_BIT * r3;
+        size_t q4 = tmp1 / BITSPERDIG;
+        int r4 = (int)(tmp1 % BITSPERDIG);
+        size_t num_digits2 = num_digits1 - q4;
+        *nlp_bits_ret = r4;
+        return num_digits2;
+    }
 }
 
 static inline void
@@ -882,24 +1205,13 @@ integer_unpack_push_bits(int data, int numbits, BDIGIT_DBL *ddp, int *numbits_in
     }
 }
 
-/*
- * Import an integer into a buffer.
- *
- * [sign] signedness of the value.
- *   -1 for non-positive.  0 or 1 for non-negative.
- * [words] buffer to import.
- * [numwords] the size of given buffer as number of words.
- * [wordsize] the size of word as number of bytes.
- * [nails] number of padding bits in a word.  Most significant nails bits of each word are ignored.
- * [flags] bitwise or of constants which name starts "INTEGER_PACK_".  It specifies word order and byte order.
- *
- * This function returns the imported integer as Fixnum or Bignum.
- */
-VALUE
-rb_integer_unpack(int sign, const void *words, size_t numwords, size_t wordsize, size_t nails, int flags)
+static VALUE
+rb_integer_unpack_internal(const void *words, size_t numwords, size_t wordsize, size_t nails, int flags, int *nlp_bits_ret)
 {
     VALUE result;
     const unsigned char *buf = words;
+    size_t num_bdigits;
+    int sign = (flags & INTEGER_PACK_NEGATIVE) ? -1 : 1;
 
     BDIGIT *dp;
     BDIGIT *de;
@@ -916,40 +1228,26 @@ rb_integer_unpack(int sign, const void *words, size_t numwords, size_t wordsize,
     BDIGIT_DBL dd;
     int numbits_in_dd;
 
-    validate_integer_pack_format(wordsize, nails, flags);
-    if (SIZE_MAX / wordsize < numwords)
-        rb_raise(rb_eArgError, "too big numwords * wordsize: %"PRI_SIZE_PREFIX"u * %"PRI_SIZE_PREFIX"u", numwords, wordsize);
-    if (sign != 1 && sign != 0 && sign != -1)
-        rb_raise(rb_eArgError, "unexpected sign: %d", sign);
-
-    if (numwords <= (SIZE_MAX - (SIZEOF_BDIGITS*CHAR_BIT-1)) / CHAR_BIT / wordsize) {
-        size_t num_bits, num_bdigits;
-        num_bits = (wordsize * CHAR_BIT - nails) * numwords;
-        if (num_bits == 0)
-            return LONG2FIX(0);
-        num_bdigits = (num_bits + SIZEOF_BDIGITS*CHAR_BIT - 1) / (SIZEOF_BDIGITS*CHAR_BIT);
-        if (LONG_MAX < num_bdigits)
-            rb_raise(rb_eArgError, "too big to unpack as an integer");
-        result = bignew((long)num_bdigits, 0 <= sign);
+    if (numwords <= (SIZE_MAX - (BITSPERDIG-1)) / CHAR_BIT / wordsize) {
+        num_bdigits = integer_unpack_num_bdigits_small(numwords, wordsize, nails, nlp_bits_ret);
+#ifdef DEBUG_INTEGER_PACK
+        {
+            int nlp_bits1;
+            size_t num_bdigits1 = integer_unpack_num_bdigits_generic(numwords, wordsize, nails, &nlp_bits1);
+            assert(num_bdigits == num_bdigits1);
+            assert(*nlp_bits_ret == nlp_bits1);
+        }
+#endif
     }
     else {
-        VALUE num_bits, num_bdigits;
-
-        /* num_bits = (wordsize * CHAR_BIT - nails) * numwords */
-        num_bits = SIZET2NUM(wordsize);
-        num_bits = rb_funcall(num_bits, '*', 1, LONG2FIX(CHAR_BIT));
-        num_bits = rb_funcall(num_bits, '-', 1, SIZET2NUM(nails));
-        num_bits = rb_funcall(num_bits, '*', 1, SIZET2NUM(numwords));
-
-        if (num_bits == LONG2FIX(0))
-            return LONG2FIX(0);
-
-        /* num_bdigits = (num_bits + SIZEOF_BDIGITS*CHAR_BIT - 1) / (SIZEOF_BDIGITS*CHAR_BIT) */
-        num_bdigits = rb_funcall(num_bits, '+', 1, LONG2FIX(SIZEOF_BDIGITS*CHAR_BIT-1));
-        num_bdigits = rb_funcall(num_bdigits, '/', 1, LONG2FIX(SIZEOF_BDIGITS*CHAR_BIT));
-
-        result = bignew(NUM2LONG(num_bdigits), 0 <= sign);
+        num_bdigits = integer_unpack_num_bdigits_generic(numwords, wordsize, nails, nlp_bits_ret);
     }
+    if (num_bdigits == 0) {
+        return LONG2FIX(0);
+    }
+    if (LONG_MAX < num_bdigits)
+        rb_raise(rb_eArgError, "too big to unpack as an integer");
+    result = bignew((long)num_bdigits, 0 <= sign);
 
     dp = BDIGITS(result);
     de = dp + RBIGNUM_LEN(result);
@@ -991,10 +1289,117 @@ rb_integer_unpack(int sign, const void *words, size_t numwords, size_t wordsize,
     while (dp < de)
         *dp++ = 0;
 
-    if (flags & INTEGER_PACK_FORCE_BIGNUM)
-        return bigtrunc(result);
-    return bignorm(result);
+    return result;
 #undef PUSH_BITS
+}
+
+/*
+ * Import an integer into a buffer.
+ *
+ * [words] buffer to import.
+ * [numwords] the size of given buffer as number of words.
+ * [wordsize] the size of word as number of bytes.
+ * [nails] number of padding bits in a word.
+ *   Most significant nails bits of each word are ignored.
+ * [flags] bitwise or of constants which name starts "INTEGER_PACK_".
+ *   It specifies word order and byte order.
+ *   [INTEGER_PACK_FORCE_BIGNUM] the result will be a Bignum
+ *     even if it is representable as a Fixnum.
+ *   [INTEGER_PACK_NEGATIVE] Returns non-positive value.
+ *     (Returns non-negative value if not specified.)
+ *
+ * This function returns the imported integer as Fixnum or Bignum.
+ */
+VALUE
+rb_integer_unpack(const void *words, size_t numwords, size_t wordsize, size_t nails, int flags)
+{
+    int nlp_bits;
+    VALUE val;
+
+    validate_integer_pack_format(numwords, wordsize, nails, flags,
+            INTEGER_PACK_MSWORD_FIRST|
+            INTEGER_PACK_LSWORD_FIRST|
+            INTEGER_PACK_MSBYTE_FIRST|
+            INTEGER_PACK_LSBYTE_FIRST|
+            INTEGER_PACK_NATIVE_BYTE_ORDER|
+            INTEGER_PACK_FORCE_BIGNUM|
+            INTEGER_PACK_NEGATIVE);
+
+    val = rb_integer_unpack_internal(words, numwords, wordsize, nails, flags, &nlp_bits);
+
+    if (val == LONG2FIX(0)) {
+        if (flags & INTEGER_PACK_FORCE_BIGNUM)
+            return rb_int2big(0);
+        return LONG2FIX(0);
+    }
+    if (flags & INTEGER_PACK_FORCE_BIGNUM)
+        return bigtrunc(val);
+    return bignorm(val);
+}
+
+/*
+ * Import an integer into a buffer.
+ *
+ * [words] buffer to import.
+ * [numwords] the size of given buffer as number of words.
+ * [wordsize] the size of word as number of bytes.
+ * [nails] number of padding bits in a word.
+ *   Most significant nails bits of each word are ignored.
+ * [flags] bitwise or of constants which name starts "INTEGER_PACK_".
+ *   It specifies word order and byte order.
+ *   [INTEGER_PACK_FORCE_BIGNUM] the result will be a Bignum
+ *     even if it is representable as a Fixnum.
+ *   [INTEGER_PACK_NEGATIVE] Assume the higher bits are 1.
+ *     (If INTEGER_PACK_NEGATIVE is not specified, the higher bits are
+ *     assumed same as the most significant bit.
+ *     i.e. sign extension is applied.)
+ *
+ * This function returns the imported integer as Fixnum or Bignum.
+ */
+VALUE
+rb_integer_unpack_2comp(const void *words, size_t numwords, size_t wordsize, size_t nails, int flags)
+{
+    VALUE val;
+    int nlp_bits;
+
+    validate_integer_pack_format(numwords, wordsize, nails, flags,
+            INTEGER_PACK_MSWORD_FIRST|
+            INTEGER_PACK_LSWORD_FIRST|
+            INTEGER_PACK_MSBYTE_FIRST|
+            INTEGER_PACK_LSBYTE_FIRST|
+            INTEGER_PACK_NATIVE_BYTE_ORDER|
+            INTEGER_PACK_FORCE_BIGNUM|
+            INTEGER_PACK_NEGATIVE);
+
+    val = rb_integer_unpack_internal(words, numwords, wordsize, nails,
+            (flags & (INTEGER_PACK_WORDORDER_MASK|INTEGER_PACK_BYTEORDER_MASK) |
+             INTEGER_PACK_FORCE_BIGNUM),
+            &nlp_bits);
+
+    if (val == LONG2FIX(0)) {
+        /* num_bdigits == 0 i.e. num_bits == 0 */
+        int v;
+        if (flags & INTEGER_PACK_NEGATIVE)
+            v = -1;
+        else
+            v = 0;
+        if (flags & INTEGER_PACK_FORCE_BIGNUM)
+            return rb_int2big(v);
+        else
+            return LONG2FIX(v);
+    }
+    else if ((flags & INTEGER_PACK_NEGATIVE) ||
+             (RBIGNUM_LEN(val) != 0 &&
+              (RBIGNUM_DIGITS(val)[RBIGNUM_LEN(val)-1] >> (BITSPERDIG - nlp_bits - 1)))) {
+        if (nlp_bits)
+            RBIGNUM_DIGITS(val)[RBIGNUM_LEN(val)-1] |= (~(BDIGIT)0) << (BITSPERDIG - nlp_bits);
+        rb_big_2comp(val);
+        RBIGNUM_SET_SIGN(val, 0);
+    }
+
+    if (flags & INTEGER_PACK_FORCE_BIGNUM)
+        return bigtrunc(val);
+    return bignorm(val);
 }
 
 #define QUAD_SIZE 8
@@ -1684,6 +2089,37 @@ calc_hbase(int base, BDIGIT *hbase_p, int *hbase_numdigits_p)
     *hbase_numdigits_p = hbase_numdigits;
 }
 
+static VALUE
+big2str_base_powerof2(VALUE x, size_t len, int base, int trim)
+{
+    int word_numbits = ffs(base) - 1;
+    size_t numwords;
+    VALUE result;
+    char *ptr;
+    numwords = trim ? rb_absint_numwords(x, word_numbits, NULL) : len;
+    if (RBIGNUM_NEGATIVE_P(x) || !trim) {
+        if (LONG_MAX-1 < numwords)
+            rb_raise(rb_eArgError, "too big number");
+        result = rb_usascii_str_new(0, 1+numwords);
+        ptr = RSTRING_PTR(result);
+        *ptr++ = RBIGNUM_POSITIVE_P(x) ? '+' : '-';
+    }
+    else {
+        if (LONG_MAX < numwords)
+            rb_raise(rb_eArgError, "too big number");
+        result = rb_usascii_str_new(0, numwords);
+        ptr = RSTRING_PTR(result);
+    }
+    rb_integer_pack(x, ptr, numwords, 1, CHAR_BIT-word_numbits,
+                    INTEGER_PACK_BIG_ENDIAN);
+    while (0 < numwords) {
+        *ptr = ruby_digitmap[*(unsigned char *)ptr];
+        ptr++;
+        numwords--;
+    }
+    return result;
+}
+
 VALUE
 rb_big2str0(VALUE x, int base, int trim)
 {
@@ -1705,6 +2141,12 @@ rb_big2str0(VALUE x, int base, int trim)
 	rb_raise(rb_eArgError, "invalid radix %d", base);
 
     n2 = big2str_find_n1(x, base);
+
+    if (base & (base - 1) == 0) {
+        /* base == 2 || base == 4 || base == 8 || base == 16 || base == 32 */
+        return big2str_base_powerof2(x, (size_t)n2, base, trim);
+    }
+
     n1 = (n2 + 1) / 2;
     ss = rb_usascii_str_new(0, n2 + 1); /* plus one for sign */
     ptr = RSTRING_PTR(ss);
@@ -3351,12 +3793,9 @@ bigdivrem(VALUE x, VALUE y, volatile VALUE *divp, volatile VALUE *modp)
     if (nx==ny) zds[nx+1] = 0;
     while (!yds[ny-1]) ny--;
 
-    dd = 0;
     q = yds[ny-1];
-    while ((q & (BDIGIT)(1UL<<(BITSPERDIG-1))) == 0) {
-	q <<= 1UL;
-	dd++;
-    }
+    dd = nlz(q);
+    q <<= dd;
     if (dd) {
 	yy = rb_big_clone(y);
 	tds = BDIGITS(yy);

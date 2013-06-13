@@ -274,14 +274,14 @@ int_pair_to_real_inclusive(uint32_t a, uint32_t b)
     /* (a << 32) | b */
     xary[0] = a;
     xary[1] = b;
-    x = rb_integer_unpack(+1, xary, 2, sizeof(uint32_t), 0,
+    x = rb_integer_unpack(xary, 2, sizeof(uint32_t), 0,
         INTEGER_PACK_MSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER|
         INTEGER_PACK_FORCE_BIGNUM);
 
     /* (1 << 53) | 1 */
     mary[0] = 0x00200000;
     mary[1] = 0x00000001;
-    m = rb_integer_unpack(+1, mary, 2, sizeof(uint32_t), 0,
+    m = rb_integer_unpack(mary, 2, sizeof(uint32_t), 0,
         INTEGER_PACK_MSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER|
         INTEGER_PACK_FORCE_BIGNUM);
 
@@ -295,7 +295,7 @@ int_pair_to_real_inclusive(uint32_t a, uint32_t b)
     }
     else {
         uint32_t uary[4];
-        rb_integer_pack(x, NULL, NULL, uary, numberof(uary), sizeof(uint32_t), 0,
+        rb_integer_pack(x, uary, numberof(uary), sizeof(uint32_t), 0,
                 INTEGER_PACK_MSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
         /* r = x >> 64 */
         r = (double)uary[0] * (0x10000 * (double)0x10000) + (double)uary[1];
@@ -375,12 +375,12 @@ rand_init(struct MT *mt, VALUE vseed)
 
     seed = rb_to_int(vseed);
 
-    len = rb_absint_size_in_word(seed, 32, NULL);
+    len = rb_absint_numwords(seed, 32, NULL);
     if (MT_MAX_STATE < len)
         len = MT_MAX_STATE;
     if (len > numberof(buf0))
         buf = ALLOC_N(unsigned int, len);
-    rb_integer_pack(seed, &sign, NULL, buf, len, sizeof(uint32_t), 0,
+    sign = rb_integer_pack(seed, buf, len, sizeof(uint32_t), 0,
         INTEGER_PACK_LSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
     if (sign < 0)
         sign = -sign;
@@ -508,7 +508,7 @@ make_seed_value(const uint32_t *ptr)
         len = DEFAULT_SEED_CNT;
     }
 
-    seed = rb_integer_unpack(+1, ptr, len, sizeof(uint32_t), 0,
+    seed = rb_integer_unpack(ptr, len, sizeof(uint32_t), 0,
         INTEGER_PACK_LSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
 
     return seed;
@@ -571,7 +571,7 @@ random_copy(VALUE obj, VALUE orig)
 static VALUE
 mt_state(const struct MT *mt)
 {
-    return rb_integer_unpack(1, mt->state, numberof(mt->state),
+    return rb_integer_unpack(mt->state, numberof(mt->state),
         sizeof(*mt->state), 0,
         INTEGER_PACK_LSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
 }
@@ -644,7 +644,7 @@ random_load(VALUE obj, VALUE dump)
       default:
 	rb_raise(rb_eArgError, "wrong dump data");
     }
-    rb_integer_pack(state, NULL, NULL, mt->state, numberof(mt->state),
+    rb_integer_pack(state, mt->state, numberof(mt->state),
         sizeof(*mt->state), 0,
         INTEGER_PACK_LSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
     x = NUM2ULONG(left);
@@ -687,7 +687,6 @@ rb_f_srand(int argc, VALUE *argv, VALUE obj)
     VALUE seed, old;
     rb_random_t *r = &default_rand;
 
-    rb_secure(4);
     if (argc == 0) {
 	seed = random_seed();
     }
@@ -750,11 +749,11 @@ limited_big_rand(struct MT *mt, VALUE limit)
     VALUE vtmp;
     VALUE val;
 
-    len = rb_absint_size_in_word(limit, 32, NULL);
+    len = rb_absint_numwords(limit, 32, NULL);
     tmp = ALLOCV_N(uint32_t, vtmp, len*2);
     lim_array = tmp;
     rnd_array = tmp + len;
-    rb_integer_pack(limit, NULL, NULL, lim_array, len, sizeof(uint32_t), 0,
+    rb_integer_pack(limit, lim_array, len, sizeof(uint32_t), 0,
         INTEGER_PACK_LSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
 
   retry:
@@ -778,7 +777,7 @@ limited_big_rand(struct MT *mt, VALUE limit)
         }
         rnd_array[i] = rnd;
     }
-    val = rb_integer_unpack(+1, rnd_array, len, sizeof(uint32_t), 0,
+    val = rb_integer_unpack(rnd_array, len, sizeof(uint32_t), 0,
         INTEGER_PACK_LSWORD_FIRST|INTEGER_PACK_NATIVE_BYTE_ORDER);
     ALLOCV_END(vtmp);
 
@@ -946,8 +945,7 @@ rand_int(struct MT *mt, VALUE vmax, int restrictive)
 	if (rb_bigzero_p(vmax)) return Qnil;
 	if (!RBIGNUM_SIGN(vmax)) {
 	    if (restrictive) return Qnil;
-	    vmax = rb_big_clone(vmax);
-	    RBIGNUM_SET_SIGN(vmax, 1);
+            vmax = rb_big_uminus(vmax);
 	}
 	vmax = rb_big_minus(vmax, INT2FIX(1));
 	if (FIXNUM_P(vmax)) {

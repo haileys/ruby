@@ -78,11 +78,11 @@ set_backtrace(VALUE info, VALUE bt)
 static void
 error_print(void)
 {
-    volatile VALUE errat = Qnil;		/* OK */
+    volatile VALUE errat = Qundef;
     rb_thread_t *th = GET_THREAD();
     VALUE errinfo = th->errinfo;
     int raised_flag = th->raised_flag;
-    volatile VALUE eclass, e;
+    volatile VALUE eclass = Qundef, e = Qundef;
     const char *volatile einfo;
     volatile long elen;
 
@@ -94,11 +94,15 @@ error_print(void)
     if (TH_EXEC_TAG() == 0) {
 	errat = get_backtrace(errinfo);
     }
-    else {
+    else if (errat == Qundef) {
 	errat = Qnil;
     }
-    if (TH_EXEC_TAG())
+    else if (eclass == Qundef || e != Qundef) {
 	goto error;
+    }
+    else {
+	goto no_message;
+    }
     if (NIL_P(errat)) {
 	const char *file = rb_sourcefile();
 	int line = rb_sourceline();
@@ -123,18 +127,17 @@ error_print(void)
     }
 
     eclass = CLASS_OF(errinfo);
-    if (TH_EXEC_TAG() == 0) {
-	e = rb_funcall(errinfo, rb_intern("message"), 0, 0);
-	StringValue(e);
+    if (eclass != Qundef &&
+	(e = rb_check_funcall(errinfo, rb_intern("message"), 0, 0)) != Qundef &&
+	(RB_TYPE_P(e, T_STRING) || !NIL_P(e = rb_check_string_type(e)))) {
 	einfo = RSTRING_PTR(e);
 	elen = RSTRING_LEN(e);
     }
     else {
+      no_message:
 	einfo = "";
 	elen = 0;
     }
-    if (TH_EXEC_TAG())
-	goto error;
     if (eclass == rb_eRuntimeError && elen == 0) {
 	warn_print(": unhandled exception\n");
     }
@@ -174,7 +177,6 @@ error_print(void)
     if (!NIL_P(errat)) {
 	long i;
 	long len = RARRAY_LEN(errat);
-	VALUE *ptr = RARRAY_PTR(errat);
         int skip = eclass == rb_eSysStackError;
 
 #define TRACE_MAX (TRACE_HEAD+TRACE_TAIL+5)
@@ -182,8 +184,9 @@ error_print(void)
 #define TRACE_TAIL 5
 
 	for (i = 1; i < len; i++) {
-	    if (RB_TYPE_P(ptr[i], T_STRING)) {
-		warn_printf("\tfrom %s\n", RSTRING_PTR(ptr[i]));
+	    VALUE line = RARRAY_AREF(errat, i);
+	    if (RB_TYPE_P(line, T_STRING)) {
+		warn_printf("\tfrom %s\n", RSTRING_PTR(line));
 	    }
 	    if (skip && i == TRACE_HEAD && len > TRACE_MAX) {
 		warn_printf("\t ... %ld levels...\n",
@@ -194,6 +197,7 @@ error_print(void)
     }
   error:
     TH_POP_TAG();
+    th->errinfo = errinfo;
     rb_thread_raised_set(th, raised_flag);
 }
 

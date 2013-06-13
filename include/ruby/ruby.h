@@ -556,9 +556,20 @@ VALUE rb_get_path(VALUE);
 VALUE rb_get_path_no_checksafe(VALUE);
 #define FilePathStringValue(v) ((v) = rb_get_path_no_checksafe(v))
 
+#define RUBY_SAFE_LEVEL_MAX 3
 void rb_secure(int);
 int rb_safe_level(void);
 void rb_set_safe_level(int);
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
+int ruby$safe_level$4(void) __attribute__((error("$SAFE=4 is obsolete")));
+#define RUBY_SAFE_LEVEL_INVALID_P(level) \
+    __extension__(__builtin_constant_p(level) && \
+		  ((level) < 0 || RUBY_SAFE_LEVEL_MAX < (level)))
+#define RUBY_SAFE_LEVEL_CHECK(level) \
+    (RUBY_SAFE_LEVEL_INVALID_P(level) ? ruby$safe_level$4() : 0)
+#define rb_secure(level) (RUBY_SAFE_LEVEL_CHECK(level), rb_secure(level))
+#define rb_set_safe_level(level) (RUBY_SAFE_LEVEL_CHECK(level), rb_set_safe_level(level))
+#endif
 void rb_set_safe_level_force(int);
 void rb_secure_update(VALUE);
 NORETURN(void rb_insecure_operation(void));
@@ -678,7 +689,7 @@ VALUE rb_obj_setup(VALUE obj, VALUE klass, VALUE type);
     if (FL_TEST((obj), FL_EXIVAR)) rb_copy_generic_ivar((VALUE)(clone),(VALUE)(obj));\
 } while (0)
 #define DUPSETUP(dup,obj) do {\
-    OBJSETUP((dup),rb_obj_class(obj), (RBASIC(obj)->flags)&(T_MASK|FL_EXIVAR|FL_TAINT|FL_UNTRUSTED)); \
+    OBJSETUP((dup),rb_obj_class(obj), (RBASIC(obj)->flags)&(T_MASK|FL_EXIVAR|FL_TAINT)); \
     if (FL_TEST((obj), FL_EXIVAR)) rb_copy_generic_ivar((VALUE)(dup),(VALUE)(obj));\
 } while (0)
 
@@ -1169,7 +1180,7 @@ struct RBignum {
 #define FL_OLDGEN    (((VALUE)1)<<6)
 #define FL_FINALIZE  (((VALUE)1)<<7)
 #define FL_TAINT     (((VALUE)1)<<8)
-#define FL_UNTRUSTED (((VALUE)1)<<9)
+#define FL_UNTRUSTED FL_TAINT
 #define FL_EXIVAR    (((VALUE)1)<<10)
 #define FL_FREEZE    (((VALUE)1)<<11)
 
@@ -1209,12 +1220,11 @@ struct RBignum {
 
 #define OBJ_TAINTED(x) (!!FL_TEST((x), FL_TAINT))
 #define OBJ_TAINT(x) FL_SET((x), FL_TAINT)
-#define OBJ_UNTRUSTED(x) (!!FL_TEST((x), FL_UNTRUSTED))
-#define OBJ_UNTRUST(x) FL_SET((x), FL_UNTRUSTED)
+#define OBJ_UNTRUSTED(x) OBJ_TAINTED(x)
+#define OBJ_UNTRUST(x) OBJ_TAINT(x)
 #define OBJ_INFECT(x,s) do { \
   if (FL_ABLE(x) && FL_ABLE(s)) \
-    RBASIC(x)->flags |= RBASIC(s)->flags & \
-                        (FL_TAINT | FL_UNTRUSTED); \
+    RBASIC(x)->flags |= RBASIC(s)->flags & FL_TAINT; \
 } while (0)
 
 #define OBJ_FROZEN(x) (!!(FL_ABLE(x)?(RBASIC(x)->flags&(FL_FREEZE)):(FIXNUM_P(x)||FLONUM_P(x))))

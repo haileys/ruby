@@ -63,6 +63,7 @@ extern "C" {
 #define INTEGER_PACK_NATIVE_BYTE_ORDER  0x40
 /* For rb_integer_unpack: */
 #define INTEGER_PACK_FORCE_BIGNUM       0x100
+#define INTEGER_PACK_NEGATIVE           0x200
 /* Combinations: */
 #define INTEGER_PACK_LITTLE_ENDIAN \
     (INTEGER_PACK_LSWORD_FIRST | \
@@ -154,8 +155,8 @@ VALUE rb_big_fdiv(VALUE x, VALUE y);
 VALUE rb_big_uminus(VALUE x);
 VALUE rb_integer_float_cmp(VALUE x, VALUE y);
 VALUE rb_integer_float_eq(VALUE x, VALUE y);
-size_t rb_absint_size(VALUE val, int *number_of_leading_zero_bits);
-size_t rb_absint_size_in_word(VALUE val, size_t word_numbits, size_t *number_of_leading_zero_bits);
+size_t rb_absint_size(VALUE val, int *nlz_bits_ret);
+size_t rb_absint_numwords(VALUE val, size_t word_numbits, size_t *nlz_bits_ret);
 int rb_absint_singlebit_p(VALUE val);
 
 /* class.c */
@@ -489,8 +490,10 @@ const char *rb_objspace_data_type_name(VALUE obj);
 VALUE rb_thread_io_blocking_region(rb_blocking_function_t *func, void *data1, int fd);
 
 /* bignum.c */
-void *rb_integer_pack(VALUE val, int *signp, size_t *numwords_allocated, void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
-VALUE rb_integer_unpack(int sign, const void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
+int rb_integer_pack(VALUE val, void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
+VALUE rb_integer_unpack(const void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
+int rb_integer_pack_2comp(VALUE val, void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
+VALUE rb_integer_unpack_2comp(const void *words, size_t numwords, size_t wordsize, size_t nails, int flags);
 
 /* io.c */
 void rb_maygvl_fd_fix_cloexec(int fd);
