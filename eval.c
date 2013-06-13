@@ -1252,7 +1252,10 @@ mod_using(VALUE self, VALUE module)
     }
     Check_Type(module, T_MODULE);
     rb_using_module(cref, module);
-    rb_clear_cache();
+    
+    /* TODO - can we figure out a way to make this more efficient? */
+    rb_clear_method_cache_by_class(rb_cObject);
+
     return self;
 }
 
