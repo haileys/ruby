@@ -90,6 +90,10 @@ enum node_type {
 #define NODE_OP_ASGN_OR  NODE_OP_ASGN_OR
     NODE_OP_CDECL,
 #define NODE_OP_CDECL    NODE_OP_CDECL
+    NODE_RECASGN,
+#define NODE_RECASGN     NODE_RECASGN
+    NODE_RECLHS,
+#define NODE_RECLHS      NODE_RECLHS
     NODE_CALL,
 #define NODE_CALL        NODE_CALL
     NODE_FCALL,
@@ -426,6 +430,8 @@ typedef struct RNode {
 #define NEW_DXSTR(s) NEW_NODE(NODE_DXSTR,s,0,0)
 #define NEW_DSYM(s) NEW_NODE(NODE_DSYM,s,0,0)
 #define NEW_EVSTR(n) NEW_NODE(NODE_EVSTR,0,(n),0)
+#define NEW_RECASGN(l,r) NEW_NODE(NODE_RECASGN,l,r,0)
+#define NEW_RECLHS(lhs,rest) NEW_NODE(NODE_RECLHS,lhs,0,rest)
 #define NEW_CALL(r,m,a) NEW_NODE(NODE_CALL,r,m,a)
 #define NEW_FCALL(m,a) NEW_NODE(NODE_FCALL,0,m,a)
 #define NEW_VCALL(m) NEW_NODE(NODE_VCALL,0,m,0)
