@@ -2395,8 +2395,6 @@ rb_reg_initialize(VALUE obj, const char *s, long len, rb_encoding *enc,
     rb_encoding *fixed_enc = 0;
     rb_encoding *a_enc = rb_ascii8bit_encoding();
 
-    if (!OBJ_UNTRUSTED(obj) && rb_safe_level() >= 4)
-	rb_raise(rb_eSecurityError, "Insecure: can't modify regexp");
     rb_check_frozen(obj);
     if (FL_TEST(obj, REG_LITERAL))
 	rb_raise(rb_eSecurityError, "can't modify literal regexp");
@@ -2440,7 +2438,7 @@ rb_reg_initialize(VALUE obj, const char *s, long len, rb_encoding *enc,
 			  options & ARG_REG_OPTION_MASK, err,
 			  sourcefile, sourceline);
     if (!re->ptr) return -1;
-    re->src = rb_enc_str_new(s, len, enc);
+    OBJ_WRITE(obj, &re->src, rb_enc_str_new(s, len, enc));
     OBJ_FREEZE(re->src);
     RB_GC_GUARD(unescaped);
     return 0;
@@ -2472,10 +2470,10 @@ rb_reg_initialize_str(VALUE obj, VALUE str, int options, onig_errmsg_buffer err,
 static VALUE
 rb_reg_s_alloc(VALUE klass)
 {
-    NEWOBJ_OF(re, struct RRegexp, klass, T_REGEXP);
+    NEWOBJ_OF(re, struct RRegexp, klass, T_REGEXP | (RGENGC_WB_PROTECTED_REGEXP ? FL_WB_PROTECTED : 0));
 
     re->ptr = 0;
-    re->src = 0;
+    OBJ_WRITE(re, &re->src, 0);
     re->usecnt = 0;
 
     return (VALUE)re;
@@ -3520,7 +3518,7 @@ re_warn(const char *s)
  *  <code>%r{...}</code> literals, and by the <code>Regexp::new</code>
  *  constructor.
  *
- *  :include: doc/re.rdoc
+ *  :include: doc/regexp.rdoc
  */
 
 void

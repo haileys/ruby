@@ -3763,7 +3763,7 @@ str2guid(const char *str, GUID *guid)
 }
 
 /* License: Ruby's */
-#if !defined(_IFDEF_) && !defined(__MINGW64__)
+#ifndef HAVE_TYPE_NET_LUID
     typedef struct {
 	uint64_t Value;
 	struct {
@@ -4033,13 +4033,16 @@ poll_child_status(struct ChildRecord *child, int *stat_loc)
 	/* If an error occurred, return immediately. */
     error_exit:
 	err = GetLastError();
-	if (err == ERROR_INVALID_PARAMETER)
+	switch (err) {
+	  case ERROR_INVALID_PARAMETER:
 	    errno = ECHILD;
-	else {
-	    if (GetLastError() == ERROR_INVALID_HANDLE)
-		errno = EINVAL;
-	    else
-		errno = map_errno(GetLastError());
+	    break;
+	  case ERROR_INVALID_HANDLE:
+	    errno = EINVAL;
+	    break;
+	  default:
+	    errno = map_errno(err);
+	    break;
 	}
 	CloseChildHandle(child);
 	return -1;
@@ -4144,6 +4147,7 @@ waitpid(rb_pid_t pid, int *stat_loc, int options)
     }
     else {
 	struct ChildRecord* child = FindChildSlot(pid);
+	int retried = 0;
 	if (!child) {
 	    errno = ECHILD;
 	    return -1;
@@ -4153,10 +4157,14 @@ waitpid(rb_pid_t pid, int *stat_loc, int options)
 	    /* wait... */
 	    if (rb_w32_wait_events_blocking(&child->hProcess, 1, timeout) != WAIT_OBJECT_0) {
 		/* still active */
-		pid = 0;
-		break;
+		if (options & WNOHANG) {
+		    pid = 0;
+		    break;
+		}
+		++retried;
 	    }
 	}
+	if (pid == -1 && retried) pid = 0;
     }
 
     return pid;

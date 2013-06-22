@@ -567,14 +567,13 @@ rb_load_internal(VALUE fname, int wrap)
     volatile VALUE self = th->top_self;
     volatile int loaded = FALSE;
     volatile int mild_compile_error;
-#ifndef __GNUC__
+#if !defined __GNUC__ || (__GNUC__ == 4 && __GNUC_MINOR__ == 4)
     rb_thread_t *volatile th0 = th;
 #endif
 
     th->errinfo = Qnil; /* ensure */
 
     if (!wrap) {
-	rb_secure(4);		/* should alter global state */
 	th->top_wrapper = 0;
     }
     else {
@@ -600,7 +599,7 @@ rb_load_internal(VALUE fname, int wrap)
     }
     POP_TAG();
 
-#ifndef __GNUC__
+#if !defined __GNUC__ || (__GNUC__ == 4 && __GNUC_MINOR__ == 4)
     th = th0;
     fname = RB_GC_GUARD(fname);
 #endif

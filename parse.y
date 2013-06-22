@@ -6345,6 +6345,7 @@ parser_heredoc_restore(struct parser_params *parser, NODE *here)
 {
     VALUE line;
 
+    lex_strterm = 0;
     line = here->nd_orig;
     lex_lastline = line;
     lex_pbeg = RSTRING_PTR(line);
@@ -6419,7 +6420,6 @@ parser_here_document(struct parser_params *parser, NODE *here)
 #endif
       restore:
 	heredoc_restore(lex_strterm);
-	lex_strterm = 0;
 	return 0;
     }
     if (was_bol() && whole_match_p(eos, len, indent)) {
@@ -6562,10 +6562,10 @@ parser_set_encode(struct parser_params *parser, const char *name)
     parser->enc = enc;
 #ifndef RIPPER
     if (ruby_debug_lines) {
-	long i, n = RARRAY_LEN(ruby_debug_lines);
-	const VALUE *p = RARRAY_PTR(ruby_debug_lines);
+	VALUE lines = ruby_debug_lines;
+	long i, n = RARRAY_LEN(lines);
 	for (i = 0; i < n; ++i) {
-	    rb_enc_associate_index(*p, idx);
+	    rb_enc_associate_index(RARRAY_AREF(lines, i), idx);
 	}
     }
 #endif

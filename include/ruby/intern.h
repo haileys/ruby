@@ -230,12 +230,7 @@ void rb_check_trusted(VALUE);
 	    rb_error_frozen(rb_obj_classname(frozen_obj)); \
 	} \
     } while (0)
-#define rb_check_trusted_internal(obj) do { \
-	VALUE untrusted_obj = (obj); \
-	if (!OBJ_UNTRUSTED(untrusted_obj)) { \
-	    rb_error_untrusted(untrusted_obj); \
-	} \
-    } while (0)
+#define rb_check_trusted_internal(obj) ((void) 0)
 #ifdef __GNUC__
 #define rb_check_frozen(obj) __extension__({rb_check_frozen_internal(obj);})
 #define rb_check_trusted(obj) __extension__({rb_check_trusted_internal(obj);})
@@ -386,6 +381,7 @@ VALUE rb_binding_new(void);
 VALUE rb_obj_method(VALUE, VALUE);
 VALUE rb_obj_is_method(VALUE);
 VALUE rb_method_call(int, VALUE*, VALUE);
+VALUE rb_method_call_with_block(int, VALUE *, VALUE, VALUE);
 int rb_mod_method_arity(VALUE, ID);
 int rb_obj_method_arity(VALUE, ID);
 VALUE rb_protect(VALUE (*)(VALUE), VALUE, int*);

@@ -278,7 +278,7 @@ r_value(VALUE value)
   if (compile_debug) rb_compile_bug strs;          \
   GET_THREAD()->errinfo = iseq->compile_data->err_info;  \
   rb_compile_error strs;                           \
-  iseq->compile_data->err_info = GET_THREAD()->errinfo; \
+  OBJ_WRITE(iseq->self, &iseq->compile_data->err_info, GET_THREAD()->errinfo); \
   GET_THREAD()->errinfo = tmp;                     \
   ret = 0;                                         \
   break;                                           \
@@ -482,8 +482,8 @@ rb_iseq_compile_node(VALUE self, NODE *node)
 		ADD_LABEL(ret, start);
 		ADD_TRACE(ret, FIX2INT(iseq->location.first_lineno), RUBY_EVENT_B_CALL);
 		COMPILE(ret, "block body", node->nd_body);
-		ADD_TRACE(ret, nd_line(node), RUBY_EVENT_B_RETURN);
 		ADD_LABEL(ret, end);
+		ADD_TRACE(ret, nd_line(node), RUBY_EVENT_B_RETURN);
 
 		/* wide range catch handler must put at last */
 		ADD_CATCH_ENTRY(CATCH_TYPE_REDO, start, end, 0, start);
@@ -1707,7 +1707,7 @@ iseq_set_exception_table(rb_iseq_t *iseq)
 	}
     }
 
-    iseq->compile_data->catch_table_ary = 0;	/* free */
+    OBJ_WRITE(iseq->self, &iseq->compile_data->catch_table_ary, 0); /* free */
     return COMPILE_OK;
 }
 

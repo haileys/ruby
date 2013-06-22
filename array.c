@@ -65,7 +65,6 @@ memfill(register VALUE *mem, register long size, register VALUE val)
 #define ARY_OWNS_HEAP_P(a) (!FL_TEST((a), ELTS_SHARED|RARRAY_EMBED_FLAG))
 #define FL_SET_EMBED(a) do { \
     assert(!ARY_SHARED_P(a)); \
-    assert(!OBJ_FROZEN(a)); \
     FL_SET((a), RARRAY_EMBED_FLAG); \
 } while (0)
 #define FL_UNSET_EMBED(ary) FL_UNSET((ary), RARRAY_EMBED_FLAG|RARRAY_EMBED_LEN_MASK)
@@ -171,12 +170,23 @@ ary_resize_capa(VALUE ary, long capacity)
             long len = RARRAY_LEN(ary);
             VALUE *ptr = RARRAY_PTR(ary);
             if (len > capacity) len = capacity;
-            MEMCPY(RARRAY(ary)->as.ary, ptr, VALUE, len);
+            MEMCPY((VALUE *)RARRAY(ary)->as.ary, ptr, VALUE, len);
             FL_SET_EMBED(ary);
             ARY_SET_LEN(ary, len);
             xfree(ptr);
         }
     }
+}
+
+static inline void
+ary_shrink_capa(VALUE ary)
+{
+    long capacity = ARY_HEAP_LEN(ary);
+    long old_capa = RARRAY(ary)->as.heap.aux.capa;
+    assert(!ARY_SHARED_P(ary));
+    assert(old_capa >= capacity);
+    if (old_capa > capacity)
+	REALLOC_N(RARRAY(ary)->as.heap.ptr, VALUE, capacity);
 }
 
 static void
@@ -247,8 +257,6 @@ static inline void
 rb_ary_modify_check(VALUE ary)
 {
     rb_check_frozen(ary);
-    if (!OBJ_UNTRUSTED(ary) && rb_safe_level() >= 4)
-	rb_raise(rb_eSecurityError, "Insecure: can't modify array");
 }
 
 void
@@ -259,19 +267,19 @@ rb_ary_modify(VALUE ary)
         long len = RARRAY_LEN(ary);
 	VALUE shared = ARY_SHARED(ary);
         if (len <= RARRAY_EMBED_LEN_MAX) {
-            VALUE *ptr = ARY_HEAP_PTR(ary);
+	    const VALUE *ptr = ARY_HEAP_PTR(ary);
             FL_UNSET_SHARED(ary);
             FL_SET_EMBED(ary);
-            MEMCPY(ARY_EMBED_PTR(ary), ptr, VALUE, len);
+	    MEMCPY((VALUE *)ARY_EMBED_PTR(ary), ptr, VALUE, len);
             rb_ary_decrement_share(shared);
             ARY_SET_EMBED_LEN(ary, len);
         }
 	else if (ARY_SHARED_NUM(shared) == 1 && len > (RARRAY_LEN(shared)>>1)) {
 	    long shift = RARRAY_PTR(ary) - RARRAY_PTR(shared);
+	    FL_UNSET_SHARED(ary);
 	    ARY_SET_PTR(ary, RARRAY_PTR(shared));
 	    ARY_SET_CAPA(ary, RARRAY_LEN(shared));
 	    MEMMOVE(RARRAY_PTR(ary), RARRAY_PTR(ary)+shift, VALUE, len);
-	    FL_UNSET_SHARED(ary);
 	    FL_SET_EMBED(shared);
 	    rb_ary_decrement_share(shared);
 	}
@@ -456,6 +464,7 @@ rb_ary_new_from_values(long n, const VALUE *elts)
 
     ary = rb_ary_new2(n);
     if (n > 0 && elts) {
+	assert(!OBJ_PROMOTED(ary));
 	RARRAY_PTR_USE(ary, ptr, {
 	    MEMCPY(ptr, elts, VALUE, n); /* new array is not old gen */
 	});
@@ -475,7 +484,7 @@ void
 rb_ary_free(VALUE ary)
 {
     if (ARY_OWNS_HEAP_P(ary)) {
-	xfree(ARY_HEAP_PTR(ary));
+	xfree((void *)ARY_HEAP_PTR(ary));
     }
 }
 
@@ -509,7 +518,7 @@ ary_make_shared(VALUE ary)
 	return ary;
     }
     else if (OBJ_FROZEN(ary)) {
-	ary_resize_capa(ary, ARY_HEAP_LEN(ary));
+	ary_shrink_capa(ary);
 	FL_SET_SHARED_ROOT(ary);
 	ARY_SET_SHARED_NUM(ary, 1);
 	return ary;
@@ -536,7 +545,7 @@ ary_make_substitution(VALUE ary)
 {
     if (RARRAY_LEN(ary) <= RARRAY_EMBED_LEN_MAX) {
         VALUE subst = rb_ary_new2(RARRAY_LEN(ary));
-        MEMCPY(ARY_EMBED_PTR(subst), RARRAY_PTR(ary), VALUE, RARRAY_LEN(ary));
+	MEMCPY((VALUE *)ARY_EMBED_PTR(subst), RARRAY_PTR(ary), VALUE, RARRAY_LEN(ary));
         ARY_SET_EMBED_LEN(subst, RARRAY_LEN(ary));
         return subst;
     }
@@ -653,7 +662,7 @@ rb_ary_initialize(int argc, VALUE *argv, VALUE ary)
     rb_ary_modify(ary);
     if (argc == 0) {
 	if (ARY_OWNS_HEAP_P(ary) && RARRAY_RAWPTR(ary) != 0) {
-	    xfree(RARRAY_RAWPTR(ary));
+	    xfree((void *)RARRAY_RAWPTR(ary));
 	}
         rb_ary_unshare_safe(ary);
         FL_SET_EMBED(ary);
@@ -694,7 +703,7 @@ rb_ary_initialize(int argc, VALUE *argv, VALUE ary)
     }
     else {
 	RARRAY_PTR_USE(ary, ptr, {
-	    memfill(ptr, len, val);
+	    memfill((VALUE *)ptr, len, val);
 	});
 	OBJ_WRITTEN(ary, Qundef, val);
 	ARY_SET_LEN(ary, len);
@@ -760,7 +769,7 @@ ary_make_partial(VALUE ary, VALUE klass, long offset, long len)
 
     if (len <= RARRAY_EMBED_LEN_MAX) {
         VALUE result = ary_alloc(klass);
-        MEMCPY(ARY_EMBED_PTR(result), RARRAY_PTR(ary) + offset, VALUE, len);
+        MEMCPY((VALUE *)ARY_EMBED_PTR(result), RARRAY_PTR(ary) + offset, VALUE, len);
         ARY_SET_EMBED_LEN(result, len);
         return result;
     }
@@ -1542,7 +1551,7 @@ rb_ary_resize(VALUE ary, long len)
 	VALUE tmp[RARRAY_EMBED_LEN_MAX];
 	MEMCPY(tmp, ARY_HEAP_PTR(ary), VALUE, len);
 	ary_discard(ary);
-	MEMCPY(ARY_EMBED_PTR(ary), tmp, VALUE, len);
+	MEMCPY((VALUE *)ARY_EMBED_PTR(ary), tmp, VALUE, len);
         ARY_SET_EMBED_LEN(ary, len);
     }
     else {
@@ -1832,7 +1841,6 @@ ary_join_0(VALUE ary, VALUE sep, long max, VALUE result)
 	    rb_str_buf_append(result, sep);
 	rb_str_buf_append(result, val);
 	if (OBJ_TAINTED(val)) OBJ_TAINT(result);
-	if (OBJ_UNTRUSTED(val)) OBJ_TAINT(result);
     }
 }
 
@@ -1894,12 +1902,10 @@ rb_ary_join(VALUE ary, VALUE sep)
 {
     long len = 1, i;
     int taint = FALSE;
-    int untrust = FALSE;
     VALUE val, tmp, result;
 
     if (RARRAY_LEN(ary) == 0) return rb_usascii_str_new(0, 0);
     if (OBJ_TAINTED(ary)) taint = TRUE;
-    if (OBJ_UNTRUSTED(ary)) untrust = TRUE;
 
     if (!NIL_P(sep)) {
 	StringValue(sep);
@@ -1914,7 +1920,6 @@ rb_ary_join(VALUE ary, VALUE sep)
 	    result = rb_str_buf_new(len + (RARRAY_LEN(ary)-i)*10);
 	    rb_enc_associate(result, rb_usascii_encoding());
 	    if (taint) OBJ_TAINT(result);
-	    if (untrust) OBJ_UNTRUST(result);
 	    ary_join_0(ary, sep, i, result);
 	    first = i == 0;
 	    ary_join_1(ary, ary, sep, i, result, &first);
@@ -1926,7 +1931,6 @@ rb_ary_join(VALUE ary, VALUE sep)
 
     result = rb_str_buf_new(len);
     if (taint) OBJ_TAINT(result);
-    if (untrust) OBJ_UNTRUST(result);
     ary_join_0(ary, sep, RARRAY_LEN(ary), result);
 
     return result;
@@ -1960,7 +1964,6 @@ static VALUE
 inspect_ary(VALUE ary, VALUE dummy, int recur)
 {
     int tainted = OBJ_TAINTED(ary);
-    int untrust = OBJ_UNTRUSTED(ary);
     long i;
     VALUE s, str;
 
@@ -1969,14 +1972,12 @@ inspect_ary(VALUE ary, VALUE dummy, int recur)
     for (i=0; i<RARRAY_LEN(ary); i++) {
 	s = rb_inspect(RARRAY_AREF(ary, i));
 	if (OBJ_TAINTED(s)) tainted = TRUE;
-	if (OBJ_UNTRUSTED(s)) untrust = TRUE;
 	if (i > 0) rb_str_buf_cat2(str, ", ");
 	else rb_enc_copy(str, s);
 	rb_str_buf_append(str, s);
     }
     rb_str_buf_cat2(str, "]");
     if (tainted) OBJ_TAINT(str);
-    if (untrust) OBJ_UNTRUST(str);
     return str;
 }
 
@@ -2310,8 +2311,8 @@ rb_ary_sort_bang(VALUE ary)
 	ruby_qsort(RARRAY_PTR(tmp), len, sizeof(VALUE),
 		   rb_block_given_p()?sort_1:sort_2, &data);
 
+	rb_ary_modify(ary);
         if (ARY_EMBED_P(tmp)) {
-            assert(ARY_EMBED_P(tmp));
             if (ARY_SHARED_P(ary)) { /* ary might be destructively operated in the given block */
                 rb_ary_unshare(ary);
             }
@@ -2320,9 +2321,7 @@ rb_ary_sort_bang(VALUE ary)
             ARY_SET_LEN(ary, ARY_EMBED_LEN(tmp));
         }
         else {
-            assert(!ARY_EMBED_P(tmp));
-            if (ARY_HEAP_PTR(ary) == ARY_HEAP_PTR(tmp)) {
-                assert(!ARY_EMBED_P(ary));
+            if (!ARY_EMBED_P(ary) && ARY_HEAP_PTR(ary) == ARY_HEAP_PTR(tmp)) {
                 FL_UNSET_SHARED(ary);
                 ARY_SET_CAPA(ary, RARRAY_LEN(tmp));
             }
@@ -2336,7 +2335,7 @@ rb_ary_sort_bang(VALUE ary)
                     rb_ary_unshare(ary);
                 }
                 else {
-                    xfree(ARY_HEAP_PTR(ary));
+		    xfree((void *)ARY_HEAP_PTR(ary));
                 }
                 ARY_SET_PTR(ary, RARRAY_PTR(tmp));
                 ARY_SET_HEAP_LEN(ary, len);
@@ -3969,6 +3968,7 @@ rb_ary_uniq_bang(VALUE ary)
 	if (RARRAY_LEN(ary) == (i = RHASH_SIZE(hash))) {
 	    return Qnil;
 	}
+	rb_ary_modify(ary);
 	ARY_SET_LEN(ary, 0);
 	if (ARY_SHARED_P(ary) && !ARY_EMBED_P(ary)) {
 	    rb_ary_unshare(ary);

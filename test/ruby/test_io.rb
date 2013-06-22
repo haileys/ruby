@@ -918,24 +918,18 @@ class TestIO < Test::Unit::TestCase
     }
   end
 
-  def safe_4
-    t = Thread.new do
-      $SAFE = 4
-      yield
-    end
-    unless t.join(10)
-      t.kill
-      flunk("timeout in safe_4")
-    end
-  end
-
   def ruby(*args)
     args = ['-e', '$>.write($<.read)'] if args.empty?
     ruby = EnvUtil.rubybin
     f = IO.popen([ruby] + args, 'r+')
+    pid = f.pid
     yield(f)
   ensure
     f.close unless !f || f.closed?
+    begin
+      Process.wait(pid)
+    rescue Errno::ECHILD, Errno::ESRCH
+    end
   end
 
   def test_try_convert
@@ -1001,9 +995,6 @@ class TestIO < Test::Unit::TestCase
   def test_inspect
     with_pipe do |r, w|
       assert_match(/^#<IO:fd \d+>$/, r.inspect)
-      assert_raise(SecurityError) do
-        safe_4 { r.inspect }
-      end
     end
   end
 
@@ -1179,14 +1170,6 @@ class TestIO < Test::Unit::TestCase
     end
   end
 
-  def test_close_read_security_error
-    with_pipe do |r, w|
-      assert_raise(SecurityError) do
-        safe_4 { r.close_read }
-      end
-    end
-  end
-
   def test_close_read_non_readable
     with_pipe do |r, w|
       assert_raise(IOError) do
@@ -1200,14 +1183,6 @@ class TestIO < Test::Unit::TestCase
       f.write "foobarbaz"
       f.close_write
       assert_equal("foobarbaz", f.read)
-    end
-  end
-
-  def test_close_write_security_error
-    with_pipe do |r, w|
-      assert_raise(SecurityError) do
-        safe_4 { r.close_write }
-      end
     end
   end
 
@@ -1438,14 +1413,6 @@ class TestIO < Test::Unit::TestCase
       assert_equal(true, w.close_on_exec?)
       w.close_on_exec = false
       assert_equal(false, w.close_on_exec?)
-    end
-  end
-
-  def test_close_security_error
-    with_pipe do |r, w|
-      assert_raise(SecurityError) do
-        safe_4 { r.close }
-      end
     end
   end
 
@@ -1710,12 +1677,6 @@ class TestIO < Test::Unit::TestCase
 
   def test_reopen
     make_tempfile {|t|
-      with_pipe do |r, w|
-        assert_raise(SecurityError) do
-          safe_4 { r.reopen(t.path) }
-        end
-      end
-
       open(__FILE__) do |f|
         f.gets
         assert_nothing_raised {
@@ -2300,25 +2261,18 @@ End
   end
 
   def test_cross_thread_close_stdio
-    with_pipe do |r,w|
-      pid = fork do
+    assert_separately([], <<-'end;')
+      IO.pipe do |r,w|
         $stdin.reopen(r)
         r.close
         read_thread = Thread.new do
-          begin
-            $stdin.read(1)
-          rescue => e
-            e
-          end
+          $stdin.read(1)
         end
         sleep(0.1) until read_thread.stop?
         $stdin.close
-        read_thread.join
-        exit(IOError === read_thread.value)
+        assert_raise(IOError) {read_thread.join}
       end
-      assert Process.waitpid2(pid)[1].success?
-    end
-    rescue NotImplementedError
+    end;
   end
 
   def test_open_mode
@@ -2690,6 +2644,23 @@ End
   def test_write_32bit_boundary
     bug8431 = '[ruby-core:55098] [Bug #8431]'
     make_tempfile {|t|
+      def t.close(unlink_now = false)
+        # TODO: Tempfile should deal with this delay on Windows?
+        # NOTE: re-opening with O_TEMPORARY does not work.
+        path = self.path
+        ret = super
+        if unlink_now
+          begin
+            File.unlink(path)
+          rescue Errno::ENOENT
+          rescue Errno::EACCES
+            sleep(2)
+            retry
+          end
+        end
+        ret
+      end
+
       assert_separately(["-", bug8431, t.path], <<-"end;", timeout: 30)
         msg = ARGV.shift
         f = open(ARGV[0], "wb")
@@ -2698,9 +2669,12 @@ End
           # this will consume very long time or fail by ENOSPC on a
           # filesystem which sparse file is not supported
           f.write('1')
+          pos = f.tell
+        rescue Errno::ENOSPC
+          skip "non-sparse file system"
         rescue SystemCallError
         else
-          assert_equal(0x1_0000_0000, f.tell, msg)
+          assert_equal(0x1_0000_0000, pos, msg)
         end
       end;
     }

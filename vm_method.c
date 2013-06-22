@@ -211,10 +211,6 @@ rb_method_entry_make(VALUE klass, ID mid, rb_method_type_t type,
     if (NIL_P(klass)) {
 	klass = rb_cObject;
     }
-    if (rb_safe_level() >= 4 &&
-	(klass == rb_cObject || !OBJ_UNTRUSTED(klass))) {
-	rb_raise(rb_eSecurityError, "Insecure: can't define method");
-    }
     if (!FL_TEST(klass, FL_SINGLETON) &&
 	type != VM_METHOD_TYPE_NOTIMPLEMENTED &&
 	type != VM_METHOD_TYPE_ZSUPER &&
@@ -392,9 +388,12 @@ rb_add_method(VALUE klass, ID mid, rb_method_type_t type, void *opts, rb_method_
     def->original_id = mid;
     def->alias_count = 0;
     switch (type) {
-      case VM_METHOD_TYPE_ISEQ:
-	def->body.iseq = (rb_iseq_t *)opts;
-	break;
+      case VM_METHOD_TYPE_ISEQ: {
+	  rb_iseq_t *iseq = (rb_iseq_t *)opts;
+	  *(rb_iseq_t **)&def->body.iseq = iseq;
+	  OBJ_WRITTEN(klass, Qundef, iseq->self);
+	  break;
+      }
       case VM_METHOD_TYPE_CFUNC:
 	{
 	    rb_method_cfunc_t *cfunc = (rb_method_cfunc_t *)opts;
@@ -404,16 +403,16 @@ rb_add_method(VALUE klass, ID mid, rb_method_type_t type, void *opts, rb_method_
       case VM_METHOD_TYPE_ATTRSET:
       case VM_METHOD_TYPE_IVAR:
 	def->body.attr.id = (ID)opts;
-	def->body.attr.location = Qfalse;
+	OBJ_WRITE(klass, &def->body.attr.location, Qfalse);
 	th = GET_THREAD();
 	cfp = rb_vm_get_ruby_level_next_cfp(th, th->cfp);
 	if (cfp && (line = rb_vm_get_sourceline(cfp))) {
 	    VALUE location = rb_ary_new3(2, cfp->iseq->location.path, INT2FIX(line));
-	    def->body.attr.location = rb_ary_freeze(location);
+	    OBJ_WRITE(klass, &def->body.attr.location, rb_ary_freeze(location));
 	}
 	break;
       case VM_METHOD_TYPE_BMETHOD:
-	def->body.proc = (VALUE)opts;
+	OBJ_WRITE(klass, &def->body.proc, (VALUE)opts);
 	break;
       case VM_METHOD_TYPE_NOTIMPLEMENTED:
 	setup_method_cfunc_struct(&def->body.cfunc, rb_f_notimplement, -1);
@@ -665,10 +664,6 @@ remove_method(VALUE klass, ID mid)
 
     klass = RCLASS_ORIGIN(klass);
     if (klass == rb_cObject) {
-	rb_secure(4);
-    }
-    if (rb_safe_level() >= 4 && !OBJ_UNTRUSTED(klass)) {
-	rb_raise(rb_eSecurityError, "Insecure: can't remove method");
     }
     rb_check_frozen(klass);
     if (mid == object_id || mid == id__send__ || mid == idInitialize) {
@@ -752,7 +747,6 @@ rb_export_method(VALUE klass, ID name, rb_method_flag_t noex)
     VALUE defined_class;
 
     if (klass == rb_cObject) {
-	rb_secure(4);
     }
 
     me = search_method(klass, name, &defined_class);
@@ -855,10 +849,6 @@ rb_undef(VALUE klass, ID id)
 	rb_raise(rb_eTypeError, "no class to undef method");
     }
     if (rb_vm_cbase() == rb_cObject && klass == rb_cObject) {
-	rb_secure(4);
-    }
-    if (rb_safe_level() >= 4 && !OBJ_UNTRUSTED(klass)) {
-	rb_raise(rb_eSecurityError, "Insecure: can't undef `%s'", rb_id2name(id));
     }
     rb_frozen_class_p(klass);
     if (id == object_id || id == id__send__ || id == idInitialize) {
@@ -1209,7 +1199,6 @@ rb_alias(VALUE klass, ID name, ID def)
 
     rb_frozen_class_p(klass);
     if (klass == rb_cObject) {
-	rb_secure(4);
     }
 
   again:
@@ -1268,19 +1257,9 @@ rb_mod_alias_method(VALUE mod, VALUE newname, VALUE oldname)
 }
 
 static void
-secure_visibility(VALUE self)
-{
-    if (rb_safe_level() >= 4 && !OBJ_UNTRUSTED(self)) {
-	rb_raise(rb_eSecurityError,
-		 "Insecure: can't change method visibility");
-    }
-}
-
-static void
 set_method_visibility(VALUE self, int argc, VALUE *argv, rb_method_flag_t ex)
 {
     int i;
-    secure_visibility(self);
 
     if (argc == 0) {
 	rb_warning("%"PRIsVALUE" with no argument is just ignored",
@@ -1302,7 +1281,6 @@ set_method_visibility(VALUE self, int argc, VALUE *argv, rb_method_flag_t ex)
 static VALUE
 set_visibility(int argc, VALUE *argv, VALUE module, rb_method_flag_t ex)
 {
-    secure_visibility(module);
     if (argc == 0) {
 	SCOPE_SET(ex);
     }
@@ -1504,7 +1482,6 @@ rb_mod_modfunc(int argc, VALUE *argv, VALUE module)
 	rb_raise(rb_eTypeError, "module_function must be called for modules");
     }
 
-    secure_visibility(module);
     if (argc == 0) {
 	SCOPE_SET(NOEX_MODFUNC);
 	return module;

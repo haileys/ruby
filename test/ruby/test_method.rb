@@ -325,15 +325,6 @@ class TestMethod < Test::Unit::TestCase
     assert_equal(:bar, m.clone.bar)
   end
 
-  def test_call
-    o = Object.new
-    def o.foo; p 1; end
-    def o.bar(x); x; end
-    m = o.method(:foo)
-    m.taint
-    assert_raise(SecurityError) { m.call }
-  end
-
   def test_inspect
     o = Object.new
     def o.foo; end
@@ -553,7 +544,9 @@ class TestMethod < Test::Unit::TestCase
 
   def test___dir__
     assert_instance_of String, __dir__
-    assert_equal(File.expand_path("..", __FILE__), __dir__)
+    assert_equal(File.dirname(File.realpath(__FILE__)), __dir__)
+    bug8436 = '[ruby-core:55123] [Bug #8436]'
+    assert_equal(__dir__, eval("__dir__", binding), bug8436)
   end
 
   def test_alias_owner

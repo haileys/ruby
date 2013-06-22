@@ -721,7 +721,8 @@ rb_check_backtrace(VALUE bt)
 	    rb_raise(rb_eTypeError, err);
 	}
 	for (i=0;i<RARRAY_LEN(bt);i++) {
-	    if (!RB_TYPE_P(RARRAY_AREF(bt, i), T_STRING)) {
+	    VALUE e = RARRAY_AREF(bt, i);
+	    if (!RB_TYPE_P(e, T_STRING)) {
 		rb_raise(rb_eTypeError, err);
 	    }
 	}
@@ -2039,7 +2040,6 @@ rb_error_untrusted(VALUE obj)
 void
 rb_check_trusted(VALUE obj)
 {
-    rb_check_trusted_internal(obj);
 }
 
 void
@@ -2047,9 +2047,8 @@ rb_check_copyable(VALUE obj, VALUE orig)
 {
     if (!FL_ABLE(obj)) return;
     rb_check_frozen_internal(obj);
-    rb_check_trusted_internal(obj);
     if (!FL_ABLE(orig)) return;
-    if ((~RBASIC(obj)->flags & RBASIC(orig)->flags) & (FL_UNTRUSTED|FL_TAINT)) {
+    if ((~RBASIC(obj)->flags & RBASIC(orig)->flags) & FL_TAINT) {
 	if (rb_safe_level() > 0) {
 	    rb_raise(rb_eSecurityError, "Insecure: can't modify %"PRIsVALUE,
 		     RBASIC(obj)->klass);

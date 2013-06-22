@@ -152,7 +152,7 @@ rb_class_detach_module_subclasses(VALUE klass)
 static VALUE
 class_alloc(VALUE flags, VALUE klass)
 {
-    NEWOBJ_OF(obj, struct RClass, klass, flags);
+    NEWOBJ_OF(obj, struct RClass, klass, (flags & T_MASK) | (RGENGC_WB_PROTECTED_CLASS ? FL_WB_PROTECTED : 0));
     obj->ptr = ALLOC(rb_classext_t);
     RCLASS_IV_TBL(obj) = 0;
     RCLASS_CONST_TBL(obj) = 0;
@@ -257,7 +257,7 @@ clone_method(VALUE klass, ID mid, const rb_method_entry_t *me)
 	rb_iseq_t *iseq;
 	newiseqval = rb_iseq_clone(me->def->body.iseq->self, klass);
 	GetISeqPtr(newiseqval, iseq);
-	iseq->cref_stack = rewrite_cref_stack(me->def->body.iseq->cref_stack, me->klass, klass);
+	OBJ_WRITE(iseq->self, &iseq->cref_stack, rewrite_cref_stack(me->def->body.iseq->cref_stack, me->klass, klass));
 	rb_add_method(klass, mid, VM_METHOD_TYPE_ISEQ, iseq, me->flag);
 	RB_GC_GUARD(newiseqval);
     }
@@ -273,19 +273,27 @@ clone_method_i(st_data_t key, st_data_t value, st_data_t data)
     return ST_CONTINUE;
 }
 
+struct clone_const_arg {
+    VALUE klass;
+    st_table *tbl;
+};
+
 static int
-clone_const(ID key, const rb_const_entry_t *ce, st_table *tbl)
+clone_const(ID key, const rb_const_entry_t *ce, struct clone_const_arg *arg)
 {
     rb_const_entry_t *nce = ALLOC(rb_const_entry_t);
-    *nce = *ce;
-    st_insert(tbl, key, (st_data_t)nce);
+    MEMCPY(nce, ce, rb_const_entry_t, 1);
+    OBJ_WRITTEN(arg->klass, Qundef, ce->value);
+    OBJ_WRITTEN(arg->klass, Qundef, ce->file);
+
+    st_insert(arg->tbl, key, (st_data_t)nce);
     return ST_CONTINUE;
 }
 
 static int
 clone_const_i(st_data_t key, st_data_t value, st_data_t data)
 {
-    return clone_const((ID)key, (const rb_const_entry_t *)value, (st_table *)data);
+    return clone_const((ID)key, (const rb_const_entry_t *)value, (struct clone_const_arg *)data);
 }
 
 static void
@@ -322,7 +330,7 @@ rb_mod_init_copy(VALUE clone, VALUE orig)
 	if (RCLASS_IV_TBL(clone)) {
 	    st_free_table(RCLASS_IV_TBL(clone));
 	}
-	RCLASS_IV_TBL(clone) = st_copy(RCLASS_IV_TBL(orig));
+	RCLASS_IV_TBL(clone) = rb_st_copy(clone, RCLASS_IV_TBL(orig));
 	CONST_ID(id, "__tmp_classpath__");
 	st_delete(RCLASS_IV_TBL(clone), &id, 0);
 	CONST_ID(id, "__classpath__");
@@ -331,11 +339,14 @@ rb_mod_init_copy(VALUE clone, VALUE orig)
 	st_delete(RCLASS_IV_TBL(clone), &id, 0);
     }
     if (RCLASS_CONST_TBL(orig)) {
+	struct clone_const_arg arg;
 	if (RCLASS_CONST_TBL(clone)) {
 	    rb_free_const_table(RCLASS_CONST_TBL(clone));
 	}
 	RCLASS_CONST_TBL(clone) = st_init_numtable();
-	st_foreach(RCLASS_CONST_TBL(orig), clone_const_i, (st_data_t)RCLASS_CONST_TBL(clone));
+	arg.klass = clone;
+	arg.tbl = RCLASS_CONST_TBL(clone);
+	st_foreach(RCLASS_CONST_TBL(orig), clone_const_i, (st_data_t)&arg);
     }
     if (RCLASS_M_TBL(orig)) {
 	if (RCLASS_M_TBL(clone)) {
@@ -375,11 +386,14 @@ rb_singleton_class_clone_and_attach(VALUE obj, VALUE attach)
 	RCLASS_SET_SUPER(clone, RCLASS_SUPER(klass));
 	RCLASS_EXT(clone)->allocator = RCLASS_EXT(klass)->allocator;
 	if (RCLASS_IV_TBL(klass)) {
-	    RCLASS_IV_TBL(clone) = st_copy(RCLASS_IV_TBL(klass));
+	    RCLASS_IV_TBL(clone) = rb_st_copy(clone, RCLASS_IV_TBL(klass));
 	}
 	if (RCLASS_CONST_TBL(klass)) {
+	    struct clone_const_arg arg;
 	    RCLASS_CONST_TBL(clone) = st_init_numtable();
-	    st_foreach(RCLASS_CONST_TBL(klass), clone_const_i, (st_data_t)RCLASS_CONST_TBL(clone));
+	    arg.klass = clone;
+	    arg.tbl = RCLASS_CONST_TBL(clone);
+	    st_foreach(RCLASS_CONST_TBL(klass), clone_const_i, (st_data_t)&arg);
 	}
 	if (attach != Qundef) {
 	    rb_singleton_class_attached(clone, attach);
@@ -388,6 +402,7 @@ rb_singleton_class_clone_and_attach(VALUE obj, VALUE attach)
 	st_foreach(RCLASS_M_TBL(klass), clone_method_i, (st_data_t)clone);
 	rb_singleton_class_attached(RBASIC(clone)->klass, clone);
 	FL_SET(clone, FL_SINGLETON);
+
 	return clone;
     }
 }
@@ -403,7 +418,7 @@ rb_singleton_class_attached(VALUE klass, VALUE obj)
 	if (!RCLASS_IV_TBL(klass)) {
 	    RCLASS_IV_TBL(klass) = st_init_numtable();
 	}
-	st_insert(RCLASS_IV_TBL(klass), id_attached, obj);
+	rb_st_insert_id_and_value(klass, RCLASS_IV_TBL(klass), id_attached, obj);
     }
 }
 
@@ -807,9 +822,6 @@ rb_include_module(VALUE klass, VALUE module)
     int changed = 0;
 
     rb_frozen_class_p(klass);
-    if (!OBJ_UNTRUSTED(klass)) {
-	rb_secure(4);
-    }
 
     if (!RB_TYPE_P(module, T_MODULE)) {
 	Check_Type(module, T_MODULE);
@@ -932,9 +944,6 @@ rb_prepend_module(VALUE klass, VALUE module)
     int changed = 0;
 
     rb_frozen_class_p(klass);
-    if (!OBJ_UNTRUSTED(klass)) {
-	rb_secure(4);
-    }
 
     Check_Type(module, T_MODULE);
 
@@ -1568,12 +1577,6 @@ singleton_class_of(VALUE obj)
     }
     else {
 	FL_UNSET(klass, FL_TAINT);
-    }
-    if (OBJ_UNTRUSTED(obj)) {
-	OBJ_UNTRUST(klass);
-    }
-    else {
-	FL_UNSET(klass, FL_UNTRUSTED);
     }
     if (OBJ_FROZEN(obj)) OBJ_FREEZE(klass);
 

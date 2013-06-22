@@ -558,10 +558,6 @@ static inline VALUE
 vm_setivar(VALUE obj, ID id, VALUE val, IC ic, rb_call_info_t *ci, int is_attr)
 {
 #if USE_IC_FOR_IVAR
-    if (!OBJ_UNTRUSTED(obj) && rb_safe_level() >= 4) {
-	rb_raise(rb_eSecurityError, "Insecure: can't modify instance variable");
-    }
-
     rb_check_frozen(obj);
 
     if (RB_TYPE_P(obj, T_OBJECT)) {
@@ -1775,7 +1771,7 @@ vm_call_method(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 		CI_SET_FASTPATH(ci, vm_call_cfunc, enable_fastpath);
 		return vm_call_cfunc(th, cfp, ci);
 	      case VM_METHOD_TYPE_ATTRSET:{
-		rb_check_arity(ci->argc, 0, 1);
+		rb_check_arity(ci->argc, 1, 1);
 		ci->aux.index = 0;
 		CI_SET_FASTPATH(ci, vm_call_attrset, enable_fastpath && !(ci->flag & VM_CALL_ARGS_SPLAT));
 		return vm_call_attrset(th, cfp, ci);
@@ -2078,7 +2074,6 @@ vm_yield_with_cfunc(rb_thread_t *th, const rb_block_t *block,
     NODE *ifunc = (NODE *) block->iseq;
     VALUE val, arg, blockarg;
     int lambda = block_proc_is_lambda(block->proc);
-    rb_control_frame_t *cfp;
 
     if (lambda) {
 	arg = rb_ary_new4(argc, argv);
@@ -2102,13 +2097,10 @@ vm_yield_with_cfunc(rb_thread_t *th, const rb_block_t *block,
 	blockarg = Qnil;
     }
 
-    cfp = vm_push_frame(th, (rb_iseq_t *)ifunc, VM_FRAME_MAGIC_IFUNC, self,
-			0, VM_ENVVAL_PREV_EP_PTR(block->ep), 0,
-			th->cfp->sp, 1, 0);
+    vm_push_frame(th, (rb_iseq_t *)ifunc, VM_FRAME_MAGIC_IFUNC, self,
+		  0, VM_ENVVAL_PREV_EP_PTR(block->ep), 0,
+		  th->cfp->sp, 1, 0);
 
-    if (blockargptr) {
-	VM_CF_LEP(cfp)[0] = VM_ENVVAL_BLOCK_PTR(blockargptr);
-    }
     val = (*ifunc->nd_cfnc) (arg, ifunc->nd_tval, argc, argv, blockarg);
 
     th->cfp++;
