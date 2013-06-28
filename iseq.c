@@ -2204,10 +2204,15 @@ rb_iseq_const_value(VALUE iseqval)
 
     while (*seq == BIN(trace)) seq += insn_len(BIN(trace));
 
-    if (*seq++ != BIN(putobject)) {
+    if (*seq == BIN(putobject)) {
+	seq++;
+	val = *seq++;
+    } else if (*seq == BIN(putnil)) {
+	seq++;
+	val = Qnil;
+    } else {
 	return Qundef;
     }
-    val = *seq++;
 
     while (*seq == BIN(trace)) seq += insn_len(BIN(trace));
 
