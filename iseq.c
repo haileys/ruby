@@ -2193,6 +2193,31 @@ line_trace_specify(int line, rb_event_flag_t *events_ptr, void *ptr)
     }
 }
 
+/* analyzes the ISeq to determine if it returns a constant value.
+   if so, this value is returned. otherwise, Qundef is returned. */
+VALUE
+rb_iseq_const_value(VALUE iseqval)
+{
+    rb_iseq_t *iseq = iseq_check(iseqval);
+    VALUE val;
+    VALUE *seq = iseq->iseq;
+
+    while (*seq == BIN(trace)) seq += insn_len(BIN(trace));
+
+    if (*seq++ != BIN(putobject)) {
+	return Qundef;
+    }
+    val = *seq++;
+
+    while (*seq == BIN(trace)) seq += insn_len(BIN(trace));
+
+    if (*seq == BIN(leave)) {
+	return val;
+    } else {
+	return Qundef;
+    }
+}
+
 /*
  * <b>Experimental MRI specific feature, only available as C level api.</b>
  *
