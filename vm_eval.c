@@ -228,6 +228,8 @@ vm_call0_body(rb_thread_t* th, rb_call_info_t *ci, const VALUE *argv)
 	    rb_bug("vm_call0: unsupported optimized method type (%d)", ci->me->def->body.optimize_type);
 	}
 	break;
+      case VM_METHOD_TYPE_CONSTVAL:
+        return ci->me->def->body.value;
       case VM_METHOD_TYPE_UNDEF:
 	break;
     }

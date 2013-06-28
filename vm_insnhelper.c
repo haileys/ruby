@@ -1592,6 +1592,13 @@ vm_call_ivar(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 }
 
 static VALUE
+vm_call_constval(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
+{
+    cfp->sp -= ci->argc + 1;
+    return ci->me->def->body.value;
+}
+
+static VALUE
 vm_call_attrset(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 {
     VALUE val = vm_setivar(ci->recv, ci->me->def->body.attr.id, *(cfp->sp - 1), 0, ci, 1);
@@ -1823,6 +1830,10 @@ vm_call_method(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 			   ci->me->def->body.optimize_type);
 		}
 		break;
+	      }
+	      case VM_METHOD_TYPE_CONSTVAL:{
+		CI_SET_FASTPATH(ci, vm_call_constval, enable_fastpath);
+		return vm_call_constval(th, cfp, ci);
 	      }
 	      case VM_METHOD_TYPE_UNDEF:
 		break;

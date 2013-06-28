@@ -53,6 +53,7 @@ typedef enum {
     VM_METHOD_TYPE_NOTIMPLEMENTED,
     VM_METHOD_TYPE_OPTIMIZED, /* Kernel#send, Proc#call, etc */
     VM_METHOD_TYPE_MISSING,   /* wrapper for method_missing(id) */
+    VM_METHOD_TYPE_CONSTVAL,  /* ie. def foo; 123; end */
     VM_METHOD_TYPE_REFINED,
 
     END_OF_ENUMERATION(VM_METHOD_TYPE)
@@ -77,10 +78,11 @@ typedef struct rb_method_definition_struct {
     rb_method_type_t type; /* method type */
     ID original_id;
     union {
-	rb_iseq_t * const iseq;            /* should be mark */
+	rb_iseq_t * const iseq;            /* should be marked */
 	rb_method_cfunc_t cfunc;
 	rb_method_attr_t attr;
-	const VALUE proc;                 /* should be mark */
+	const VALUE proc;                  /* should be marked */
+	VALUE value;                       /* should be marked */
 	enum method_optimized_type {
 	    OPTIMIZED_METHOD_TYPE_SEND,
 	    OPTIMIZED_METHOD_TYPE_CALL,

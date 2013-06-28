@@ -2813,6 +2813,9 @@ mark_method_entry(rb_objspace_t *objspace, const rb_method_entry_t *me)
 	    goto again;
 	}
 	break;
+      case VM_METHOD_TYPE_CONSTVAL:
+	gc_mark(objspace, def->body.value);
+	break;
       default:
 	break; /* ignore */
     }
