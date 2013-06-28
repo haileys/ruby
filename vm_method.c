@@ -430,8 +430,15 @@ rb_add_method(VALUE klass, ID mid, rb_method_type_t type, void *opts, rb_method_
     switch (type) {
       case VM_METHOD_TYPE_ISEQ: {
 	  rb_iseq_t *iseq = (rb_iseq_t *)opts;
-	  *(rb_iseq_t **)&def->body.iseq = iseq;
-	  OBJ_WRITTEN(klass, Qundef, iseq->self);
+	  VALUE const_val = rb_iseq_const_value(iseq->self);
+	  if (const_val == Qundef) {
+	      *(rb_iseq_t **)&def->body.iseq = iseq;
+	      OBJ_WRITTEN(klass, Qundef, iseq->self);
+	  } else {
+	      def->type = VM_METHOD_TYPE_CONSTVAL;
+	      def->body.value = const_val;
+	      OBJ_WRITTEN(klass, Qundef, const_val);
+	  }
 	  break;
       }
       case VM_METHOD_TYPE_CFUNC:
