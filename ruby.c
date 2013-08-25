@@ -1434,6 +1434,7 @@ process_options(int argc, char **argv, struct cmdline_options *opt)
 #endif
     }
     ruby_init_prelude();
+    rb_require("thread");
     ruby_set_argv(argc, argv);
     process_sflag(&opt->sflag);
 

@@ -4362,6 +4362,31 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	    }
 	}
 #endif
+	/* go routines */
+	{
+	    ID go;
+	    CONST_ID(go, "go");
+	    if (type == NODE_FCALL && mid == go) {
+		DECL_ANCHOR(goro_anchor);
+		NODE* goro;
+
+		INIT_ANCHOR(goro_anchor);
+
+		if (nd_type(node->nd_args) != NODE_ARRAY || node->nd_args->nd_alen != 1) {
+		    COMPILE_ERROR((ERROR_ARGS "expected single expression after 'go'"));
+		}
+
+		goro = NEW_NODE(NODE_ITER,0,0,0);
+		goro->nd_iter = NEW_CALL(NEW_LIT(rb_cThread), rb_intern("start"), 0);
+		goro->nd_body = NEW_NODE(NODE_SCOPE,0,0,0);
+		goro->nd_body->nd_body = node->nd_args->nd_head;
+		COMPILE(ret, "goro", goro);
+		if (poped) {
+		    ADD_INSN(ret, nd_line(node), pop);
+		}
+		break;
+	    }
+	}
 	/* receiver */
 	if (type == NODE_CALL) {
 	    COMPILE(recv, "recv", node->nd_recv);

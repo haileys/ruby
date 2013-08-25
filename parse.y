@@ -801,6 +801,8 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token tAREF		RUBY_TOKEN(AREF)   "[]"
 %token tASET		RUBY_TOKEN(ASET)   "[]="
 %token tLSHFT		RUBY_TOKEN(LSHFT)  "<<"
+%token tCHANNEL		"<-"
+%token tUCHANNEL	"unary<-"
 %token tRSHFT		RUBY_TOKEN(RSHFT)  ">>"
 %token tCOLON2		"::"
 %token tCOLON3		":: at EXPR_BEG"
@@ -840,9 +842,10 @@ static void token_info_pop(struct parser_params*, const char *token);
 %left  '>' tGEQ '<' tLEQ
 %left  '|' '^'
 %left  '&'
-%left  tLSHFT tRSHFT
+%left  tLSHFT tRSHFT tCHANNEL
 %left  '+' '-'
 %left  '*' '/' '%'
+%right tUCHANNEL
 %right tUMINUS_NUM tUMINUS
 %right tPOW
 %right '!' '~' tUPLUS
@@ -1901,6 +1904,8 @@ op		: '|'		{ ifndef_ripper($$ = '|'); }
 		| tLEQ		{ ifndef_ripper($$ = tLEQ); }
 		| tNEQ		{ ifndef_ripper($$ = tNEQ); }
 		| tLSHFT	{ ifndef_ripper($$ = tLSHFT); }
+		| tCHANNEL	{ ifndef_ripper($$ = tCHANNEL); }
+		| tUCHANNEL	{ ifndef_ripper($$ = tUCHANNEL); }
 		| tRSHFT	{ ifndef_ripper($$ = tRSHFT); }
 		| '+'		{ ifndef_ripper($$ = '+'); }
 		| '-'		{ ifndef_ripper($$ = '-'); }
@@ -2149,6 +2154,14 @@ arg		: lhs '=' arg
 			$$ = dispatch2(unary, ripper_intern("-@"), $2);
 		    %*/
 		    }
+		| tUCHANNEL arg
+		    {
+		    /*%%%*/
+			$$ = call_uni_op($2, tUCHANNEL);
+		    /*%
+			$$ = dispatch2(unary, ripper_intern("<-@"), $2);
+		    %*/
+		    }
 		| arg '|' arg
 		    {
 		    /*%%%*/
@@ -2278,6 +2291,14 @@ arg		: lhs '=' arg
 			$$ = call_bin_op($1, tLSHFT, $3);
 		    /*%
 			$$ = dispatch3(binary, $1, ripper_intern("<<"), $3);
+		    %*/
+		    }
+		| arg tCHANNEL arg
+		    {
+		    /*%%%*/
+			$$ = call_bin_op($1, tCHANNEL, $3);
+		    /*%
+			$$ = dispatch3(binary, $1, ripper_intern("<-"), $3);
 		    %*/
 		    }
 		| arg tRSHFT arg
@@ -7090,7 +7111,8 @@ parser_yylex(struct parser_params *parser)
 	    return tLEQ;
 	}
 	if (c == '<') {
-	    if ((c = nextc()) == '=') {
+	    c = nextc();
+	    if (c == '=') {
                 set_yylval_id(tLSHFT);
 		lex_state = EXPR_BEG;
 		return tOP_ASGN;
@@ -7098,6 +7120,30 @@ parser_yylex(struct parser_params *parser)
 	    pushback(c);
 	    warn_balanced("<<", "here document");
 	    return tLSHFT;
+	}
+	if (c == '-') {
+	    int tok;
+	    lex_state = last_state;
+
+	    if (IS_AFTER_OPERATOR()) {
+		lex_state = EXPR_ARG;
+		c = nextc();
+		if (c == '@') {
+		    return tUCHANNEL;
+		}
+		pushback(c);
+	    }
+
+	    c = nextc();
+	    if (IS_BEG() || IS_SPCARG(c)) {
+		tok = tUCHANNEL;
+	    } else {
+		tok = tCHANNEL;
+	    }
+	    pushback(c);
+	    set_yylval_id(tok);
+	    lex_state = EXPR_BEG;
+	    return tok;
 	}
 	pushback(c);
 	return '<';
@@ -9928,6 +9974,8 @@ static const struct {
     {tAREF,	"[]"},
     {tASET,	"[]="},
     {tLSHFT,	"<<"},
+    {tCHANNEL,  "<-"},
+    {tUCHANNEL, "<-@"},
     {tRSHFT,	">>"},
     {tCOLON2,	"::"},
 };
