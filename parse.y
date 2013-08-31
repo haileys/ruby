@@ -523,6 +523,8 @@ static int dvar_curr_gen(struct parser_params*,ID);
 static int lvar_defined_gen(struct parser_params*, ID);
 #define lvar_defined(id) lvar_defined_gen(parser, (id))
 
+#define STR_OPTION_FREEZE (1 << 0)
+
 #define RE_OPTION_ONCE (1<<16)
 #define RE_OPTION_ENCODING_SHIFT 8
 #define RE_OPTION_ENCODING(e) (((e)&0xff)<<RE_OPTION_ENCODING_SHIFT)
@@ -758,7 +760,7 @@ static void token_info_pop(struct parser_params*, const char *token);
 %token <id>   tIDENTIFIER tFID tGVAR tIVAR tCONSTANT tCVAR tLABEL
 %token <node> tINTEGER tFLOAT tRATIONAL tIMAGINARY tSTRING_CONTENT tCHAR
 %token <node> tNTH_REF tBACK_REF
-%token <num>  tREGEXP_END
+%token <num>  tSTRING_OPTEND tREGEXP_END
 
 %type <node> singleton strings string string1 xstring regexp
 %type <node> string_contents xstring_contents regexp_contents string_content
@@ -5007,6 +5009,7 @@ none		: /* none */
 # undef yylval
 # define yylval  (*((YYSTYPE*)(parser->parser_yylval)))
 
+static int parser_str_options(struct parser_params*);
 static int parser_regx_options(struct parser_params*);
 static int parser_tokadd_string(struct parser_params*,int,int,int,long*,rb_encoding**);
 static void parser_tokaddmbc(struct parser_params *parser, int c, rb_encoding *enc);
@@ -5022,6 +5025,7 @@ static int parser_here_document(struct parser_params*,NODE*);
 # define tok_hex(numlen)              parser_tok_hex(parser, (numlen))
 # define read_escape(flags,e)         parser_read_escape(parser, (flags), (e))
 # define tokadd_escape(e)             parser_tokadd_escape(parser, (e))
+# define str_options()		      parser_str_options(parser)
 # define regx_options()               parser_regx_options(parser)
 # define tokadd_string(f,t,p,n,e)     parser_tokadd_string(parser,(f),(t),(p),(n),(e))
 # define parse_string(n)              parser_parse_string(parser,(n))
@@ -5947,6 +5951,32 @@ parser_tokadd_escape(struct parser_params *parser, rb_encoding **encp)
 }
 
 static int
+parser_str_options(struct parser_params *parser)
+{
+    int c, options = 0;
+
+    newtok();
+
+    while (c = nextc(), ISALPHA(c)) {
+	if (c == 'f') {
+	    options |= STR_OPTION_FREEZE;
+	    continue;
+	}
+	tokadd(c);
+    }
+
+    pushback(c);
+
+    if (toklen()) {
+	tokfix();
+	compile_error(PARSER_ARG "unknown string option%s - %s",
+		      toklen() > 1 ? "s" : "", tok());
+    }
+
+    return options;
+}
+
+static int
 parser_regx_options(struct parser_params *parser)
 {
     int kcode = 0;
@@ -6258,7 +6288,15 @@ parser_parse_string(struct parser_params *parser, NODE *quote)
 	    quote->nd_func = -1;
 	    return ' ';
 	}
-	if (!(func & STR_FUNC_REGEXP)) return tSTRING_END;
+	if (!(func & STR_FUNC_REGEXP)) {
+	    int opt = str_options();
+	    if (opt) {
+		set_yylval_num(opt);
+		return tSTRING_OPTEND;
+	    } else {
+		return tSTRING_END;
+	    }
+	}
         set_yylval_num(regx_options());
 	return tREGEXP_END;
     }
@@ -6283,9 +6321,15 @@ parser_parse_string(struct parser_params *parser, NODE *quote)
 	    return tREGEXP_END;
 	}
 	else {
+	    int opt = str_options();
 	    if (parser->eofp)
 		compile_error(PARSER_ARG "unterminated string meets end of file");
-	    return tSTRING_END;
+	    if (opt) {
+		set_yylval_num(opt);
+		return tSTRING_OPTEND;
+	    } else {
+		return tSTRING_END;
+	    }
 	}
     }
 
@@ -6948,7 +6992,7 @@ parser_yylex(struct parser_params *parser)
 	}
 	else {
 	    token = parse_string(lex_strterm);
-	    if (token == tSTRING_END || token == tREGEXP_END) {
+	    if (token == tSTRING_END || token == tSTRING_OPTEND || token == tREGEXP_END) {
 		rb_gc_force_recycle((VALUE)lex_strterm);
 		lex_strterm = 0;
 		lex_state = EXPR_END;
