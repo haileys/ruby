@@ -567,6 +567,12 @@ class TestRipper::ParserEvents < Test::Unit::TestCase
     assert_equal true, thru_for
   end
 
+  def test_frozen_string_literal
+    thru_frozen_string_literal = false
+    parse('"hello"f', :on_frozen_string_literal) {thru_frozen_string_literal = true}
+    assert_equal true, thru_frozen_string_literal
+  end
+
   def test_hash
     thru_hash = false
     parse('{1=>2}', :on_hash) {thru_hash = true}

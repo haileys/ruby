@@ -3849,7 +3849,7 @@ strings		: string
 
 			$$ = node;
 		    /*%
-			$$ = dispatch1(string_literal, $2);
+			$$ = dispatch1(frozen_string_literal, $2);
 		    %*/
 		    }
 		;
