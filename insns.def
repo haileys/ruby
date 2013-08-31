@@ -415,6 +415,20 @@ toregexp
 
 /**
   @c put
+  @e freezes the object on top of the stack
+  @j ?????
+  */
+DEFINE_INSN
+freeze
+()
+(VALUE val)
+(VALUE val)
+{
+    OBJ_FREEZE(val);
+}
+
+/**
+  @c put
   @e put new array.
   @j 新しい配列をスタック上の num 個の値で初期化して生成しプッシュする。
  */

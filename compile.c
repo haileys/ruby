@@ -2320,6 +2320,7 @@ compile_branch_condition(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * cond,
       case NODE_LIT:		/* NODE_LIT is always not true */
       case NODE_TRUE:
       case NODE_STR:
+      case NODE_FSTR:
 	/* printf("useless condition eliminate (%s)\n",  ruby_node_name(nd_type(cond))); */
 	ADD_INSNL(ret, nd_line(cond), jump, then_label);
 	break;
@@ -2510,6 +2511,7 @@ case_when_optimizable_literal(NODE * node)
 	break;
       }
       case NODE_STR:
+      case NODE_FSTR:
 	return node->nd_lit;
     }
     return Qundef;
@@ -4794,6 +4796,23 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 
 	if (poped) {
 	    ADD_INSN(ret, line, pop);
+	}
+	break;
+      }
+      case NODE_FSTR:{
+	OBJ_FREEZE(node->nd_lit);
+	if (!poped) {
+	    ADD_INSN1(ret, line, putobject, node->nd_lit);
+	}
+	break;
+      }
+      case NODE_DFSTR:{
+	compile_dstr(iseq, ret, node);
+
+	if (poped) {
+	    ADD_INSN(ret, line, pop);
+	} else {
+	    ADD_INSN(ret, line, freeze);
 	}
 	break;
       }

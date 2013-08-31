@@ -542,6 +542,11 @@ dump_node(VALUE buf, VALUE indent, int comment, NODE *node)
 	ANN("format: [nd_lit]");
 	ANN("example: 'foo'");
 	goto lit;
+      case NODE_FSTR:
+	ANN("frozen string literal");
+	ANN("format: [nd_lit]f");
+	ANN("example: 'foo'f");
+	goto lit;
       case NODE_XSTR:
 	ANN("xstring literal");
 	ANN("format: [nd_lit]");
@@ -554,6 +559,11 @@ dump_node(VALUE buf, VALUE indent, int comment, NODE *node)
 	ANN("string literal with interpolation");
 	ANN("format: [nd_lit]");
 	ANN("example: \"foo#{ bar }baz\"");
+	goto dlit;
+      case NODE_DFSTR:
+	ANN("frozen string literal with interpolation");
+	ANN("format: [nd_lit]f");
+	ANN("example: \"foo#{ bar }baz\"f");
 	goto dlit;
       case NODE_DXSTR:
 	ANN("xstring literal with interpolation");

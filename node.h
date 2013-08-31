@@ -140,6 +140,10 @@ enum node_type {
 #define NODE_STR         NODE_STR
     NODE_DSTR,
 #define NODE_DSTR        NODE_DSTR
+    NODE_FSTR,
+#define NODE_FSTR        NODE_FSTR
+    NODE_DFSTR,
+#define NODE_DFSTR       NODE_DFSTR
     NODE_XSTR,
 #define NODE_XSTR        NODE_XSTR
     NODE_DXSTR,
