@@ -3823,6 +3823,35 @@ strings		: string
 			$$ = $1;
 		    %*/
 		    }
+		| tSTRING_BEG string_contents tSTRING_OPTEND
+		    {
+		    /*%%%*/
+			NODE *node = $2;
+			int options = $3;
+
+			if (!node) {
+			    node = NEW_STR(STR_NEW0());
+			}
+
+			if (options & STR_OPTION_FREEZE) {
+			    switch (nd_type(node)) {
+			      case NODE_STR:
+				nd_set_type(node, NODE_FSTR);
+				break;
+			      case NODE_DSTR:
+				nd_set_type(node, NODE_DFSTR);
+				break;
+			      case NODE_EVSTR:
+				node = NEW_NODE(NODE_DFSTR, Qnil, 1, NEW_LIST(node));
+				break;
+			    }
+			}
+
+			$$ = node;
+		    /*%
+			$$ = dispatch1(string_literal, $2);
+		    %*/
+		    }
 		;
 
 string		: tCHAR
