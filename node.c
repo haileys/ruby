@@ -288,6 +288,12 @@ dump_node(VALUE buf, VALUE indent, int comment, NODE *node)
 	ANN("format: [nd_vid](current dvar) = [nd_value]");
 	ANN("example: 1.times { x = foo }");
 	goto asgn;
+      case NODE_HASHASGN:
+	ANN("hash assignment");
+	ANN("format: { key_expr => lvar, ... } = foo");
+	F_NODE(nd_var, "lhs");
+	F_NODE(nd_value, "rhs");
+	break;
       case NODE_IASGN:
 	ANN("instance variable assignment");
 	ANN("format: [nd_vid](ivar) = [nd_value]");

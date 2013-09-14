@@ -3890,6 +3890,27 @@ iseq_compile_each(rb_iseq_t *iseq, LINK_ANCHOR *ret, NODE * node, int poped)
 	break;
       }
 
+      case NODE_HASHASGN:{
+	NODE* lval;
+	COMPILE(ret, "rvalue", node->nd_value);
+	for (lval = node->nd_var->nd_head; lval; lval = lval->nd_next->nd_next) {
+	    NODE* key = lval->nd_head;
+	    NODE* var = lval->nd_next->nd_head;
+	    int idx, lv, ls;
+	    idx = get_dyna_var_idx(iseq, var->nd_vid, &lv, &ls);
+
+	    ADD_INSN(ret, line, dup);
+	    COMPILE(ret, "key", key);
+	    ADD_CALL(ret, line, ID2SYM(rb_intern("[]")), INT2FIX(1));
+	    ADD_INSN2(ret, line, setlocal, INT2FIX(ls - idx), INT2FIX(lv));
+	}
+
+	if (poped) {
+	    ADD_INSN(ret, line, pop);
+	}
+	break;
+      }
+
       case NODE_LASGN:{
 	ID id = node->nd_vid;
 	int idx = iseq->local_iseq->local_size - get_local_var_idx(iseq, id);

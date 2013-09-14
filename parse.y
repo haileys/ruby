@@ -433,6 +433,9 @@ static NODE *aryset_gen(struct parser_params*,NODE*,NODE*);
 static NODE *attrset_gen(struct parser_params*,NODE*,ID);
 #define attrset(node,id) attrset_gen(parser, (node), (id))
 
+static NODE *hashset_gen(struct parser_params*,NODE*);
+#define hashset(node) hashset_gen(parser, (node))
+
 static void rb_backref_error_gen(struct parser_params*,NODE*);
 #define rb_backref_error(n) rb_backref_error_gen(parser,(n))
 static NODE *node_assign_gen(struct parser_params*,NODE*,NODE*);
@@ -1486,6 +1489,13 @@ command		: fcall command_args       %prec tLOWEST
 		;
 
 mlhs		: mlhs_basic
+		| tLBRACE assoc_list '}'
+		    {
+		    /*%%%*/
+			$$ = hashset(NEW_HASH($2));
+		    /*%
+		    %*/
+		    }
 		| tLPAREN mlhs_inner rparen
 		    {
 		    /*%%%*/
@@ -8910,6 +8920,42 @@ attrset_gen(struct parser_params *parser, NODE *recv, ID id)
     if (recv && nd_type(recv) == NODE_SELF)
 	recv = (NODE *)1;
     return NEW_ATTRASGN(recv, rb_id_attrset(id), 0);
+}
+
+static void
+hashset_verify_all_arrays(struct parser_params *parser, NODE *hash)
+{
+    NODE *node;
+    for (node = hash->nd_head; node; node = node->nd_next) {
+	if (nd_type(node) != NODE_ARRAY) {
+	    compile_error(PARSER_ARG "thats some weird ass hash you gave me on the left hand side");
+	}
+    }
+}
+
+static void
+hashset_fixup_rval_of_hash(struct parser_params *parser, NODE *hash)
+{
+    NODE *node;
+    for (node = hash->nd_head; node; node = node->nd_next->nd_next) {
+	if (nd_type(node->nd_next->nd_head) == NODE_VCALL) {
+	    local_var_gen(parser, node->nd_next->nd_head->nd_mid);
+	    node->nd_next->nd_head = NEW_DVAR(node->nd_next->nd_head->nd_mid);
+	} else if(nd_type(node->nd_next->nd_head) == NODE_DVAR) {
+	    /* ok */
+	} else {
+	    compile_error(PARSER_ARG "expected local variable on right of => operator");
+	}
+    }
+}
+
+static NODE *
+hashset_gen(struct parser_params *parser, NODE *hash)
+{
+    hashset_verify_all_arrays(parser, hash);
+    hashset_fixup_rval_of_hash(parser, hash);
+
+    return NEW_HASHASGN(hash);
 }
 
 static void
