@@ -43,6 +43,7 @@ jit_instruction(jit_ctx_t *ctx)
 	| push rax
 	| jmp >2
 	|1:
+	| and rsp, ~15
 	| mov64 rax, (uint64_t)panic
 	| call rax
 	/* either rax or rbx is not a fixnum, fall back to normal method call */
