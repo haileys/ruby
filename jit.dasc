@@ -51,6 +51,19 @@ jit_instruction(jit_ctx_t *ctx)
 	|2:
 	break;
       }
+      case BIN(getlocal_OP__WC__0): {
+	| mov rax, [rsi + offsetof(rb_control_frame_t, ep)]
+	| mov rax, [rax - sizeof(VALUE) * next(ctx)]
+	| push rax
+	break;
+      }
+      case BIN(setlocal_OP__WC__0): {
+	| pop rbx
+	| mov rax, [rsi + offsetof(rb_control_frame_t, ep)]
+	| lea rax, [rax - sizeof(VALUE) * next(ctx)]
+	| mov [rax], rbx
+	break;
+      }
       case BIN(leave): {
 	| pop rax
 	| ret
