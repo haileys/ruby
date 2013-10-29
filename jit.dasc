@@ -31,11 +31,12 @@ jit_instruction(jit_ctx_t *ctx)
 	break;
       }
       case BIN(opt_plus): {
+	next(ctx);
 	| pop rax
 	| pop rbx
-	| bt rax, 1
+	| bt rax, 0
 	| jnc >1
-	| bt rbx, 1
+	| bt rbx, 0
 	| jnc >1
 	/* both rax and rbx are fixnums */
 	| dec rbx
