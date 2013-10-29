@@ -53,9 +53,11 @@ rb_iseq_jit(VALUE iseqval)
     int dasm_status;
     size_t size;
     VALUE code_val;
+    void** globals = calloc(128, sizeof(void*));
 
     GetISeqPtr(iseqval, ctx.iseq);
     dasm_init(&ctx.dasm_state, 1);
+    dasm_setupglobal(&ctx.dasm_state, globals, 128);
     dasm_setup(&ctx.dasm_state, dasm_actionlist);
 
     for (ctx.i = 0; ctx.i < ctx.iseq->iseq_size;) {
