@@ -1647,7 +1647,7 @@ vm_call_attrset(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 static VALUE
 vm_call_jit(rb_thread_t* th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 {
-    VALUE val = ci->me->def->body.jit->invoke();
+    VALUE val = ci->me->def->body.jit->invoke(th, cfp, ci);
     cfp->sp -= ci->me->def->body.jit->argc + 1;
     return val;
 }

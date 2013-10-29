@@ -231,9 +231,20 @@ vm_call0_body(rb_thread_t* th, rb_call_info_t *ci, const VALUE *argv)
       case VM_METHOD_TYPE_UNDEF:
 	break;
       case VM_METHOD_TYPE_JIT: {
+	int i;
+	rb_control_frame_t *reg_cfp = th->cfp;
 	rb_method_jit_t *jitdef = ci->me->def->body.jit;
+
 	rb_check_arity(ci->argc, jitdef->argc, jitdef->argc);
-	ret = jitdef->invoke();
+
+	CHECK_VM_STACK_OVERFLOW(reg_cfp, ci->argc + 1);
+
+	*reg_cfp->sp++ = ci->recv;
+	for (i = 0; i < ci->argc; i++) {
+	    *reg_cfp->sp++ = argv[i];
+	}
+
+	ret = jitdef->invoke(th, reg_cfp, ci);
 	goto success;
       }
     }

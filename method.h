@@ -74,10 +74,17 @@ typedef struct rb_method_attr_struct {
     const VALUE location;
 } rb_method_attr_t;
 
+struct rb_thread_struct;
+struct rb_control_frame_struct;
+
 typedef struct rb_method_jit_struct {
     int argc;
     size_t total_size;
-    VALUE(*invoke)();
+    VALUE(*invoke)(
+	struct rb_thread_struct*,
+	struct rb_control_frame_struct*,
+	struct rb_call_info_struct*
+    );
 } rb_method_jit_t;
 
 typedef struct rb_iseq_struct rb_iseq_t;
