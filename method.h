@@ -56,6 +56,7 @@ typedef enum {
     VM_METHOD_TYPE_OPTIMIZED, /* Kernel#send, Proc#call, etc */
     VM_METHOD_TYPE_MISSING,   /* wrapper for method_missing(id) */
     VM_METHOD_TYPE_REFINED,
+    VM_METHOD_TYPE_JIT,
 
     END_OF_ENUMERATION(VM_METHOD_TYPE)
 } rb_method_type_t;
@@ -73,6 +74,12 @@ typedef struct rb_method_attr_struct {
     const VALUE location;
 } rb_method_attr_t;
 
+typedef struct rb_method_jit_struct {
+    int argc;
+    size_t total_size;
+    VALUE(*invoke)();
+} rb_method_jit_t;
+
 typedef struct rb_iseq_struct rb_iseq_t;
 
 typedef struct rb_method_definition_struct {
@@ -82,6 +89,7 @@ typedef struct rb_method_definition_struct {
 	rb_iseq_t * const iseq;            /* should be mark */
 	rb_method_cfunc_t cfunc;
 	rb_method_attr_t attr;
+	rb_method_jit_t * jit;
 	const VALUE proc;                 /* should be mark */
 	enum method_optimized_type {
 	    OPTIMIZED_METHOD_TYPE_SEND,

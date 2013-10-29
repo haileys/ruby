@@ -9,6 +9,7 @@
 
 **********************************************************************/
 
+#include <sys/mman.h>
 #include "eval_intern.h"
 #include "internal.h"
 #include "gc.h"
@@ -1395,6 +1396,49 @@ method_owner(VALUE obj)
     return data->me->klass;
 }
 
+VALUE rb_iseq_jit(VALUE);
+
+rb_method_jit_t *last_jitted;
+
+static VALUE
+method_jit(VALUE obj)
+{
+    struct METHOD *data;
+    rb_iseq_t *iseq;
+    VALUE machine_code;
+    rb_method_jit_t *jitdef;
+    size_t mmap_len;
+
+    TypedData_Get_Struct(obj, struct METHOD, &method_data_type, data);
+
+    if (data->me->def->type != VM_METHOD_TYPE_ISEQ) {
+	rb_raise(rb_eTypeError, "cannot JIT non-ISeq method");
+    }
+
+    if (data->me->def->body.iseq->arg_simple == 2) {
+	rb_raise(rb_eTypeError, "only method with simple arguments may be JITted");
+    }
+
+    iseq = data->me->def->body.iseq;
+    machine_code = rb_iseq_jit(iseq->self);
+    
+    mmap_len = sizeof(*jitdef) + RSTRING_LEN(machine_code);
+    jitdef = mmap(NULL, mmap_len, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_PRIVATE, 0, 0);
+
+    jitdef->invoke = (void*)(jitdef + 1);
+    memcpy(jitdef->invoke, RSTRING_PTR(machine_code), RSTRING_LEN(machine_code));
+
+    jitdef->argc = iseq->argc;
+    jitdef->total_size = mmap_len;
+
+    data->me->def->body.jit = jitdef;
+    data->me->def->type = VM_METHOD_TYPE_JIT;
+
+    last_jitted = jitdef;
+
+    return Qtrue;
+}
+
 void
 rb_method_name_error(VALUE klass, VALUE str)
 {
@@ -2002,6 +2046,8 @@ rb_method_entry_min_max_arity(const rb_method_entry_t *me, int *max)
       case VM_METHOD_TYPE_REFINED:
 	*max = UNLIMITED_ARGUMENTS;
 	return 0;
+      case VM_METHOD_TYPE_JIT:
+	return *max = def->body.jit->argc;
     }
     rb_bug("rb_method_entry_min_max_arity: invalid method entry type (%d)", def->type);
     UNREACHABLE;
@@ -2627,6 +2673,7 @@ Init_Proc(void)
     rb_define_method(rb_cMethod, "unbind", method_unbind, 0);
     rb_define_method(rb_cMethod, "source_location", rb_method_location, 0);
     rb_define_method(rb_cMethod, "parameters", rb_method_parameters, 0);
+    rb_define_method(rb_cMethod, "jit!", method_jit, 0);
     rb_define_method(rb_mKernel, "method", rb_obj_method, 1);
     rb_define_method(rb_mKernel, "public_method", rb_obj_public_method, 1);
     rb_define_method(rb_mKernel, "singleton_method", rb_obj_singleton_method, 1);
@@ -2648,6 +2695,7 @@ Init_Proc(void)
     rb_define_method(rb_cUnboundMethod, "bind", umethod_bind, 1);
     rb_define_method(rb_cUnboundMethod, "source_location", rb_method_location, 0);
     rb_define_method(rb_cUnboundMethod, "parameters", rb_method_parameters, 0);
+    rb_define_method(rb_cUnboundMethod, "jit!", method_jit, 0);
 
     /* Module#*_method */
     rb_define_method(rb_cModule, "instance_method", rb_mod_instance_method, 1);

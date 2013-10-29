@@ -2,7 +2,7 @@ bin: $(PROGRAM) $(WPROGRAM)
 lib: $(LIBRUBY)
 dll: $(LIBRUBY_SO)
 
-.SUFFIXES: .inc .h .c .y .i .$(DTRACE_EXT)
+.SUFFIXES: .inc .h .c .y .inc .dasc .i .$(DTRACE_EXT)
 
 # V=0 quiet, V=1 verbose.  other values don't work.
 V = 0
@@ -55,6 +55,7 @@ COMMONOBJS    = array.$(OBJEXT) \
 		hash.$(OBJEXT) \
 		inits.$(OBJEXT) \
 		io.$(OBJEXT) \
+		jit.$(OBJEXT) \
 		marshal.$(OBJEXT) \
 		math.$(OBJEXT) \
 		node.$(OBJEXT) \
@@ -599,6 +600,10 @@ PHONY:
 	$(Q)sed -e "/^#line.*y\.tab\.h/d;/^#line.*parse.*\.y/d" y.tab.h > $(@:.c=.h)
 	$(Q)$(RM) y.tab.c y.tab.h
 
+{$(srcdir)}.dasc.inc:
+	$(ECHO) generating $@
+	luajit dynasm/dynasm.lua $(SRC_FILE) > $@
+
 $(PLATFORM_D):
 	$(Q) $(MAKEDIRS) $(PLATFORM_DIR)
 	@exit > $@
@@ -692,6 +697,12 @@ inits.$(OBJEXT): {$(VPATH)}inits.c $(RUBY_H_INCLUDES) \
 io.$(OBJEXT): {$(VPATH)}io.c $(RUBY_H_INCLUDES) {$(VPATH)}io.h \
   {$(VPATH)}util.h $(ENCODING_H_INCLUDES) {$(VPATH)}dln.h \
   {$(VPATH)}internal.h {$(VPATH)}thread.h {$(VPATH)}id.h {$(VPATH)}ruby_atomic.h
+jit.$(OBJEXT): {$(VPATH)}compile.c {$(VPATH)}iseq.h \
+  $(RUBY_H_INCLUDES) $(VM_CORE_H_INCLUDES) {$(VPATH)}insns.inc \
+  {$(VPATH)}insns_info.inc {$(VPATH)}optinsn.inc \
+  {$(VPATH)}optunifs.inc {$(VPATH)}opt_sc.inc {$(VPATH)}insns.inc \
+  {$(VPATH)}internal.h {$(VPATH)}vm_opts.h \
+  {$(VPATH)}jit.inc
 main.$(OBJEXT): {$(VPATH)}main.c $(RUBY_H_INCLUDES) {$(VPATH)}node.h {$(VPATH)}vm_debug.h {$(VPATH)}vm_opts.h $(hdrdir)/ruby.h
 marshal.$(OBJEXT): {$(VPATH)}marshal.c $(RUBY_H_INCLUDES) {$(VPATH)}io.h \
   $(ENCODING_H_INCLUDES) {$(VPATH)}util.h {$(VPATH)}internal.h

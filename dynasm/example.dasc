@@ -1,0 +1,23 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "dasm_proto.h"
+#include "dasm_x86.h"
+
+|.arch x64
+|.actionlist actions
+
+#define Dst &state
+
+int main() {
+    dasm_State* state;
+    initjit(&state, actions);
+
+    | mov rax, 123
+    | ret
+
+    int (*fptr)() = jitcode(&state);
+    fprintf(stderr, "%d\n", fptr());
+    free_jitcode(fptr);
+
+    return 0;
+}

@@ -230,6 +230,12 @@ vm_call0_body(rb_thread_t* th, rb_call_info_t *ci, const VALUE *argv)
 	break;
       case VM_METHOD_TYPE_UNDEF:
 	break;
+      case VM_METHOD_TYPE_JIT: {
+	rb_method_jit_t *jitdef = ci->me->def->body.jit;
+	rb_check_arity(ci->argc, jitdef->argc, jitdef->argc);
+	ret = jitdef->invoke();
+	goto success;
+      }
     }
     rb_bug("vm_call0: unsupported method type (%d)", ci->me->def->type);
     return Qundef;

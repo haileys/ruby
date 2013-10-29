@@ -1,0 +1,63 @@
+/*
+vim:ft=c
+*/
+
+|.arch x64
+|.actionlist dasm_actionlist
+
+static void
+panic()
+{
+    rb_bug("JIT panicked");
+}
+
+static void
+jit_instruction(jit_ctx_t *ctx)
+{
+    VALUE opcode = next(ctx);
+    switch (opcode) {
+      case BIN(trace): {
+	next(ctx); /* trace type */
+	break;
+      }
+      case BIN(putobject_OP_INT2FIX_O_1_C_): {
+	VALUE value = INT2FIX(1);
+	| push value
+	break;
+      }
+      case BIN(putobject): {
+	VALUE value = next(ctx);
+	| push value
+	break;
+      }
+      case BIN(opt_plus): {
+	| pop rax
+	| pop rbx
+	| bt rax, 1
+	| jnc >1
+	| bt rbx, 1
+	| jnc >1
+	/* both rax and rbx are fixnums */
+	| dec rbx
+	| add rax, rbx
+	| push rax
+	| jmp >2
+	|1:
+	| mov64 rax, (uint64_t)panic
+	| call rax
+	/* either rax or rbx is not a fixnum, fall back to normal method call */
+	|2:
+	break;
+      }
+      case BIN(leave): {
+	| pop rax
+	| ret
+	break;
+      }
+      default: {
+	const char* insn_name = insn_name_info[opcode];
+	free_ctx(ctx);
+	rb_raise(JITError, "unknown opcode %s", insn_name);
+      }
+    }
+}

@@ -1644,6 +1644,14 @@ vm_call_attrset(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
     return val;
 }
 
+static VALUE
+vm_call_jit(rb_thread_t* th, rb_control_frame_t *cfp, rb_call_info_t *ci)
+{
+    VALUE val = ci->me->def->body.jit->invoke();
+    cfp->sp -= ci->me->def->body.jit->argc + 1;
+    return val;
+}
+
 static inline VALUE
 vm_call_bmethod_body(rb_thread_t *th, rb_call_info_t *ci, const VALUE *argv)
 {
@@ -1870,6 +1878,12 @@ vm_call_method(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 			   ci->me->def->body.optimize_type);
 		}
 		break;
+	      }
+	      case VM_METHOD_TYPE_JIT:{
+	        rb_method_jit_t *jitdef = ci->me->def->body.jit;
+		rb_check_arity(ci->argc, jitdef->argc, jitdef->argc);
+		CI_SET_FASTPATH(ci, vm_call_jit, enable_fastpath && !(ci->flag & VM_CALL_ARGS_SPLAT));
+		return vm_call_jit(th, cfp, ci);
 	      }
 	      case VM_METHOD_TYPE_UNDEF:
 		break;
