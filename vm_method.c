@@ -155,6 +155,8 @@ release_method_definition(rb_method_definition_t *def)
 	    def->body.orig_me) {
 	    release_method_definition(def->body.orig_me->def);
 	    xfree(def->body.orig_me);
+	} else if (def->type == VM_METHOD_TYPE_JIT) {
+	    munmap(def->body.jit, def->body.jit->total_size);
 	}
 	xfree(def);
     }
