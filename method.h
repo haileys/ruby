@@ -80,6 +80,7 @@ struct rb_control_frame_struct;
 typedef struct rb_method_jit_struct {
     int argc;
     size_t total_size;
+    size_t local_size;
     VALUE(*invoke)(
 	struct rb_thread_struct*,
 	struct rb_control_frame_struct*,

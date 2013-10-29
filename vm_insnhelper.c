@@ -1647,9 +1647,22 @@ vm_call_attrset(rb_thread_t *th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 static VALUE
 vm_call_jit(rb_thread_t* th, rb_control_frame_t *cfp, rb_call_info_t *ci)
 {
-    VALUE val = ci->me->def->body.jit->invoke(th, cfp, ci);
-    cfp->sp -= ci->me->def->body.jit->argc + 1;
-    return val;
+    VALUE *argv = cfp->sp - ci->argc;
+    rb_method_jit_t *jitdef = ci->me->def->body.jit;
+    VALUE *sp = argv + jitdef->argc;
+    size_t i;
+
+    /* clear local variables */
+    for (i = 0; i < jitdef->local_size - jitdef->argc; i++) {
+	*sp++ = Qnil;
+    }
+
+    cfp->sp = argv - 1 /* recv */;
+
+    vm_push_frame(th, 0, VM_FRAME_MAGIC_CFUNC, ci->recv, ci->defined_class,
+		  VM_ENVVAL_BLOCK_PTR(ci->blockptr), 0, sp, 0, ci->me, 0);
+
+    return ci->me->def->body.jit->invoke(th, cfp, ci);
 }
 
 static inline VALUE

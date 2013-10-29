@@ -4,6 +4,7 @@
 #include "internal.h"
 #include "insns.inc"
 #include "insns_info.inc"
+#include "vm_insnhelper.h"
 
 #include "dynasm/dasm_proto.h"
 #include "dynasm/dasm_x86.h"
@@ -14,12 +15,6 @@ typedef struct {
     size_t i;
 }
 jit_ctx_t;
-
-typedef struct {
-    size_t size;
-    char mem[];
-}
-jit_code_t;
 
 static VALUE
 JITError;
@@ -86,4 +81,9 @@ Init_jit()
 {
     JITError = rb_define_class("JITError", rb_eStandardError);
     rb_define_method(rb_cISeq, "jit", rb_iseq_jit, 0);
+
+    /* make GCC shutup: */
+    (void)insn_name;
+    (void)insn_op_types;
+    (void)insn_op_type;
 }

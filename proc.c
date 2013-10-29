@@ -1430,6 +1430,7 @@ method_jit(VALUE obj)
 
     jitdef->argc = iseq->argc;
     jitdef->total_size = mmap_len;
+    jitdef->local_size = iseq->local_size;
 
     data->me->def->body.jit = jitdef;
     data->me->def->type = VM_METHOD_TYPE_JIT;

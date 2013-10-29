@@ -265,8 +265,4 @@ enum vm_regan_acttype {
 #define GET_CONSTANT_STATE_VERSION() (ruby_vm_constant_state_version)
 #define INC_CONSTANT_STATE_VERSION() (++ruby_vm_constant_state_version)
 
-static VALUE make_no_method_exception(VALUE exc, const char *format,
-				      VALUE obj, int argc, const VALUE *argv);
-
-
 #endif /* RUBY_INSNHELPER_H */

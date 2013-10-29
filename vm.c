@@ -77,6 +77,9 @@ static vm_state_version_t ruby_vm_method_state_version = 1;
 static vm_state_version_t ruby_vm_constant_state_version = 1;
 static vm_state_version_t ruby_vm_sequence = 1;
 
+static VALUE make_no_method_exception(VALUE exc, const char *format,
+				      VALUE obj, int argc, const VALUE *argv);
+
 #include "vm_insnhelper.h"
 #include "vm_insnhelper.c"
 #include "vm_exec.h"

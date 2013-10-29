@@ -34,21 +34,27 @@ jit_instruction(jit_ctx_t *ctx)
 	next(ctx);
 	| pop rax
 	| pop rbx
-	| bt rax, 0
+	| mov rcx, rbx
+	/* check both LSBs to ensure both operands are fixnums */
+	| and rcx, rax
+	| bt rcx, 0
 	| jnc >1
-	| bt rbx, 0
-	| jnc >1
-	/* both rax and rbx are fixnums */
-	| dec rbx
-	| add rax, rbx
-	| push rax
-	| jmp >2
+	/* check Fixnum#+ has not been redefined */
+	| mov cx, [(&ruby_vm_redefined_flag[BOP_PLUS])]
+	| test cx, FIXNUM_REDEFINED_OP_FLAG
+	| jz >2
+	/* either rax or rbx is not a fixnum, fall back to normal method call */
 	|1:
 	| and rsp, ~15
 	| mov64 rax, (uint64_t)panic
 	| call rax
-	/* either rax or rbx is not a fixnum, fall back to normal method call */
 	|2:
+	/* both rax and rbx are fixnums */
+	| dec rbx
+	| add rax, rbx
+	/* perform a normal method call if an overflow occurred */
+	| jo >1
+	| push rax
 	break;
       }
       case BIN(getlocal_OP__WC__0): {
@@ -64,7 +70,16 @@ jit_instruction(jit_ctx_t *ctx)
 	| mov [rax], rbx
 	break;
       }
+      case BIN(putnil): {
+	| push Qnil
+	break;
+      }
       case BIN(leave): {
+	/* pop CFP */
+	| mov rax, [rdi + offsetof(rb_thread_t, cfp)]
+	| add rax, sizeof(rb_control_frame_t)
+	| mov [rdi + offsetof(rb_thread_t, cfp)], rax
+	/* return */
 	| pop rax
 	| ret
 	break;
