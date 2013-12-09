@@ -3610,22 +3610,6 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 {
     register RVALUE *obj = RANY(*ptr);
 
-    goto marking;		/* skip */
-
-  again:
-    if (LIKELY(objspace->mark_func_data == 0)) {
-	obj = RANY(ptr);
-	if (!is_markable_object(objspace, *ptr)) return;
-	rgengc_check_shady(objspace, *ptr);
-	if (!gc_mark_ptr(objspace, *ptr)) return;  /* already marked */
-    }
-    else {
-	gc_mark2(objspace, ptr);
-	return;
-    }
-
-  marking:
-
 #if USE_RGENGC
     check_gen_consistency((VALUE)obj);
 
@@ -3715,8 +3699,8 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 	  case NODE_FCALL:
 	  case NODE_DEFN:
 	  case NODE_ARGS_AUX:
-	    ptr = (VALUE *)&obj->as.node.u3.node;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.node.u3.node);
+	    break;
 
 	  case NODE_WHILE:	/* 1,2 */
 	  case NODE_UNTIL:
@@ -3750,8 +3734,8 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 	  case NODE_EVSTR:
 	  case NODE_UNDEF:
 	  case NODE_POSTEXE:
-	    ptr = (VALUE *)&obj->as.node.u2.node;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.node.u2.node);
+	    break;
 
 	  case NODE_HASH:	/* 1 */
 	  case NODE_LIT:
@@ -3766,15 +3750,15 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 	  case NODE_COLON2:
 	  case NODE_SPLAT:
 	  case NODE_TO_ARY:
-	    ptr = (VALUE *)&obj->as.node.u1.node;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.node.u1.node);
+	    break;
 
 	  case NODE_SCOPE:	/* 2,3 */
 	  case NODE_CDECL:
 	  case NODE_OPT_ARG:
 	    gc_mark2(objspace, (VALUE *)&obj->as.node.u3.node);
-	    ptr = (VALUE *)&obj->as.node.u2.node;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.node.u2.node);
+	    break;
 
 	  case NODE_ARGS:	/* custom */
 	    {
@@ -3787,8 +3771,8 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 		    if (args->kw_rest_arg) gc_mark2(objspace, (VALUE *)&args->kw_rest_arg);
 		}
 	    }
-	    ptr = (VALUE *)&obj->as.node.u2.node;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.node.u2.node);
+	    break;
 
 	  case NODE_ZARRAY:	/* - */
 	  case NODE_ZSUPER:
@@ -3819,8 +3803,8 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 	  case NODE_CREF:
 	    gc_mark2(objspace, &obj->as.node.nd_refinements);
 	    gc_mark2(objspace, (VALUE *)&obj->as.node.nd_clss);
-	    ptr = (VALUE *)&obj->as.node.nd_next;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.node.nd_next);
+	    break;
 
 	  default:		/* unlisted NODE */
 	    gc_mark_maybe(objspace, (VALUE *)&obj->as.node.u1.node);
@@ -3839,13 +3823,12 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 	if (!RCLASS_EXT(obj)) break;
 	mark_tbl(objspace, RCLASS_IV_TBL(obj));
 	mark_const_tbl(objspace, RCLASS_CONST_TBL(obj));
-	ptr = &RCLASS_EXT((VALUE)obj)->super;
-	goto again;
+	gc_mark2(objspace, &RCLASS_EXT((VALUE)obj)->super);
+	break;
 
       case T_ARRAY:
 	if (FL_TEST(obj, ELTS_SHARED)) {
-	    ptr = &obj->as.array.as.heap.aux.shared;
-	    goto again;
+	    gc_mark2(objspace, &obj->as.array.as.heap.aux.shared);
 	}
 	else {
 	    long i, len = RARRAY_LEN(obj);
@@ -3858,14 +3841,14 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
 
       case T_HASH:
 	mark_hash(objspace, obj->as.hash.ntbl);
-	ptr = (VALUE *)&obj->as.hash.ifnone;
-	goto again;
+	gc_mark2(objspace, (VALUE *)&obj->as.hash.ifnone);
+	break;
 
       case T_STRING:
 #define STR_ASSOC FL_USER3   /* copied from string.c */
 	if (FL_TEST(obj, RSTRING_NOEMBED) && FL_ANY(obj, ELTS_SHARED|STR_ASSOC)) {
-	    ptr = (VALUE *)&obj->as.string.as.heap.aux.shared;
-	    goto again;
+	    gc_mark2(objspace, (VALUE *)&obj->as.string.as.heap.aux.shared);
+	    break;
 	}
 	break;
 
@@ -3901,8 +3884,8 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
         break;
 
       case T_REGEXP:
-        ptr = (VALUE *)&obj->as.regexp.src;
-        goto again;
+        gc_mark2(objspace, (VALUE *)&obj->as.regexp.src);
+	break;
 
       case T_FLOAT:
       case T_BIGNUM:
@@ -3911,20 +3894,19 @@ gc_mark_children(rb_objspace_t *objspace, VALUE *ptr)
       case T_MATCH:
 	gc_mark2(objspace, &obj->as.match.regexp);
 	if (obj->as.match.str) {
-	    ptr = &obj->as.match.str;
-	    goto again;
+	    gc_mark2(objspace, &obj->as.match.str);
 	}
 	break;
 
       case T_RATIONAL:
 	gc_mark2(objspace, (VALUE *)&obj->as.rational.num);
-	ptr = (VALUE *)&obj->as.rational.den;
-	goto again;
+	gc_mark2(objspace, (VALUE *)&obj->as.rational.den);
+	break;
 
       case T_COMPLEX:
 	gc_mark2(objspace, (VALUE *)&obj->as.complex.real);
-	ptr = (VALUE *)&obj->as.complex.imag;
-	goto again;
+	gc_mark2(objspace, (VALUE *)&obj->as.complex.imag);
+	break;
 
       case T_STRUCT:
 	{
