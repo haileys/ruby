@@ -1780,8 +1780,7 @@ time_mark(void *ptr)
     struct time_object *tobj = ptr;
     if (!tobj) return;
     if (!FIXWV_P(tobj->timew)) {
-	VALUE v = w2v(tobj->timew);
-        rb_gc_mark(&v);
+        rb_gc_mark((VALUE*)&tobj->timew);
     }
     rb_gc_mark(&tobj->vtm.year);
     rb_gc_mark(&tobj->vtm.subsecx);
