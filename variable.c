@@ -988,20 +988,12 @@ rb_mark_generic_ivar(VALUE obj)
 }
 
 static int
-givar_mark_i(st_data_t k, st_data_t v, st_data_t a)
-{
-    VALUE value = (VALUE)v;
-    rb_gc_mark(&value);
-    return ST_CONTINUE;
-}
-
-static int
 givar_i(st_data_t k, st_data_t v, st_data_t a)
 {
     VALUE obj = (VALUE)k;
     st_table *tbl = (st_table *)v;
     if (rb_special_const_p(obj)) {
-	st_foreach_safe(tbl, givar_mark_i, 0);
+	rb_mark_tbl(tbl);
     }
     return ST_CONTINUE;
 }
