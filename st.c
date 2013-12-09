@@ -17,19 +17,6 @@
 
 typedef struct st_table_entry st_table_entry;
 
-struct st_table_entry {
-    st_index_t hash;
-    st_data_t key;
-    st_data_t record;
-    st_table_entry *next;
-    st_table_entry *fore, *back;
-};
-
-typedef struct st_packed_entry {
-    st_index_t hash;
-    st_data_t key, val;
-} st_packed_entry;
-
 #define STATIC_ASSERT(name, expr) typedef int static_assert_##name##_check[(expr) ? 1 : -1];
 
 #define ST_DEFAULT_MAX_DENSITY 5

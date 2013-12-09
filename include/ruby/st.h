@@ -95,6 +95,19 @@ struct st_table {
     } as;
 };
 
+struct st_table_entry {
+    st_index_t hash;
+    st_data_t key;
+    st_data_t record;
+    struct st_table_entry *next;
+    struct st_table_entry *fore, *back;
+};
+
+typedef struct st_packed_entry {
+    st_index_t hash;
+    st_data_t key, val;
+} st_packed_entry;
+
 #define st_is_member(table,key) st_lookup((table),(key),(st_data_t *)0)
 
 enum st_retval {ST_CONTINUE, ST_STOP, ST_DELETE, ST_CHECK};
