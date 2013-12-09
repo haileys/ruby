@@ -1639,14 +1639,6 @@ rb_vm_call_cfunc(VALUE recv, VALUE (*func)(VALUE), VALUE arg,
 
 /* vm */
 
-static int
-vm_mark_each_thread_func(st_data_t key, st_data_t value, st_data_t dummy)
-{
-    VALUE thval = (VALUE)key;
-    rb_gc_mark(&thval);
-    return ST_CONTINUE;
-}
-
 void rb_vm_trace_mark_event_hooks(rb_hook_list_t *hooks);
 
 void
@@ -1659,7 +1651,7 @@ rb_vm_mark(void *ptr)
     if (ptr) {
 	rb_vm_t *vm = ptr;
 	if (vm->living_threads) {
-	    st_foreach(vm->living_threads, vm_mark_each_thread_func, 0);
+	    rb_mark_set(vm->living_threads);
 	}
 	RUBY_MARK_UNLESS_NULL(vm->thgroup_default);
 	RUBY_MARK_UNLESS_NULL(vm->mark_object_ary);
