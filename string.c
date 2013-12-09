@@ -132,6 +132,8 @@ static const struct st_hash_type fstring_hash_type = {
     rb_str_hash,
 };
 
+static void str_make_independent_expand(VALUE, long);
+
 static int
 fstr_update_callback(st_data_t *key, st_data_t *value, st_data_t arg, int existing)
 {
@@ -146,13 +148,11 @@ fstr_update_callback(st_data_t *key, st_data_t *value, st_data_t arg, int existi
     }
 
     if (STR_SHARED_P(str)) {
-	/* str should not be shared */
-	str = rb_enc_str_new(RSTRING_PTR(str), RSTRING_LEN(str), STR_ENC_GET(str));
-	OBJ_FREEZE(str);
+	str_make_independent_expand(str, 0);
     }
-    else {
-	str = rb_str_new_frozen(str);
-    }
+
+    str = rb_str_new_frozen(str);
+
     RBASIC(str)->flags |= RSTRING_FSTR;
 
     *key = *value = *fstr = str;
