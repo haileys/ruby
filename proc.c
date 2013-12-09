@@ -59,7 +59,9 @@ proc_mark(void *ptr)
 	RUBY_MARK_UNLESS_NULL(proc->block.proc);
 	RUBY_MARK_UNLESS_NULL(proc->block.self);
 	if (proc->block.iseq && RUBY_VM_IFUNC_P(proc->block.iseq)) {
-	    RUBY_MARK_UNLESS_NULL((VALUE)(proc->block.iseq));
+	    if (RTEST((VALUE)proc->block.iseq)) {
+		rb_gc_mark((VALUE *)&proc->block.iseq);
+	    }
 	}
     }
     RUBY_MARK_LEAVE("proc");
@@ -1075,9 +1077,9 @@ static void
 bm_mark(void *ptr)
 {
     struct METHOD *data = ptr;
-    rb_gc_mark(data->defined_class);
-    rb_gc_mark(data->rclass);
-    rb_gc_mark(data->recv);
+    rb_gc_mark(&data->defined_class);
+    rb_gc_mark(&data->rclass);
+    rb_gc_mark(&data->recv);
     if (data->me) rb_mark_method_entry(data->me);
 }
 

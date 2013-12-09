@@ -74,7 +74,7 @@ location_mark(void *ptr)
 {
     if (ptr) {
 	struct valued_frame_info *vfi = (struct valued_frame_info *)ptr;
-	rb_gc_mark(vfi->btobj);
+	rb_gc_mark(&vfi->btobj);
     }
 }
 
@@ -84,7 +84,7 @@ location_mark_entry(rb_backtrace_location_t *fi)
     switch (fi->type) {
       case LOCATION_TYPE_ISEQ:
       case LOCATION_TYPE_ISEQ_CALCED:
-	rb_gc_mark(fi->body.iseq.iseq->self);
+	rb_gc_mark((VALUE *)&fi->body.iseq.iseq->self);
 	break;
       case LOCATION_TYPE_CFUNC:
       case LOCATION_TYPE_IFUNC:
@@ -383,7 +383,7 @@ backtrace_mark(void *ptr)
 
 	for (i=0; i<s; i++) {
 	    location_mark_entry(&bt->backtrace[i]);
-	    rb_gc_mark(bt->strary);
+	    rb_gc_mark(&bt->strary);
 	}
     }
 }

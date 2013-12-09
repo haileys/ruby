@@ -1331,24 +1331,24 @@ mark_exec_arg(void *ptr)
 {
     struct rb_execarg *eargp = ptr;
     if (eargp->use_shell)
-        rb_gc_mark(eargp->invoke.sh.shell_script);
+        rb_gc_mark(&eargp->invoke.sh.shell_script);
     else {
-        rb_gc_mark(eargp->invoke.cmd.command_name);
-        rb_gc_mark(eargp->invoke.cmd.command_abspath);
-        rb_gc_mark(eargp->invoke.cmd.argv_str);
-        rb_gc_mark(eargp->invoke.cmd.argv_buf);
+        rb_gc_mark(&eargp->invoke.cmd.command_name);
+        rb_gc_mark(&eargp->invoke.cmd.command_abspath);
+        rb_gc_mark(&eargp->invoke.cmd.argv_str);
+        rb_gc_mark(&eargp->invoke.cmd.argv_buf);
     }
-    rb_gc_mark(eargp->redirect_fds);
-    rb_gc_mark(eargp->envp_str);
-    rb_gc_mark(eargp->envp_buf);
-    rb_gc_mark(eargp->dup2_tmpbuf);
-    rb_gc_mark(eargp->rlimit_limits);
-    rb_gc_mark(eargp->fd_dup2);
-    rb_gc_mark(eargp->fd_close);
-    rb_gc_mark(eargp->fd_open);
-    rb_gc_mark(eargp->fd_dup2_child);
-    rb_gc_mark(eargp->env_modification);
-    rb_gc_mark(eargp->chdir_dir);
+    rb_gc_mark(&eargp->redirect_fds);
+    rb_gc_mark(&eargp->envp_str);
+    rb_gc_mark(&eargp->envp_buf);
+    rb_gc_mark(&eargp->dup2_tmpbuf);
+    rb_gc_mark(&eargp->rlimit_limits);
+    rb_gc_mark(&eargp->fd_dup2);
+    rb_gc_mark(&eargp->fd_close);
+    rb_gc_mark(&eargp->fd_open);
+    rb_gc_mark(&eargp->fd_dup2_child);
+    rb_gc_mark(&eargp->env_modification);
+    rb_gc_mark(&eargp->chdir_dir);
 }
 
 static void

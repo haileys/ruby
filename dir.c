@@ -359,7 +359,7 @@ static void
 dir_mark(void *ptr)
 {
     struct dir_data *dir = ptr;
-    rb_gc_mark(dir->path);
+    rb_gc_mark(&dir->path);
 }
 
 static void

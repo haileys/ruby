@@ -312,7 +312,7 @@ static ID id_rand, id_bytes;
 static void
 random_mark(void *ptr)
 {
-    rb_gc_mark(((rb_random_t *)ptr)->seed);
+    rb_gc_mark(&((rb_random_t *)ptr)->seed);
 }
 
 static void

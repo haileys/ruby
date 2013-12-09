@@ -143,14 +143,14 @@ static void
 enumerator_mark(void *p)
 {
     struct enumerator *ptr = p;
-    rb_gc_mark(ptr->obj);
-    rb_gc_mark(ptr->args);
-    rb_gc_mark(ptr->fib);
-    rb_gc_mark(ptr->dst);
-    rb_gc_mark(ptr->lookahead);
-    rb_gc_mark(ptr->feedvalue);
-    rb_gc_mark(ptr->stop_exc);
-    rb_gc_mark(ptr->size);
+    rb_gc_mark(&ptr->obj);
+    rb_gc_mark(&ptr->args);
+    rb_gc_mark(&ptr->fib);
+    rb_gc_mark(&ptr->dst);
+    rb_gc_mark(&ptr->lookahead);
+    rb_gc_mark(&ptr->feedvalue);
+    rb_gc_mark(&ptr->stop_exc);
+    rb_gc_mark(&ptr->size);
 }
 
 #define enumerator_free RUBY_TYPED_DEFAULT_FREE
@@ -1059,7 +1059,7 @@ static void
 yielder_mark(void *p)
 {
     struct yielder *ptr = p;
-    rb_gc_mark(ptr->proc);
+    rb_gc_mark(&ptr->proc);
 }
 
 #define yielder_free RUBY_TYPED_DEFAULT_FREE
@@ -1165,7 +1165,7 @@ static void
 generator_mark(void *p)
 {
     struct generator *ptr = p;
-    rb_gc_mark(ptr->proc);
+    rb_gc_mark(&ptr->proc);
 }
 
 #define generator_free RUBY_TYPED_DEFAULT_FREE

@@ -97,8 +97,8 @@ static int
 mark_marshal_compat_i(st_data_t key, st_data_t value)
 {
     marshal_compat_t *p = (marshal_compat_t *)value;
-    rb_gc_mark(p->newclass);
-    rb_gc_mark(p->oldclass);
+    rb_gc_mark(&p->newclass);
+    rb_gc_mark(&p->oldclass);
     return ST_CONTINUE;
 }
 
@@ -167,7 +167,7 @@ mark_dump_arg(void *ptr)
         return;
     rb_mark_set(p->data);
     rb_mark_hash(p->compat_tbl);
-    rb_gc_mark(p->str);
+    rb_gc_mark(&p->str);
 }
 
 static void

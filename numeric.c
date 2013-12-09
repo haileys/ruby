@@ -1458,7 +1458,7 @@ flo_is_finite_p(VALUE num)
     double value = RFLOAT_VALUE(num);
 
 #if HAVE_FINITE
-    if (!finite(value))
+    if (!isfinite(value))
 	return Qfalse;
 #else
     if (isinf(value) || isnan(value))

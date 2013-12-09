@@ -4638,7 +4638,7 @@ void rb_mutex_allow_trap(VALUE self, int val)
 static void
 thread_shield_mark(void *ptr)
 {
-    rb_gc_mark((VALUE)ptr);
+    rb_gc_mark((VALUE *)&ptr);
 }
 
 static const rb_data_type_t thread_shield_data_type = {

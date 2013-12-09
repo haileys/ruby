@@ -501,7 +501,7 @@ void
 val_marker(VALUE *var)
 {
     VALUE data = (VALUE)var;
-    if (data) rb_gc_mark_maybe(data);
+    if (data) rb_gc_mark_maybe(&data);
 }
 
 VALUE
@@ -521,7 +521,7 @@ var_setter(VALUE val, ID id, void *data, struct global_variable *gvar)
 void
 var_marker(VALUE *var)
 {
-    if (var) rb_gc_mark_maybe(*var);
+    if (var) rb_gc_mark_maybe(var);
 }
 
 void
@@ -540,7 +540,7 @@ mark_global_entry(st_data_t k, st_data_t v, st_data_t a)
     (*var->marker)(var->data);
     trace = var->trace;
     while (trace) {
-	if (trace->data) rb_gc_mark_maybe(trace->data);
+	if (trace->data) rb_gc_mark_maybe(&trace->data);
 	trace = trace->next;
     }
     return ST_CONTINUE;
@@ -991,7 +991,7 @@ static int
 givar_mark_i(st_data_t k, st_data_t v, st_data_t a)
 {
     VALUE value = (VALUE)v;
-    rb_gc_mark(value);
+    rb_gc_mark(&value);
     return ST_CONTINUE;
 }
 
@@ -1564,9 +1564,9 @@ static void
 autoload_i_mark(void *ptr)
 {
     struct autoload_data_i *p = ptr;
-    rb_gc_mark(p->feature);
-    rb_gc_mark(p->thread);
-    rb_gc_mark(p->value);
+    rb_gc_mark(&p->feature);
+    rb_gc_mark(&p->thread);
+    rb_gc_mark(&p->value);
 }
 
 static void

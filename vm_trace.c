@@ -53,7 +53,7 @@ rb_vm_trace_mark_event_hooks(rb_hook_list_t *hooks)
     rb_event_hook_t *hook = hooks->hooks;
 
     while (hook) {
-	rb_gc_mark(hook->data);
+	rb_gc_mark(&hook->data);
 	hook = hook->next;
     }
 }
@@ -655,8 +655,8 @@ tp_mark(void *ptr)
 {
     if (ptr) {
 	rb_tp_t *tp = (rb_tp_t *)ptr;
-	rb_gc_mark(tp->proc);
-	if (tp->target_th) rb_gc_mark(tp->target_th->self);
+	rb_gc_mark(&tp->proc);
+	if (tp->target_th) rb_gc_mark(&tp->target_th->self);
     }
 }
 

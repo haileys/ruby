@@ -174,9 +174,9 @@ cont_mark(void *ptr)
     RUBY_MARK_ENTER("cont");
     if (ptr) {
 	rb_context_t *cont = ptr;
-	rb_gc_mark(cont->value);
+	rb_gc_mark(&cont->value);
 	rb_thread_mark(&cont->saved_thread);
-	rb_gc_mark(cont->saved_thread.self);
+	rb_gc_mark(&cont->saved_thread.self);
 
 	if (cont->vm_stack) {
 #ifdef CAPTURE_JUST_VALID_VM_STACK
@@ -304,7 +304,7 @@ fiber_mark(void *ptr)
     RUBY_MARK_ENTER("cont");
     if (ptr) {
 	rb_fiber_t *fib = ptr;
-	rb_gc_mark(fib->prev);
+	rb_gc_mark(&fib->prev);
 	cont_mark(&fib->cont);
     }
     RUBY_MARK_LEAVE("cont");

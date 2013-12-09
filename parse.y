@@ -10874,24 +10874,24 @@ parser_mark(void *ptr)
 {
     struct parser_params *p = (struct parser_params*)ptr;
 
-    rb_gc_mark((VALUE)p->parser_lex_strterm);
-    rb_gc_mark((VALUE)p->parser_deferred_nodes);
-    rb_gc_mark(p->parser_lex_input);
-    rb_gc_mark(p->parser_lex_lastline);
-    rb_gc_mark(p->parser_lex_nextline);
-    rb_gc_mark(p->parser_ruby_sourcefile_string);
+    rb_gc_mark((VALUE *)&p->parser_lex_strterm);
+    rb_gc_mark((VALUE *)&p->parser_deferred_nodes);
+    rb_gc_mark(&p->parser_lex_input);
+    rb_gc_mark(&p->parser_lex_lastline);
+    rb_gc_mark(&p->parser_lex_nextline);
+    rb_gc_mark(&p->parser_ruby_sourcefile_string);
 #ifndef RIPPER
-    rb_gc_mark((VALUE)p->parser_eval_tree_begin) ;
-    rb_gc_mark((VALUE)p->parser_eval_tree) ;
-    rb_gc_mark(p->debug_lines);
+    rb_gc_mark((VALUE *)&p->parser_eval_tree_begin) ;
+    rb_gc_mark((VALUE *)&p->parser_eval_tree) ;
+    rb_gc_mark(&p->debug_lines);
 #else
-    rb_gc_mark(p->delayed);
-    rb_gc_mark(p->value);
-    rb_gc_mark(p->result);
-    rb_gc_mark(p->parsing_thread);
+    rb_gc_mark(&p->delayed);
+    rb_gc_mark(&p->value);
+    rb_gc_mark(&p->result);
+    rb_gc_mark(&p->parsing_thread);
 #endif
 #ifdef YYMALLOC
-    rb_gc_mark((VALUE)p->heap);
+    rb_gc_mark((VALUE *)&p->heap);
 #endif
 }
 

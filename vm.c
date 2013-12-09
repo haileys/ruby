@@ -331,7 +331,7 @@ env_mark(void * const ptr)
 
 	if (env->block.iseq) {
 	    if (BUILTIN_TYPE(env->block.iseq) == T_NODE) {
-		RUBY_MARK_UNLESS_NULL((VALUE)env->block.iseq);
+		RUBY_MARK_UNLESS_NULL(env->block.iseq);
 	    }
 	    else {
 		RUBY_MARK_UNLESS_NULL(env->block.iseq->self);
@@ -1643,7 +1643,7 @@ static int
 vm_mark_each_thread_func(st_data_t key, st_data_t value, st_data_t dummy)
 {
     VALUE thval = (VALUE)key;
-    rb_gc_mark(thval);
+    rb_gc_mark(&thval);
     return ST_CONTINUE;
 }
 
@@ -1682,7 +1682,7 @@ rb_vm_mark(void *ptr)
 
 	for (i = 0; i < RUBY_NSIG; i++) {
 	    if (vm->trap_list[i].cmd)
-		rb_gc_mark(vm->trap_list[i].cmd);
+		rb_gc_mark(&vm->trap_list[i].cmd);
 	}
 	if (vm->defined_strings) {
 	    rb_gc_mark_locations(vm->defined_strings, vm->defined_strings + DEFINED_EXPR);
@@ -1915,17 +1915,17 @@ rb_thread_mark(void *ptr)
 	    rb_control_frame_t *limit_cfp = (void *)(th->stack + th->stack_size);
 
 	    while (p < sp) {
-		rb_gc_mark(*p++);
+		rb_gc_mark(p++);
 	    }
 	    rb_gc_mark_locations(p, p + th->mark_stack_len);
 
 	    while (cfp != limit_cfp) {
 		rb_iseq_t *iseq = cfp->iseq;
-		rb_gc_mark(cfp->proc);
-		rb_gc_mark(cfp->self);
-		rb_gc_mark(cfp->klass);
+		rb_gc_mark(&cfp->proc);
+		rb_gc_mark(&cfp->self);
+		rb_gc_mark(&cfp->klass);
 		if (iseq) {
-		    rb_gc_mark(RUBY_VM_NORMAL_ISEQ_P(iseq) ? iseq->self : (VALUE)iseq);
+		    rb_gc_mark(RUBY_VM_NORMAL_ISEQ_P(iseq) ? &iseq->self : (VALUE *)&cfp->iseq);
 		}
 		if (cfp->me) {
 		    /* TODO: marking `me' can be more sophisticated way */

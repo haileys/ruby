@@ -83,12 +83,12 @@ rb_mark_end_proc(void)
 
     link = end_procs;
     while (link) {
-	rb_gc_mark(link->data);
+	rb_gc_mark(&link->data);
 	link = link->next;
     }
     link = ephemeral_end_procs;
     while (link) {
-	rb_gc_mark(link->data);
+	rb_gc_mark(&link->data);
 	link = link->next;
     }
 }
