@@ -780,12 +780,18 @@ struct RObject {
 /** @internal */
 typedef struct rb_classext_struct rb_classext_t;
 
+/**
+ * In the case that this is an `ICLASS`, `module_subclasses` points to the link
+ * in the module's `subclasses` list that indicates that the klass has been
+ * included. Hopefully that makes sense.
+ */
 struct RClass {
     struct RBasic basic;
     rb_classext_t *ptr;
     struct st_table *m_tbl;
     struct st_table *iv_index_tbl;
 };
+
 #define RCLASS_SUPER(c) rb_class_get_superclass(c)
 #define RMODULE_IV_TBL(m) RCLASS_IV_TBL(m)
 #define RMODULE_CONST_TBL(m) RCLASS_CONST_TBL(m)

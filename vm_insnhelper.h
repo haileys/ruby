@@ -258,14 +258,22 @@ enum vm_regan_acttype {
     CALL_METHOD(ci); \
 } while (0)
 
-static VALUE ruby_vm_global_state_version = 1;
+static vm_state_version_t ruby_vm_sequence = 1;
+#define NEXT_SEQ() (++ruby_vm_sequence)
 
-#define GET_VM_STATE_VERSION() (ruby_vm_global_state_version)
-#define INC_VM_STATE_VERSION() do { \
-    ruby_vm_global_state_version = (ruby_vm_global_state_version + 1); \
-    if (ruby_vm_global_state_version == 0) vm_clear_all_cache(); \
-} while (0)
-static void vm_clear_all_cache(void);
+static vm_state_version_t ruby_global_method_state_version = 1;
+#define GET_METHOD_STATE_VERSION() (ruby_global_method_state_version)
+#define INC_METHOD_STATE_VERSION() (++ruby_global_method_state_version)
+
+static vm_state_version_t ruby_global_const_state_version = 1;
+#define GET_CONST_STATE_VERSION() (ruby_global_const_state_version)
+#define INC_CONST_STATE_VERSION() (++ruby_global_const_state_version)
+
+vm_state_version_t
+rb_next_seq()
+{
+    return NEXT_SEQ();
+}
 
 static VALUE make_no_method_exception(VALUE exc, const char *format,
 				      VALUE obj, int argc, const VALUE *argv);
