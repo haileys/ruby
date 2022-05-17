@@ -2967,6 +2967,40 @@ primary		: literal
 		| qsymbols
 		| var_ref
 		| backref
+		| '\\' tIVAR
+		    {
+		    /*%%%*/
+			$$ = NEW_IVAR_REF($2, &@$);
+		    /*% %*/
+		    }
+		| '\\' tCVAR
+		    {
+		    /*%%%*/
+			$$ = NEW_CVAR_REF($2, &@$);
+		    /*% %*/
+		    }
+		| '\\' tGVAR
+		    {
+		    /*%%%*/
+			$$ = NEW_GVAR_REF($2, &@$);
+		    /*% %*/
+		    }
+		| '\\' tIDENTIFIER
+		    {
+		    /*%%%*/
+			if (dyna_in_block(p) && dvar_defined(p, $2)) {
+			    $$ = NEW_DVAR_REF($2, &@$);
+			} else {
+			    // if not an existing local variable, use this as an implicit definition
+			    if (!local_id(p, $2)) {
+				dyna_var(p, $2);
+				$$ = NEW_LVAR_REF($2, &@$);
+			    } else {
+				$$ = NEW_LVAR_REF($2, &@$);
+			    }
+			}
+		    /*% %*/
+		    }
 		| tFID
 		    {
 		    /*%%%*/

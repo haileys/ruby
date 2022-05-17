@@ -483,11 +483,15 @@ node_children(rb_ast_t *ast, const NODE *node)
         return rb_ary_new_from_node_args(ast, 1, node->nd_head);
       case NODE_LVAR:
       case NODE_DVAR:
+      case NODE_LVAR_REF:
+      case NODE_DVAR_REF:
         return rb_ary_new_from_args(1, var_name(node->nd_vid));
       case NODE_IVAR:
       case NODE_CONST:
       case NODE_CVAR:
       case NODE_GVAR:
+      case NODE_IVAR_REF:
+      case NODE_CVAR_REF:
         return rb_ary_new_from_args(1, ID2SYM(node->nd_vid));
       case NODE_NTH_REF:
         snprintf(name, sizeof(name), "$%ld", node->nd_nth);

@@ -132,6 +132,7 @@ COMMONOBJS    = array.$(OBJEXT) \
 		regexec.$(OBJEXT) \
 		regparse.$(OBJEXT) \
 		regsyntax.$(OBJEXT) \
+		ref.$(OBJEXT) \
 		ruby.$(OBJEXT) \
 		scheduler.$(OBJEXT) \
 		signal.$(OBJEXT) \

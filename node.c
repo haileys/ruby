@@ -1099,6 +1099,30 @@ dump_node(VALUE buf, VALUE indent, int comment, const NODE * node)
         }
         return;
 
+      case NODE_LVAR_REF:
+	ANN("reference to local variable");
+	ANN("format: \[nd_vid](lvar)");
+	F_ID(nd_vid, "local variable");
+	return;
+
+      case NODE_DVAR_REF:
+	ANN("reference to dynamic variable");
+	ANN("format: \[nd_vid](dvar)");
+	F_ID(nd_vid, "dynamic variable");
+	return;
+
+      case NODE_IVAR_REF:
+	ANN("reference to instance variable");
+	ANN("format: \[nd_vid](ivar)");
+	F_ID(nd_vid, "instance variable");
+	return;
+
+      case NODE_CVAR_REF:
+	ANN("reference to class variable");
+	ANN("format: \[nd_vid](cvar)");
+	F_ID(nd_vid, "class variable");
+	return;
+
       case NODE_ARGS_AUX:
       case NODE_LAST:
 	break;

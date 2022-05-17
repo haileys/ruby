@@ -26,6 +26,7 @@
 #include "internal/thread.h"
 #include "internal/vm.h"
 #include "internal/sanitizers.h"
+#include "internal/ref.h"
 #include "iseq.h"
 #include "mjit.h"
 #include "yjit.h"

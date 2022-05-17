@@ -9805,6 +9805,35 @@ iseq_compile_each0(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const no
 	}
 	break;
       }
+      case NODE_LVAR_REF:
+	if (!popped) {
+	    struct rb_iseq_constant_body *const body = ISEQ_BODY(iseq);
+	    ID id = node->nd_vid;
+	    int idx = ISEQ_BODY(body->local_iseq)->local_table_size - get_local_var_idx(iseq, id);
+	    ADD_INSN2(ret, node, reflocal, INT2FIX(idx + VM_ENV_DATA_SIZE - 1), INT2FIX(get_lvar_level(iseq)));
+	}
+	break;
+      case NODE_DVAR_REF:
+	if (!popped) {
+	    int lv, ls;
+	    int idx = get_dyna_var_idx(iseq, node->nd_vid, &lv, &ls);
+	    if (idx < 0) {
+		rb_bug("unknown dvar (%s)", rb_id2name(node->nd_vid));
+	    }
+	    ADD_INSN2(ret, node, reflocal, INT2FIX((ls - idx) + VM_ENV_DATA_SIZE - 1), INT2FIX(lv));
+	}
+	break;
+      case NODE_IVAR_REF:
+	if (!popped) {
+	    ADD_INSN1(ret, node, refivar, ID2SYM(node->nd_vid));
+	}
+	break;
+      case NODE_CVAR_REF:
+	if (!popped) {
+	    ADD_INSN1(ret, node, refcvar, ID2SYM(node->nd_vid));
+	}
+	break;
+
       default:
 	UNKNOWN_NODE("iseq_compile_each", node, COMPILE_NG);
       ng:

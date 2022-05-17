@@ -12,6 +12,7 @@
 **********************************************************************/
 
 #include "internal/compilers.h"
+#include "internal/ref.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -125,6 +126,10 @@ enum node_type {
     NODE_ARYPTN,
     NODE_HSHPTN,
     NODE_FNDPTN,
+    NODE_LVAR_REF,
+    NODE_DVAR_REF,
+    NODE_IVAR_REF,
+    NODE_CVAR_REF,
     NODE_LAST
 };
 
@@ -386,6 +391,11 @@ typedef struct RNode {
 #define NEW_PREEXE(b,loc) NEW_SCOPE(b,loc)
 #define NEW_POSTEXE(b,loc) NEW_NODE(NODE_POSTEXE,0,b,0,loc)
 #define NEW_ATTRASGN(r,m,a,loc) NEW_NODE(NODE_ATTRASGN,r,m,a,loc)
+#define NEW_LVAR_REF(v,loc) NEW_NODE(NODE_LVAR_REF,v,0,0,loc)
+#define NEW_DVAR_REF(v,loc) NEW_NODE(NODE_DVAR_REF,v,0,0,loc)
+#define NEW_IVAR_REF(v,loc) NEW_NODE(NODE_IVAR_REF,v,0,0,loc)
+#define NEW_CVAR_REF(v,loc) NEW_NODE(NODE_CVAR_REF,v,0,0,loc)
+#define NEW_GVAR_REF(v,loc) NEW_NODE(NODE_LIT,rb_ref_global(v),0,0,loc)
 
 #define NODE_SPECIAL_REQUIRED_KEYWORD ((NODE *)-1)
 #define NODE_REQUIRED_KEYWORD_P(node) ((node)->nd_value == NODE_SPECIAL_REQUIRED_KEYWORD)
